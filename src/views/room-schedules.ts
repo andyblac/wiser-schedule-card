@@ -1,4 +1,5 @@
 import '../components/moments';
+import { plugIcon } from '../components/plug-icon';
 import { loadHaControls } from '../components/ha-controls';
 import { SchedulerEditCard } from './schedule-edit';
 import { LitElement, html, css, PropertyValues } from 'lit';
@@ -393,7 +394,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                     >
                       <span class="icon" aria-hidden="true"
                         ><ha-icon
-                          .icon=${{ heating: 'mdi:home-thermometer-outline', hotwater: 'mdi:water-boiler', lighting: 'mdi:lightbulb-outline', onoff: 'mdi:power-socket-uk', shutters: 'mdi:window-shutter' }[item.kind]}
+                          .icon=${{ heating: 'mdi:home-thermometer-outline', hotwater: 'mdi:water-boiler', lighting: 'mdi:lightbulb-outline', onoff: plugIcon((this.hass?.config as { country?: string | null })?.country), shutters: 'mdi:window-shutter' }[item.kind]}
                         ></ha-icon
                       ></span>
                       <span class="room-text"

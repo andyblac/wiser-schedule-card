@@ -76,7 +76,11 @@
     customElements.define(
       'ha-icon',
       class extends HTMLElement {
+        get icon() {
+          return this._icon;
+        }
         set icon(value) {
+          this._icon = value;
           this.setAttribute('aria-hidden', 'true');
           this.textContent =
             {
@@ -184,7 +188,7 @@
       calls: [],
     };
     window.makeHass = () => ({
-      config: { components: ['wiser'] },
+      config: { components: ['wiser'], country: 'GB' },
       user: { is_admin: true },
       states: {
         'button.wiser_movie': {

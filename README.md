@@ -134,3 +134,5 @@ Creating a schedule from a room or device automatically assigns it to that room 
 The schedule chooser uses Home Assistant’s native selector, loaded explicitly on first use. The chooser and create/rename name fields are limited to 420px and shrink to fit smaller screens.
 
 The detail toolbar can export the selected schedule as a versioned JSON file and import a compatible export. Import validates the file and opens an editable draft; Save applies its times and settings to the current schedule while preserving its name and assignments.
+
+Smart-plug tiles choose a regional socket icon using Home Assistant’s configured country. Unset or unmapped countries use a generic plug icon; browser language does not determine the socket type.

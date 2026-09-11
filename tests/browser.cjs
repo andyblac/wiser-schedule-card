@@ -237,6 +237,35 @@ const assert = require('node:assert/strict');
       mountCard();
     });
     await page.getByRole('heading', { name: 'Lighting & devices', exact: true }).waitFor();
+    for (const [country, icon] of [
+      ['GB', 'uk'],
+      ['US', 'us'],
+      ['AU', 'au'],
+      ['DE', 'de'],
+      ['FR', 'fr'],
+      ['CH', 'ch'],
+      ['IT', 'it'],
+      ['JP', 'jp'],
+      [null, null],
+    ]) {
+      await page.evaluate((country) => {
+        const hass = makeHass();
+        hass.config.country = country;
+        document.querySelector('wiser-schedule-card').hass = hass;
+      }, country);
+      await page.waitForFunction(
+        (expected) => {
+          const room = document.querySelector('wiser-schedule-card').shadowRoot.querySelector('wiser-room-schedules');
+          const tile = [...room.shadowRoot.querySelectorAll('button.room')].find((el) =>
+            el.textContent.includes('Desk plug'),
+          );
+          return tile.querySelector('ha-icon').icon === expected;
+        },
+        icon ? `mdi:power-socket-${icon}` : 'mdi:power-plug',
+      );
+    }
+    console.log('PASS country-specific plug icons and unknown-country fallback');
+
     await page.getByRole('heading', { name: 'Hot water', exact: true }).waitFor();
     assert.equal(await page.locator('.tools').count(), 0);
     await page.locator('button.room').filter({ hasText: 'Hall light' }).click();
