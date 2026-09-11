@@ -1,3 +1,4 @@
+import { loadHaControls } from '../components/ha-controls';
 import { importScheduleFile } from '../data/schedule-file';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -44,6 +45,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) public use_heat_colors = true;
   @property({ attribute: false }) public embedded = false;
 
+  @state() private assignmentSelection: string[] = [];
+  @state() private assigningDevices = false;
+
   @state() schedule?: Schedule;
   @state() rooms: Room[] = [];
   @state() entities: Entities[] = [];
@@ -78,7 +82,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   private async handleUpdate(ev: WiserEventData): Promise<void> {
-    if ((!this.config!.hub || ev.hub == this.config!.hub) && ev.event == 'wiser_updated') {
+    if (!this.assigningDevices && (!this.config!.hub || ev.hub == this.config!.hub) && ev.event == 'wiser_updated') {
       await this.loadData();
     }
   }
@@ -139,6 +143,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   private async loadData() {
     this.error = undefined;
+    if (!this.embedded) await loadHaControls();
     if (this.schedule_type && this.schedule_id && !this.editMode) {
       await fetchSunTimes(this.hass!, this.config!.hub)
         .then((res) => {
@@ -161,6 +166,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         await this.get_entity_list(this.hass!, this.config!.hub)
           .then((res) => {
             this.entities = res;
+            this.assignmentSelection = res
+              .filter((entity) => this.isAssigned(entity))
+              .map((entity) => String(entity.Id));
           })
           .catch((e) => {
             this.error = e;
@@ -171,10 +179,11 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   private async get_entity_list(hass, hub): Promise<Entities[]> {
+    if (this.schedule!.Id === 1000) return [];
     if (this.schedule!.Type.toLowerCase() == 'heating') {
       return await fetchRoomsList(hass, hub);
     }
-    return await fetchDeviceList(hass, hub, this.schedule!.SubType);
+    return await fetchDeviceList(hass, hub, this.schedule!.SubType || this.schedule!.Type);
   }
 
   protected shouldUpdate(changedProps: PropertyValues): boolean {
@@ -194,6 +203,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       changedProps.has('editMode') ||
       changedProps.has('_assigning_in_progress') ||
       changedProps.has('_save_in_progress') ||
+      changedProps.has('assignmentSelection') ||
+      changedProps.has('assigningDevices') ||
       (changedProps.has('error') && isDefined(this.error))
     ) {
       return true;
@@ -224,21 +235,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     if (this.schedule && this.entities && this.suntimes) {
       return html`
         <div>
-          ${
-            !this.embedded
-              ? html`<div class="schedule-info">
-                    <span class="sub-heading">${localize('wiser.headings.schedule_type')}: </span>
-                    ${this.schedule.SubType}
-                  </div>
-                  <div class="schedule-info">
-                    <span class="sub-heading">${localize('wiser.headings.schedule_id')}: </span> ${this.schedule.Id}
-                  </div>
-                  <div class="schedule-info">
-                    <span class="sub-heading">${localize('wiser.headings.schedule_name')}: </span> ${this.schedule.Name}
-                  </div> `
-              : ''
-          }
-          ${!this.embedded ? html`<div class=${this.editMode ? 'mode' : ''}>${this.editMode ? 'Edit Mode' : null}</div>` : ''}
+          ${this.embedded ? '' : this.renderToolbar()}
+          ${this.embedded || this.schedule.Id === 1000 ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
           <div class="wrapper">
             <div class="schedules">
               <div class="slots-wrapper">
@@ -254,60 +252,85 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
               </div>
             </div>
           </div>
-          ${this.embedded ? '' : this.renderScheduleAssignment(this.entities, this.schedule!.Assignments)}
-          ${this.embedded ? '' : this.renderScheduleActionButtonSection()}
         </div>
-        ${this.embedded ? '' : this.renderCardActions()}
       `;
     }
     return html``;
   }
 
-  renderScheduleAssignment(
-    entities: Entities[],
-    schedule_entities: ScheduleAssignments[] | string[],
-  ): TemplateResult | void {
-    if (this.schedule && !this.editMode) {
-      if (allow_edit(this.hass!, this.config)) {
-        return html`
-          <div class="assignment-wrapper">
-            <div class="sub-heading">${localize('wiser.headings.schedule_assignment')}</div>
-            ${
-              entities.length > 0
-                ? entities.map((entity) =>
-                    this.renderEntityButton(
-                      entity,
-                      schedule_entities
-                        .map(function (a) {
-                          return a.name;
-                        })
-                        .includes(entity.Name),
-                    ),
-                  )
-                : html`<div class="schedule-info">(No Assignable Devices)</div>`
-            }
-          </div>
-        `;
-      } else {
-        return html`
-          <div class="assignment-wrapper">
-            <div class="sub-heading">${localize('wiser.headings.schedule_assignment')}</div>
-            ${
-              schedule_entities.length > 0
-                ? entities
-                    .filter((entity) =>
-                      schedule_entities
-                        .map(function (a) {
-                          return a.name;
-                        })
-                        .includes(entity.Name),
-                    )
-                    .map((entity) => this.renderEntityLabel(entity))
-                : html`<span class="assignment-label">${localize('wiser.headings.not_assigned')}</span>`
-            }
-          </div>
-        `;
-      }
+  private isAssigned(entity: Entities): boolean {
+    return Boolean(
+      this.schedule?.Assignments.some((assignment) => {
+        const item = assignment as typeof assignment & { id?: number; name?: string };
+        const id = item.id ?? item.Id;
+        return id !== undefined ? String(id) === String(entity.Id) : (item.name ?? item.Name) === entity.Name;
+      }),
+    );
+  }
+
+  renderScheduleAssignment(entities: Entities[], _assignments: unknown): TemplateResult | void {
+    if (!this.schedule || this.editMode || this.schedule.Id === 1000) return;
+    if (!allow_edit(this.hass!, this.config))
+      return html`<p>
+        ${
+          entities
+            .filter((entity) => this.isAssigned(entity))
+            .map((entity) => entity.Name)
+            .join(', ') || localize('wiser.headings.not_assigned')
+        }
+      </p>`;
+    return html`<div class="device-assignment">
+      <ha-selector
+        .hass=${this.hass}
+        .label=${localize('wiser.home.assign_devices')}
+        .selector=${{ select: { multiple: true, mode: 'dropdown', options: entities.map((entity) => ({ value: String(entity.Id), label: entity.Name })) } }}
+        .value=${this.assignmentSelection}
+        .required=${false}
+        .disabled=${this.assigningDevices || !entities.length}
+        @value-changed=${(event: CustomEvent) => {
+          event.stopPropagation();
+          if (this.assigningDevices) return;
+          const selected = event.detail.value ?? [];
+          if (
+            Array.isArray(selected) &&
+            selected.every((value) => entities.some((entity) => String(entity.Id) === value))
+          )
+            this.assignmentSelection = selected;
+        }}
+      ></ha-selector>
+      ${!entities.length ? html`<p>${localize('wiser.home.no_devices')}</p>` : ''}
+    </div>`;
+  }
+
+  private async applyDeviceAssignments(): Promise<void> {
+    if (
+      !this.schedule ||
+      this.assigningDevices ||
+      this.editMode ||
+      this.schedule.Id === 1000 ||
+      !allow_edit(this.hass!, this.config)
+    )
+      return;
+    const changes = (this.entities || []).filter(
+      (entity) => this.isAssigned(entity) !== this.assignmentSelection.includes(String(entity.Id)),
+    );
+    this.assigningDevices = true;
+    try {
+      for (const entity of changes)
+        await assignSchedule(
+          this.hass!,
+          this.config.hub,
+          this.schedule.Type,
+          this.schedule.Id,
+          String(entity.Id),
+          !this.assignmentSelection.includes(String(entity.Id)),
+        );
+      await this.loadData();
+    } catch (error) {
+      await this.loadData();
+      showErrorDialog(this, 'Schedule assignment', (error as Error).message || localize('common.load_failed'));
+    } finally {
+      this.assigningDevices = false;
     }
   }
 
@@ -319,6 +342,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         class=${active ? 'active' : ''}
         appearance=${active ? 'accent' : 'plain'}
         size="small"
+        ?disabled=${Boolean(this._assigning_in_progress)}
+        aria-pressed=${active}
         @click=${this.entityAssignmentClick}
       >
         ${
@@ -331,135 +356,93 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     `;
   }
 
-  renderScheduleActionButtonSection(): TemplateResult | void {
-    //${this.renderFilesScheduleButton()}
-    if (this.schedule && !this.editMode) {
-      if (allow_edit(this.hass!, this.config)) {
-        return html`
-          <div class="actions-wrapper">
-            <div class="sub-heading">${localize('wiser.headings.schedule_actions')}</div>
-            <div class="wrapper schedule-action-wrapper">
-              ${this.renderScheduleRenameButton()} ${this.renderEditScheduleButton()} ${this.renderCopyScheduleButton()}
-              ${this.renderDeleteScheduleButton()}
-            </div>
-          </div>
-        `;
-      }
-    }
+  private tool(label: string, icon: string, action: () => unknown, disabled = false): TemplateResult {
+    return html`<button
+      type="button"
+      class="tool"
+      title=${label}
+      aria-label=${label}
+      ?disabled=${disabled}
+      @click=${action}
+    >
+      <ha-icon .icon=${icon} aria-hidden="true"></ha-icon>
+    </button>`;
   }
 
-  renderEntityLabel(entity: Entities): TemplateResult | void {
-    return html` <span class="assignment-label"> ${entity.Name} </span> `;
-  }
-
-  renderCardActions(): TemplateResult | void {
-    if (!this.config.selected_schedule || this.editMode) {
-      return html`
-        <div class="card-actions">
-          <div class="action-buttons">
-            ${!this.editMode ? this.renderBackButton() : null} ${this.editMode ? this.renderCancelButton() : null}
-            ${this.editMode ? this.renderSaveScheduleButton() : null}
-          </div>
-        </div>
-      `;
-    }
-  }
-
-  renderBackButton(): TemplateResult | void {
-    return html`
-      <button type="button" appearance="plain" @click=${this.backClick}>
-        ${this.hass!.localize('ui.common.back')}
-      </button>
-    `;
-  }
-
-  renderCancelButton(): TemplateResult | void {
-    return html`
-      <button type="button" appearance="plain" @click=${this.cancelClick}>
-        ${this.hass!.localize('ui.common.cancel')}
-      </button>
-    `;
-  }
-
-  renderScheduleRenameButton(): TemplateResult {
-    return html`
-      <button type="button" class="schedule-action-button" @click=${this.renameScheduleClick}>
-        ${localize('wiser.actions.rename')}
-      </button>
-    `;
-  }
-
-  renderDeleteScheduleButton(): TemplateResult | void {
-    return html`
-      <button
-        type="button"
-        class="schedule-action-button"
-        variant="danger"
-        .disabled=${this.schedule_id == 1000}
-        @click=${this.deleteClick}
-      >
-        ${this.hass!.localize('ui.common.delete')}
-      </button>
-    `;
-  }
-
-  renderCopyScheduleButton(): TemplateResult | void {
-    return html`
-      <button
-        type="button"
-        class="schedule-action-button"
-        .disabled=${this.schedule_id == 1000}
-        @click=${this.copyClick}
-      >
-        ${localize('wiser.actions.copy')}
-      </button>
-    `;
-  }
-
-  renderEditScheduleButton(): TemplateResult | void {
-    return html`
-      <button type="button" class="schedule-action-button" @click=${this.editClick}>
-        ${this.hass!.localize('ui.common.edit')}
-      </button>
-    `;
-  }
-
-  renderFilesScheduleButton(): TemplateResult | void {
-    return html`
-      <button type="button" class="schedule-action-button" @click=${this.filesClick}>
-        ${localize('wiser.actions.files')}
-      </button>
-    `;
-  }
-
-  renderSaveScheduleButton(): TemplateResult | void {
-    if (allow_edit(this.hass!, this.config)) {
-      return html`
-        <button type="button" appearance="plain" style="float: right" @click=${this.saveClick}>
+  private renderToolbar(): TemplateResult {
+    const editable = allow_edit(this.hass!, this.config);
+    const blocked = this.assigningDevices || this._save_in_progress;
+    const fixed = this.schedule!.Id === 1000;
+    const changed = (this.entities || []).some(
+      (entity) => this.isAssigned(entity) !== this.assignmentSelection.includes(String(entity.Id)),
+    );
+    return html` <input
+        class="import-file"
+        type="file"
+        accept=".json,application/json"
+        hidden
+        @change=${(event: Event) => {
+          const input = event.target as HTMLInputElement;
+          const file = input.files?.[0];
+          input.value = '';
+          if (file) void this.importSchedule(file);
+        }}
+      />
+      <div class="schedule-heading">
+        <h3>${this.schedule!.Name}</h3>
+        <div class="tools" role="toolbar" aria-label=${localize('wiser.headings.schedule_actions')}>
           ${
-            this._save_in_progress
-              ? html`<progress aria-label="Working"></progress>`
-              : this.hass!.localize('ui.common.save')
+            this.editMode
+              ? html`
+                  ${this.tool(this.hass!.localize('ui.common.cancel'), 'mdi:close', () => this.cancelClick(), blocked)}
+                  ${editable ? this.tool(this.hass!.localize('ui.common.save'), 'mdi:content-save', () => this.saveClick(), blocked) : ''}
+                `
+              : html`
+                  ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
+                  ${this.tool(localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked)}
+                  ${
+                    editable
+                      ? html`
+                          ${this.tool(localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked)}
+                          ${this.tool(this.hass!.localize('ui.common.edit'), 'mdi:pencil', () => this.editClick(), blocked)}
+                          ${this.tool(localize('wiser.actions.rename'), 'mdi:form-textbox', () => this.renameScheduleClick(), blocked)}
+                          ${this.tool(localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || fixed)}
+                          ${this.tool(this.hass!.localize('ui.common.delete'), 'mdi:delete-outline', () => this.deleteClick(), blocked || fixed)}
+                          ${!fixed ? this.tool(localize('wiser.home.apply_devices'), 'mdi:check', () => this.applyDeviceAssignments(), blocked || !changed) : ''}
+                        `
+                      : ''
+                  }
+                `
           }
-        </button>
-      `;
-    }
+        </div>
+      </div>`;
   }
 
   async entityAssignmentClick(ev: Event): Promise<void> {
-    const e = ev.target as HTMLDivElement;
+    const e = ev.currentTarget as HTMLElement;
+    if (
+      this._assigning_in_progress ||
+      this.editMode ||
+      this.schedule?.Id === 1000 ||
+      !allow_edit(this.hass!, this.config)
+    )
+      return;
     this._assigning_in_progress = parseInt(e.id);
-    if (allow_edit(this.hass!, this.config)) {
+    try {
       await assignSchedule(
         this.hass!,
-        this.config!.hub,
+        this.config.hub,
         this.schedule_type!,
         this.schedule_id!,
         e.id,
         e.classList.contains('active'),
       );
+      await this.loadData();
+    } catch (error) {
+      showErrorDialog(this, 'Schedule assignment', (error as Error).message || localize('common.load_failed'));
+    } finally {
+      this._assigning_in_progress = 0;
     }
-    this._assigning_in_progress = 0;
   }
 
   backClick(): void {
@@ -592,6 +575,40 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   static get styles(): CSSResultGroup {
     return css`
       ${commonStyle}
+      .schedule-heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .schedule-heading h3 {
+        margin: 16px 0 8px;
+        font-size: calc(22px + 1pt);
+      }
+      .tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-inline-start: auto;
+      }
+      .tool {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        color: var(--primary-color);
+      }
+      .device-assignment {
+        max-width: 420px;
+        margin: 20px 0;
+        display: grid;
+        gap: 8px;
+      }
+      .device-assignment button {
+        justify-self: start;
+      }
       :host {
         display: block;
         max-width: 100%;

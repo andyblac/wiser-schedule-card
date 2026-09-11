@@ -109,7 +109,14 @@
       "heating": "Chauffage",
       "hotwater": "Eau chaude",
       "devices": "Éclairage et appareils",
-      "empty": "Aucune pièce ni appareil Wiser programmable trouvé."
+      "empty": "Aucune pièce ni appareil Wiser programmable trouvé.",
+      "screen": "Écran d’accueil",
+      "devices_mode": "Appareils",
+      "no_schedules": "Aucun programme. Utilisez + pour en créer un.",
+      "assignments": "affectations",
+      "assign_devices": "Pièces / appareils affectés",
+      "apply_devices": "Appliquer les affectations",
+      "no_devices": "Aucun appareil compatible disponible."
     }
   }
 }

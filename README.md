@@ -136,3 +136,9 @@ The schedule chooser uses Home Assistant’s native selector, loaded explicitly 
 The detail toolbar can export the selected schedule as a versioned JSON file and import a compatible export. Import validates the file and opens an editable draft; Save applies its times and settings to the current schedule while preserving its name and assignments.
 
 Smart-plug tiles choose a regional socket icon using Home Assistant’s configured country. Unset or unmapped countries use a generic plug icon; browser language does not determine the socket type.
+
+### Home screen selection
+
+In the card editor, **Home screen → Devices / Schedules** chooses the starting view. Devices is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: devices`.
+
+The visual editor omits the legacy Title, pinned Schedule, and Layout fields. Existing YAML settings remain readable for compatibility.

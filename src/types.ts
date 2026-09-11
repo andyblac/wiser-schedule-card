@@ -10,6 +10,7 @@ declare global {
 // TODO Add your configuration elements here for type-checking
 export interface WiserScheduleCardConfig extends LovelaceCardConfig {
   name?: string;
+  home_screen?: 'devices' | 'schedules';
   theme_colors: boolean;
   display_only: boolean;
   admin_only: boolean;

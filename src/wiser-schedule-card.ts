@@ -9,6 +9,7 @@ import { CARD_VERSION, EViews } from './const';
 import { localize } from './localize/localize';
 
 import './views/room-schedules';
+import './views/schedules-home';
 import './views/schedule-edit';
 import './views/schedule-add';
 import './views/schedule-copy';
@@ -90,6 +91,7 @@ export class WiserScheduleCard extends LitElement {
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('config')) {
       this.style.removeProperty('--wiser-view-min-height');
+      this._returnView = EViews.Overview;
       this.processConfigSchedule();
     } else if (changedProps.has('_view')) {
       // Views fetch their data after mounting. Preserve the outgoing content's
@@ -199,6 +201,23 @@ export class WiserScheduleCard extends LitElement {
         ><div class="status" role="status">${localize('common.integration_unavailable')}</div></ha-card
       >`;
     const border_style = this.config.hide_card_borders ? 'border-width: 0px' : '';
+    if (this._view === EViews.Overview && this.config.home_screen === 'schedules') {
+      return html`<ha-card style=${border_style}
+        >${this.renderHeader()}
+        <div class="card-content" @wiser-view-ready=${this._viewReady}>
+          <wiser-schedules-home
+            .hass=${this._hass}
+            .config=${this.config}
+            @addScheduleClick=${this._addScheduleClick}
+            @scheduleClick=${(event: CustomEvent) => {
+              this._schedule_id = event.detail.Id;
+              this._schedule_type = event.detail.Type;
+              this._returnView = EViews.Overview;
+              this._view = EViews.ScheduleEdit;
+            }}
+          ></wiser-schedules-home></div
+      ></ha-card>`;
+    }
     if (this._view === EViews.Overview || this._view === EViews.RoomSchedule) {
       return html` <ha-card style=${border_style}>
         ${this.renderHeader()}
@@ -334,6 +353,12 @@ export class WiserScheduleCard extends LitElement {
 
   private _scheduleAdded(event: CustomEvent<{ Id: number; Type: string }>) {
     this._created_schedule = event.detail;
+    if (this.config?.home_screen === 'schedules' && event.detail) {
+      this._schedule_id = event.detail.Id;
+      this._schedule_type = event.detail.Type;
+      this._view = EViews.ScheduleEdit;
+      return;
+    }
     this._view = this._returnView;
   }
 

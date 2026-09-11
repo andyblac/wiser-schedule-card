@@ -1,8 +1,10 @@
 import { LitElement, html, css, PropertyValues, TemplateResult } from 'lit';
 import { HomeAssistant, fireEvent, LovelaceCardEditor } from 'custom-card-helpers';
 import { customElement, property, state } from 'lit/decorators.js';
-import { WiserScheduleCardConfig, ScheduleListItem } from './types';
-import { fetchHubs, fetchSchedules } from './data/websockets';
+import { WiserScheduleCardConfig } from './types';
+import { fetchHubs } from './data/websockets';
+import { loadHaControls } from './components/ha-controls';
+import { localize } from './localize/localize';
 import { CARD_VERSION } from './const';
 
 @customElement('wiser-schedule-card-editor')
@@ -10,7 +12,6 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   @property({ attribute: false }) public hass?: HomeAssistant;
   @state() private _config?: WiserScheduleCardConfig;
   @state() private _hubs: string[] = [];
-  @state() private _schedules: ScheduleListItem[] = [];
   @state() private _error = '';
   private _requestId = 0;
 
@@ -32,13 +33,11 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
     if (!this.hass || !this._config) return;
     const requestId = ++this._requestId;
     this._error = '';
-    this._schedules = [];
     try {
+      await loadHaControls();
       const hubs = await fetchHubs(this.hass);
-      const schedules = await fetchSchedules(this.hass, this._config.hub || hubs[0]);
       if (requestId !== this._requestId) return;
       this._hubs = hubs;
-      this._schedules = schedules;
     } catch (error: unknown) {
       if (requestId === this._requestId) this._error = (error as Error)?.message || 'Unable to load schedules.';
     }
@@ -49,6 +48,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
     const config = { ...this._config };
     if (value === '') delete config[key];
     else config[key] = value;
+    if (key === 'home_screen') delete config.selected_schedule;
     if (key === 'hub') delete config.selected_schedule;
     this._config = config;
     fireEvent(this, 'config-changed', { config });
@@ -69,16 +69,27 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   protected render(): TemplateResult {
     if (!this._config) return html``;
     const config = this._config;
-    const listView = config.view_type === 'list';
     return html`
       <div class="fields">
-        <label
-          >Title<input
-            type="text"
-            .value=${config.name ?? ''}
-            placeholder="Wiser Schedule"
-            @input=${(e: Event) => this.change('name', (e.target as HTMLInputElement).value)}
-        /></label>
+        <div class="home-screen">
+          <span>${localize('wiser.home.screen')}</span>
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{
+              button_toggle: {
+                options: [
+                  { value: 'devices', label: localize('wiser.home.devices_mode') },
+                  { value: 'schedules', label: localize('wiser.rooms.schedules') },
+                ],
+              },
+            }}
+            .value=${config.home_screen || 'devices'}
+            @value-changed=${(event: CustomEvent) => {
+              event.stopPropagation();
+              if (['devices', 'schedules'].includes(event.detail.value)) this.change('home_screen', event.detail.value);
+            }}
+          ></ha-selector>
+        </div>
         ${
           this._hubs.length > 1
             ? html`<label
@@ -91,20 +102,6 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
               >`
             : ''
         }
-        <label
-          >Schedule<select
-            @change=${(e: Event) => this.change('selected_schedule', (e.target as HTMLSelectElement).value)}
-          >
-            <option value="" ?selected=${!config.selected_schedule}>All schedules</option>
-            ${this._schedules.map((s) => html`<option .value=${s.Type + '|' + s.Id} ?selected=${config.selected_schedule === s.Type + '|' + s.Id}>${s.Name}</option>`)}
-          </select></label
-        >
-        <label
-          >Layout<select @change=${(e: Event) => this.change('view_type', (e.target as HTMLSelectElement).value)}>
-            <option value="default" ?selected=${!listView}>Tiles</option>
-            <option value="list" ?selected=${listView}>List</option>
-          </select></label
-        >
       </div>
       ${this._error ? html`<div role="alert">${this._error} <button @click=${() => this.loadData()}>Try again</button></div>` : ''}
       <fieldset>
@@ -124,6 +121,17 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
     :host {
       display: block;
       color: var(--primary-text-color);
+    }
+    .home-screen {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .home-screen ha-selector {
+      width: 260px;
+      max-width: 100%;
     }
     .fields {
       display: grid;

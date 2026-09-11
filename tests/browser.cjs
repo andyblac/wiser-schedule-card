@@ -501,7 +501,7 @@ const assert = require('node:assert/strict');
     });
     await page.getByLabel('Wiser hub').waitFor();
     await page.getByLabel('Wiser hub').selectOption('hub-two');
-    await page.waitForFunction(() => fixture.calls.some((c) => c.type === 'wiser/schedules' && c.hub === 'hub-two'));
+    await page.waitForFunction(() => lastConfig.hub === 'hub-two');
     assert.equal(await page.evaluate(() => lastConfig.selected_schedule), undefined);
     await page.getByLabel('Display schedules only').check();
     assert.equal(await page.evaluate(() => lastConfig.display_only), true);
@@ -535,6 +535,59 @@ const assert = require('node:assert/strict');
     });
     assert.deepEqual(await page.evaluate(() => dialogCounts), { cancel: 2, confirm: 1 });
     console.log('PASS HA dialog footer, cancel, delete and dismissal callbacks');
+    await fresh();
+    await page.evaluate(() => mountCard({ home_screen: 'schedules' }));
+    await page.waitForSelector('button.schedule-tile');
+    assert.equal(await page.locator('button.schedule-tile').count(), 4);
+    assert.equal(await page.locator('button.room').count(), 0);
+    await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
+    await page.getByLabel('Assigned rooms / devices').waitFor();
+    assert.equal(await page.locator('wiser-schedule-edit-card .actions-wrapper').count(), 0);
+    assert.equal(await page.getByRole('toolbar').getByRole('button', { name: 'edit', exact: true }).count(), 1);
+    await page.getByLabel('Assigned rooms / devices').selectOption(['10', '11', '13']);
+    assert.equal(await page.evaluate(() => fixture.assignments[11]), 2, 'selection is not applied early');
+    await button('Apply assignments').click();
+    await page.waitForFunction(
+      () => fixture.assignments[11] === 1 && fixture.assignments[13] === 1 && fixture.assignments[12] === undefined,
+    );
+    await button('Apply assignments').isDisabled();
+    await button('edit').click();
+    await button('cancel').click();
+    await button('back').click();
+    await page.waitForSelector('button.schedule-tile');
+    await page.evaluate(() => {
+      fixture.devices = { lighting: [{ Id: 21, Name: 'Hall light' }], onoff: [{ Id: 22, Name: 'Desk plug' }] };
+    });
+    await page.locator('button.schedule-tile').filter({ hasText: 'Evening lights' }).click();
+    await page.getByLabel('Assigned rooms / devices').waitFor();
+    assert.equal(await page.locator('.device-assignment option').filter({ hasText: 'Hall light' }).count(), 1);
+    assert.equal(await page.locator('.device-assignment option').filter({ hasText: 'Desk plug' }).count(), 0);
+    await button('back').click();
+    await page.waitForSelector('button.schedule-tile');
+    await page.evaluate(() => mountCard({ home_screen: 'schedules', display_only: true }));
+    await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    assert.equal(await button('Apply assignments').count(), 0);
+    assert.equal(await button('edit').count(), 0);
+    await fresh();
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-card-editor');
+      editor.hass = makeHass();
+      editor.setConfig({ type: 'custom:wiser-schedule-card', selected_schedule: 'Heating|1' });
+      editor.addEventListener('config-changed', (event) => (window.lastConfig = event.detail.config));
+      document.querySelector('#mount').append(editor);
+    });
+    assert.equal(await page.getByLabel('Title', { exact: true }).count(), 0);
+    assert.equal(await page.getByLabel('Schedule', { exact: true }).count(), 0);
+    assert.equal(await page.getByLabel('Layout', { exact: true }).count(), 0);
+    await page.getByRole('radio', { name: 'Schedules', exact: true }).click();
+    assert.equal(await page.evaluate(() => lastConfig.home_screen), 'schedules');
+    assert.equal(await page.evaluate(() => lastConfig.selected_schedule), undefined);
+    await page.getByRole('radio', { name: 'Devices', exact: true }).click();
+    assert.equal(await page.evaluate(() => lastConfig.home_screen), 'devices');
+    console.log(
+      'PASS schedule-first home, multiple compatible assignments, return navigation, permissions and editor toggle',
+    );
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

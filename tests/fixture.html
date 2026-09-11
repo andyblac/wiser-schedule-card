@@ -123,6 +123,13 @@
                   constructor() {
                     super();
                     this.attachShadow({ mode: 'open' });
+                    for (const key of ['selector', 'label', 'value', 'disabled']) {
+                      if (Object.prototype.hasOwnProperty.call(this, key)) {
+                        const value = this[key];
+                        delete this[key];
+                        this[key] = value;
+                      }
+                    }
                   }
                   set selector(value) {
                     this._selector = value;
@@ -141,18 +148,44 @@
                     this.render();
                   }
                   render() {
+                    if (this._selector?.button_toggle) {
+                      this.shadowRoot.replaceChildren();
+                      for (const option of this._selector.button_toggle.options) {
+                        const button = document.createElement('button');
+                        button.textContent = option.label;
+                        button.setAttribute('role', 'radio');
+                        button.setAttribute('aria-checked', String(this._value === option.value));
+                        button.onclick = () =>
+                          this.dispatchEvent(
+                            new CustomEvent('value-changed', {
+                              detail: { value: option.value },
+                              bubbles: true,
+                              composed: true,
+                            }),
+                          );
+                        this.shadowRoot.append(button);
+                      }
+                      return;
+                    }
                     this.shadowRoot.innerHTML = '<select style="min-height:56px;width:100%"></select>';
                     const select = this.shadowRoot.querySelector('select');
                     select.setAttribute('aria-label', this._label || '');
                     select.disabled = !!this._disabled;
                     select.add(new Option('', ''));
-                    for (const option of this._selector?.select.options || [])
+                    for (const option of this._selector?.select?.options || [])
                       select.add(new Option(option.label, option.value));
-                    select.value = this._value || '';
+                    select.multiple = !!this._selector?.select?.multiple;
+                    if (select.multiple)
+                      for (const option of select.options) option.selected = (this._value || []).includes(option.value);
+                    else select.value = this._value || '';
                     select.onchange = () =>
                       this.dispatchEvent(
                         new CustomEvent('value-changed', {
-                          detail: { value: select.value },
+                          detail: {
+                            value: select.multiple
+                              ? [...select.selectedOptions].map((option) => option.value)
+                              : select.value,
+                          },
                           bubbles: true,
                           composed: true,
                         }),
@@ -264,7 +297,7 @@
               })),
             };
           case 'wiser/devices':
-            return structuredClone(fixture.devices?.[request.device_type] || []);
+            return structuredClone(fixture.devices?.[request.device_type.toLowerCase()] || []);
           case 'wiser/rooms':
             return structuredClone(fixture.rooms);
           case 'wiser/schedule/create':

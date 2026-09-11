@@ -109,7 +109,14 @@
       "heating": "Heating",
       "hotwater": "Hot water",
       "devices": "Lighting & devices",
-      "empty": "No scheduled Wiser rooms or devices found."
+      "empty": "No scheduled Wiser rooms or devices found.",
+      "screen": "Home screen",
+      "devices_mode": "Devices",
+      "no_schedules": "No schedules yet. Use + to create one.",
+      "assignments": "assigned",
+      "assign_devices": "Assigned rooms / devices",
+      "apply_devices": "Apply assignments",
+      "no_devices": "No compatible devices available."
     }
   }
 }
