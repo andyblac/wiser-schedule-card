@@ -1,3 +1,4 @@
+import '../components/card-header';
 import '../components/moments';
 import { plugIcon } from '../components/plug-icon';
 import { loadHaControls } from '../components/ha-controls';
@@ -212,15 +213,15 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           </button>`
         : '';
     if (this.loading && !this.loaded)
-      return html`${back}
+      return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
         <div class="status" role="status">${localize('common.loading')}</div>`;
     if (this.error)
-      return html`${back}
+      return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
         <div class="status" role="alert">${this.error}</div>
         <button @click=${() => this.loadData()}>${localize('common.retry')}</button>`;
     if (this.room_id !== undefined) {
       if (!room)
-        return html`${back}
+        return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
           <div class="status">${localize('wiser.rooms.missing')}</div>`;
       const current = this.currentSchedule(room);
       const choices = this.compatible(this.target_type);
@@ -244,8 +245,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
             if (file) void this.editor?.importSchedule(file);
           }}
         />
-        <div class="room-heading">
-          <h3>${room.Name}</h3>
+        <wiser-card-header .config=${this.config}>
           <div class="tools">
             ${
               this.editing
@@ -262,7 +262,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                   `
                 : html`
                     ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
-                    ${viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
+                    ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
                     ${editable && viewed ? this.tool('wiser.actions.import', 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || !this.editorReady) : ''}
                     ${
                       editable && viewed
@@ -301,7 +301,8 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                   `
             }
           </div>
-        </div>
+        </wiser-card-header>
+        <h3>${room.Name}</h3>
         <p class="secondary">
           ${localize('wiser.rooms.current')}: <strong>${current?.Name ?? localize('wiser.rooms.unassigned')}</strong>
         </p>
@@ -379,6 +380,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       { title: 'devices', items: this.devices.filter((item) => item.kind !== 'hotwater') },
     ];
     return html`
+      <wiser-card-header .config=${this.config}></wiser-card-header>
       ${groups
         .filter((group) => group.items.length)
         .map(

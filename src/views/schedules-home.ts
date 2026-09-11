@@ -1,3 +1,4 @@
+import '../components/card-header';
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SubscribeMixin } from '../components/subscribe-mixin';
@@ -47,10 +48,10 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
   protected render() {
     if (!this.hass) return html``;
     return html`
-      <div class="heading">
-        <h3>${localize('wiser.rooms.schedules')}</h3>
+      <wiser-card-header .config=${this.config}>
         ${allow_edit(this.hass, this.config) ? html`<button aria-label=${localize('wiser.actions.add_schedule')} @click=${() => this.dispatchEvent(new CustomEvent('addScheduleClick'))}><ha-icon .icon=${'mdi:plus'}></ha-icon></button>` : ''}
-      </div>
+      </wiser-card-header>
+      <div class="heading"><h3>${localize('wiser.rooms.schedules')}</h3></div>
       ${
         this.error
           ? html`<p role="alert">${this.error}</p>

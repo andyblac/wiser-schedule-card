@@ -83,7 +83,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
                 ],
               },
             }}
-            .value=${config.home_screen || 'devices'}
+            .value=${config.home_screen || 'schedules'}
             @value-changed=${(event: CustomEvent) => {
               event.stopPropagation();
               if (['devices', 'schedules'].includes(event.detail.value)) this.change('home_screen', event.detail.value);
@@ -130,7 +130,10 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       flex-wrap: wrap;
     }
     .home-screen ha-selector {
-      width: 260px;
+      width: max-content;
+      margin-inline-start: auto;
+      display: flex;
+      justify-content: flex-end;
       max-width: 100%;
     }
     .fields {

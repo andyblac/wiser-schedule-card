@@ -348,6 +348,8 @@ const assert = require('node:assert/strict');
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await button('Manage schedules').count(), 0);
     assert.equal(await button('Assign schedule').count(), 0);
+    assert.equal(await page.locator('.tools button').count(), 1, 'non-admin device toolbar only has Back');
+    assert.equal(await button('Export schedule').count(), 0);
     console.log('PASS unassigned rooms, compatible schedule filter, read-only and admin restrictions');
     await fresh();
     await page.evaluate(() => {
@@ -447,7 +449,7 @@ const assert = require('node:assert/strict');
           window.testScroller = document.scrollingElement;
         }
         const card = document.createElement('wiser-schedule-card');
-        card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one' });
+        card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', home_screen: 'devices' });
         card.hass = makeHass();
         mount.append(card);
       }, nested);
@@ -536,7 +538,7 @@ const assert = require('node:assert/strict');
     assert.deepEqual(await page.evaluate(() => dialogCounts), { cancel: 2, confirm: 1 });
     console.log('PASS HA dialog footer, cancel, delete and dismissal callbacks');
     await fresh();
-    await page.evaluate(() => mountCard({ home_screen: 'schedules' }));
+    await page.evaluate(() => mountCard({ home_screen: undefined }));
     await page.waitForSelector('button.schedule-tile');
     assert.equal(await page.locator('button.schedule-tile').count(), 4);
     assert.equal(await page.locator('button.room').count(), 0);
@@ -544,6 +546,12 @@ const assert = require('node:assert/strict');
     await page.getByLabel('Assigned rooms / devices').waitFor();
     assert.equal(await page.locator('wiser-schedule-edit-card .actions-wrapper').count(), 0);
     assert.equal(await page.getByRole('toolbar').getByRole('button', { name: 'edit', exact: true }).count(), 1);
+    const headerBox = await page.locator('wiser-card-header').boundingBox();
+    const toolbarBox = await page.getByRole('toolbar').boundingBox();
+    assert.ok(
+      toolbarBox.y >= headerBox.y && toolbarBox.y + toolbarBox.height <= headerBox.y + headerBox.height + 1,
+      'toolbar sits in the top card header',
+    );
     await page.getByLabel('Assigned rooms / devices').selectOption(['10', '11', '13']);
     assert.equal(await page.evaluate(() => fixture.assignments[11]), 2, 'selection is not applied early');
     await button('Apply assignments').click();
@@ -569,6 +577,15 @@ const assert = require('node:assert/strict');
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await button('Apply assignments').count(), 0);
     assert.equal(await button('edit').count(), 0);
+    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 1);
+    await page.evaluate(() => {
+      const card = mountCard({ home_screen: 'schedules', admin_only: true });
+      card.hass = { ...makeHass(), user: { is_admin: false } };
+    });
+    await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 1);
+    assert.equal(await button('back').count(), 1);
     await fresh();
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-card-editor');

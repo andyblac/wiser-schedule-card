@@ -321,7 +321,13 @@
     window.mountCard = (config = {}) => {
       document.querySelector('#mount').replaceChildren();
       const card = document.createElement('wiser-schedule-card');
-      card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', show_badges: true, ...config });
+      card.setConfig({
+        type: 'custom:wiser-schedule-card',
+        hub: 'hub-one',
+        show_badges: true,
+        home_screen: 'devices',
+        ...config,
+      });
       card.hass = makeHass();
       document.querySelector('#mount').append(card);
       return card;

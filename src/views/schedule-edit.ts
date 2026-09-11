@@ -1,3 +1,4 @@
+import '../components/card-header';
 import { loadHaControls } from '../components/ha-controls';
 import { importScheduleFile } from '../data/schedule-file';
 import { notifyViewReady } from '../components/view-ready';
@@ -388,8 +389,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           if (file) void this.importSchedule(file);
         }}
       />
-      <div class="schedule-heading">
-        <h3>${this.schedule!.Name}</h3>
+      <wiser-card-header .config=${this.config}>
         <div class="tools" role="toolbar" aria-label=${localize('wiser.headings.schedule_actions')}>
           ${
             this.editMode
@@ -399,7 +399,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                 `
               : html`
                   ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
-                  ${this.tool(localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked)}
+                  ${editable ? this.tool(localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
                   ${
                     editable
                       ? html`
@@ -415,7 +415,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                 `
           }
         </div>
-      </div>`;
+      </wiser-card-header>
+      <h3 class="schedule-title">${this.schedule!.Name}</h3>`;
   }
 
   async entityAssignmentClick(ev: Event): Promise<void> {
@@ -582,7 +583,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         justify-content: space-between;
         gap: 12px;
       }
-      .schedule-heading h3 {
+      .schedule-title {
         margin: 16px 0 8px;
         font-size: calc(22px + 1pt);
       }

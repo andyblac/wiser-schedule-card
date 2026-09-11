@@ -139,6 +139,6 @@ Smart-plug tiles choose a regional socket icon using Home Assistant’s configur
 
 ### Home screen selection
 
-In the card editor, **Home screen → Devices / Schedules** chooses the starting view. Devices is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: devices`.
+In the card editor, **Home screen → Devices / Schedules** chooses the starting view. Schedules is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: devices`.
 
 The visual editor omits the legacy Title, pinned Schedule, and Layout fields. Existing YAML settings remain readable for compatibility.

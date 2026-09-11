@@ -65,6 +65,7 @@ export class WiserScheduleCard extends LitElement {
     this.config = {
       name: 'Wiser Schedule',
       ...config,
+      home_screen: config.home_screen ?? 'schedules',
     };
   }
 
@@ -160,7 +161,7 @@ export class WiserScheduleCard extends LitElement {
     .card-content {
       box-sizing: border-box;
       min-height: var(--wiser-view-min-height, 0px);
-      padding: 0 20px 20px;
+      padding: 22px 20px 20px;
     }
     .status {
       padding: 20px;
@@ -177,22 +178,10 @@ export class WiserScheduleCard extends LitElement {
         padding-inline-start: 12px;
       }
       .card-content {
-        padding: 0 12px 12px;
+        padding: 18px 12px 12px;
       }
     }
   `;
-
-  private renderHeader(): TemplateResult {
-    const name = this.config?.name;
-    if (!name) return html``;
-    const rooms = this._view === EViews.Overview || this._view === EViews.RoomSchedule;
-    const title = name === 'Wiser Schedule' ? (rooms ? '' : localize('wiser.rooms.schedules')) : name;
-    return html`<header class="card-header">
-      <h2 class="brand-header">
-        <span class="brand-name">Wiser</span>${title ? html`<span class="brand-title">${title}</span>` : ''}
-      </h2>
-    </header>`;
-  }
 
   protected render(): TemplateResult | void {
     if (!this._hass || !this.config) return html``;
@@ -202,8 +191,7 @@ export class WiserScheduleCard extends LitElement {
       >`;
     const border_style = this.config.hide_card_borders ? 'border-width: 0px' : '';
     if (this._view === EViews.Overview && this.config.home_screen === 'schedules') {
-      return html`<ha-card style=${border_style}
-        >${this.renderHeader()}
+      return html`<ha-card style=${border_style}>
         <div class="card-content" @wiser-view-ready=${this._viewReady}>
           <wiser-schedules-home
             .hass=${this._hass}
@@ -220,7 +208,6 @@ export class WiserScheduleCard extends LitElement {
     }
     if (this._view === EViews.Overview || this._view === EViews.RoomSchedule) {
       return html` <ha-card style=${border_style}>
-        ${this.renderHeader()}
         <div class="card-content" @wiser-view-ready=${this._viewReady}>
           <wiser-room-schedules
             .hass=${this._hass}
@@ -253,7 +240,6 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleEdit && this._schedule_id) {
       return html`
         <ha-card style=${border_style}>
-          ${this.renderHeader()}
           <div class="card-content" @wiser-view-ready=${this._viewReady}>
             <wiser-schedule-edit-card
               .hass=${this._hass}
@@ -272,7 +258,6 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleAdd) {
       return html`
         <ha-card style=${border_style}>
-          ${this.renderHeader()}
           <div class="card-content" @wiser-view-ready=${this._viewReady}>
             <wiser-schedule-add-card
               .assign_to=${this._returnView === EViews.RoomSchedule ? this._room_id : undefined}
@@ -288,7 +273,6 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleCopy) {
       return html`
         <ha-card style=${border_style}>
-          ${this.renderHeader()}
           <div class="card-content" @wiser-view-ready=${this._viewReady}>
             <wiser-schedule-copy-card
               .hass=${this._hass}
@@ -304,7 +288,6 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleRename) {
       return html`
         <ha-card style=${border_style}>
-          ${this.renderHeader()}
           <div class="card-content" @wiser-view-ready=${this._viewReady}>
             <wiser-schedule-rename-card
               .hass=${this._hass}
