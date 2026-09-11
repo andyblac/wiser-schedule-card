@@ -1,3 +1,4 @@
+import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
 import { property, customElement, state } from 'lit/decorators.js';
@@ -7,6 +8,7 @@ import { copySchedule, fetchScheduleById, fetchSchedules } from '../data/websock
 import { EViews } from '../const';
 
 import '../components/dialog-delete-confirm';
+import { commonStyle } from '../styles';
 import { localize } from '../localize/localize';
 
 @customElement('wiser-schedule-copy-card')
@@ -21,24 +23,17 @@ export class ScheduleCopyCard extends LitElement {
   @state() _copy_in_progress = 0;
   @state() private _schedule_list: ScheduleListItem[] = [];
 
-  constructor() {
-    super();
-    this.initialise();
-  }
+  @state() private _loadError = '';
 
-  async initialise(): Promise<boolean> {
-    if (await this.isComponentLoaded()) {
-      this.component_loaded = true;
-      await this.loadData();
-    }
-    return true;
-  }
-
-  async isComponentLoaded(): Promise<boolean> {
-    while (!this.hass || !this.hass.config.components.includes('wiser')) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    return true;
+  protected firstUpdated(): void {
+    void this.loadData()
+      .then(() => {
+        this.component_loaded = true;
+      })
+      .catch((error: unknown) => {
+        this._loadError = (error as { message?: string })?.message || localize('common.load_failed');
+      })
+      .then(() => notifyViewReady(this));
   }
 
   private async loadData() {
@@ -47,52 +42,55 @@ export class ScheduleCopyCard extends LitElement {
   }
 
   render(): TemplateResult {
-    if (!this.hass || !this.config || !this.schedule) return html``;
+    if (!this.hass || !this.config) return html``;
+    if (this._loadError)
+      return html`<div role="alert">${this._loadError}</hui-warning
+        ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
+    if (!this.component_loaded || !this.schedule) return html`<div role="status">${localize('common.loading')}</div>`;
     return html`
-       <div>
-          <div>${localize('wiser.headings.copy_schedule')}</div>
-          <div class="schedule-info">
-            <span class="sub-heading">${localize('wiser.headings.schedule_type')}:</span> ${this.schedule.Type}
-          </div>
-          <div class="schedule-info">
-            <span class="sub-heading">${localize('wiser.headings.schedule_id')}:</span> ${this.schedule.Id}
-          </div>
-          <div class="schedule-info">
-            <span class="sub-heading">${localize('wiser.headings.schedule_name')}:</span> ${this.schedule.Name}
-          </div>
-          <div class="wrapper" style="margin: 20px 0 0 0;">${localize('wiser.helpers.select_copy_schedule')}</div>
-          <div class="assignment-wrapper">
-            ${this._schedule_list
-              .filter((schedule) => schedule.Id != this.schedule?.Id)
-              .map((schedule) => this.renderScheduleButtons(schedule))}
-          </div>
+      <div>
+        <div>${localize('wiser.headings.copy_schedule')}</div>
+        <div class="schedule-info">
+          <span class="sub-heading">${localize('wiser.headings.schedule_type')}:</span> ${this.schedule.Type}
         </div>
-        <div class="card-actions">
-          <ha-button
-            appearance="plain"
-            @click=${this.cancelClick}
-          > 
-            ${this.hass.localize('ui.common.cancel')}
-          </ha-button>
+        <div class="schedule-info">
+          <span class="sub-heading">${localize('wiser.headings.schedule_id')}:</span> ${this.schedule.Id}
         </div>
-      </ha-card>
+        <div class="schedule-info">
+          <span class="sub-heading">${localize('wiser.headings.schedule_name')}:</span> ${this.schedule.Name}
+        </div>
+        <div class="wrapper" style="margin: 20px 0 0 0;">${localize('wiser.helpers.select_copy_schedule')}</div>
+        <div class="assignment-wrapper">
+          ${this._schedule_list
+            .filter((schedule) => schedule.Id != this.schedule?.Id)
+            .map((schedule) => this.renderScheduleButtons(schedule))}
+        </div>
+      </div>
+      <div class="card-actions">
+        <button type="button" appearance="plain" @click=${this.cancelClick}>
+          ${this.hass.localize('ui.common.cancel')}
+        </button>
+      </div>
     `;
   }
 
   renderScheduleButtons(schedule: ScheduleListItem): TemplateResult {
     return html`
-      <ha-button
+      <button
+        type="button"
         class="schedule-button"
         id=${schedule.Id}
         size="small"
         @click=${this._copySchedule}
         .value=${schedule.Name}
       >
-        ${this._copy_in_progress == schedule.Id
-          ? html`<span class="waiting"><ha-circular-progress active size="small"></ha-circular-progress></span>`
-          : null}
+        ${
+          this._copy_in_progress == schedule.Id
+            ? html`<span class="waiting"><progress aria-label="Working"></progress></span>`
+            : null
+        }
         ${schedule.Name}
-      </ha-button>
+      </button>
     `;
   }
 
@@ -103,7 +101,7 @@ export class ScheduleCopyCard extends LitElement {
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   async _copySchedule(ev): Promise<void> {
-    const target = ev.target;
+    const target = ev.currentTarget;
     if (target.id) {
       this._copy_in_progress = parseInt(target.id);
       await copySchedule(this.hass!, this.config!.hub, this.schedule_type!, this.schedule_id!, parseInt(target.id));
@@ -115,6 +113,7 @@ export class ScheduleCopyCard extends LitElement {
 
   static get styles(): CSSResultGroup {
     return css`
+      ${commonStyle}
       div.wrapper {
         white-space: nowrap;
         transition:

@@ -3,7 +3,7 @@
 import { LitElement, html, css, CSSResultGroup } from 'lit';
 import { property, customElement, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
-import { mdiClose } from '@mdi/js';
+import { nothing } from 'lit';
 import { localize } from '../localize/localize';
 
 @customElement('wiser-dialog-delete-confirm')
@@ -18,8 +18,9 @@ export class DialogDeleteConfirm extends LitElement {
   }
 
   public async closeDialog() {
-    if (this._params) this._params.cancel();
+    const params = this._params;
     this._params = undefined;
+    params?.cancel();
   }
 
   render() {
@@ -27,37 +28,41 @@ export class DialogDeleteConfirm extends LitElement {
     return html`
       <ha-dialog
         open
+        header-title=${localize('wiser.headings.delete_schedule')}
         .heading=${localize('wiser.headings.delete_schedule')}
         @closed=${this.closeDialog}
         @close-dialog=${this.closeDialog}
       >
         <div class="wrapper">${localize('wiser.helpers.delete_schedule_confirm') + ' ' + this._params.name + '?'}</div>
-        <ha-button
-          variant="danger"
-          slot="primaryAction"
-          style="float: left"
-          @click=${this.confirmClick}
-          dialogAction="close"
+        <div
+          class="actions"
+          slot=${'headerTitle' in (customElements.get('ha-dialog')?.prototype || {}) ? 'footer' : nothing}
         >
-          ${this.hass.localize('ui.common.delete')}
-        </ha-button>
-        <ha-button slot="secondaryAction" @click=${this.cancelClick} dialogAction="close">
-          ${this.hass.localize('ui.common.cancel')}
-        </ha-button>
+          <ha-button appearance="plain" @click=${this.cancelClick}>${this.hass.localize('ui.common.cancel')}</ha-button>
+          <ha-button variant="danger" @click=${this.confirmClick}>${this.hass.localize('ui.common.delete')}</ha-button>
+        </div>
       </ha-dialog>
     `;
   }
 
   confirmClick() {
-    this._params.confirm();
+    const params = this._params;
+    this._params = undefined;
+    params?.confirm();
   }
 
   cancelClick() {
-    this._params.cancel();
+    void this.closeDialog();
   }
 
   static get styles(): CSSResultGroup {
     return css`
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 16px;
+      }
       div.wrapper {
         color: var(--primary-text-color);
       }

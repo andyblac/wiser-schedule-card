@@ -1,7 +1,5 @@
 /node_modules/
 /.rpt2_cache/
-package-lock.json
-/dist
 stats.html
-
-
+.DS_Store
+.dev-build.json

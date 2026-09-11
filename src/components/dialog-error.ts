@@ -1,7 +1,7 @@
 import { LitElement, html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, customElement, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
-import { mdiClose } from '@mdi/js';
+import { nothing } from 'lit';
 
 @customElement('wiser-dialog-error')
 export class DialogError extends LitElement {
@@ -25,20 +25,30 @@ export class DialogError extends LitElement {
     return html`
       <ha-dialog
         open
+        header-title=${this._params.title || this.hass.localize('state_badge.default.error')}
         .heading=${this._params.title || this.hass.localize('state_badge.default.error')}
         @closed=${this.closeDialog}
         @close-dialog=${this.closeDialog}
       >
         <div class="wrapper">${this._params.error || ''}</div>
-        <ha-button slot="primaryAction" style="float: left" @click=${this.closeDialog} dialogAction="close">
-          ${this.hass.localize('ui.dialogs.generic.ok')}
-        </ha-button>
+        <div
+          class="actions"
+          slot=${'headerTitle' in (customElements.get('ha-dialog')?.prototype || {}) ? 'footer' : nothing}
+        >
+          <ha-button @click=${this.closeDialog}>${this.hass.localize('ui.dialogs.generic.ok')}</ha-button>
+        </div>
       </ha-dialog>
     `;
   }
 
   static get styles(): CSSResultGroup {
     return css`
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 16px;
+      }
       div.wrapper {
         color: var(--primary-text-color);
       }

@@ -3,7 +3,11 @@
     "version": "Version",
     "invalid_configuration": "Invalid configuration",
     "no_schedules": "No Schedules Found",
-    "name_required": "Name is required"
+    "name_required": "Name is required",
+    "loading": "Loading schedules…",
+    "retry": "Try again",
+    "load_failed": "Unable to load schedules.",
+    "integration_unavailable": "The Wiser integration is not available."
   },
   "wiser": {
     "actions": {
@@ -12,7 +16,9 @@
       "rename": "Rename",
       "add": "Add",
       "view": "View",
-      "add_schedule": "Add Schedule"
+      "add_schedule": "Add Schedule",
+      "export": "Export schedule",
+      "import": "Import schedule"
     },
     "labels": {
       "setting": "Setting",
@@ -59,7 +65,51 @@
       "select_copy_schedule": "Select the schedule to copy to",
       "delete_schedule_confirm": "Are you sure you wish to delete the schedule",
       "select_a_schedule": "Select a schedule to view",
-      "add_schedule": "Select the schedule type and enter a name for the schedule to create"
+      "add_schedule": "Select the schedule type and enter a name for the schedule to create",
+      "add_schedule_name": "Enter a name for the new schedule",
+      "no_supported_types": "No compatible schedule types are available for this device."
+    },
+    "rooms": {
+      "title": "Rooms",
+      "schedules": "Schedules",
+      "manage": "Manage schedules",
+      "back": "Back to home",
+      "missing": "This room or device is no longer available.",
+      "current": "Current schedule",
+      "unassigned": "No schedule assigned",
+      "choose": "Choose a schedule",
+      "no_schedules": "No compatible schedules available. Create one using + in the toolbar.",
+      "assigning": "Assigning…",
+      "assign": "Assign schedule",
+      "saved": "Schedule assigned.",
+      "view_schedule": "View / edit schedule",
+      "shared": "This schedule is shared. Editing its times affects every assigned room or device.",
+      "select": "Select a room to choose its schedule",
+      "empty": "No Wiser rooms found.",
+      "edit": "Edit schedule",
+      "save_edit": "Save schedule",
+      "cancel_edit": "Cancel editing",
+      "delete": "Delete schedule",
+      "available": "Available schedule",
+      "none": "No schedule",
+      "removed": "Schedule unassigned."
+    },
+    "moments": {
+      "title": "Moments",
+      "heating": "Room heating",
+      "description": "Preset actions for your home. Use Home Assistant automations to run them on a schedule.",
+      "loading": "Loading Moments…",
+      "failed": "Moments could not be loaded. Registry access may be restricted for this account.",
+      "empty": "No enabled Wiser Moments found for this hub. Create Moments in the Wiser app.",
+      "open": "Open controls",
+      "unavailable": "Unavailable"
+    },
+    "home": {
+      "title": "Home",
+      "heating": "Heating",
+      "hotwater": "Hot water",
+      "devices": "Lighting & devices",
+      "empty": "No scheduled Wiser rooms or devices found."
     }
   }
 }

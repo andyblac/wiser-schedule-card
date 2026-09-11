@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wiser card browser fixture</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f3f5f8;
+      font-family: system-ui, sans-serif;
+      --primary-text-color: #203044;
+      --secondary-text-color: #66778a;
+      --primary-color: #157b78;
+      --card-background-color: #fff;
+      --secondary-background-color: #f0f5f5;
+      --divider-color: #e0e6ea;
+      --text-primary-color: white;
+    }
+    body.dark {
+      background: #15191f;
+      --primary-text-color: #e9eef4;
+      --secondary-text-color: #9eafbf;
+      --primary-color: #62c6be;
+      --card-background-color: #202730;
+      --secondary-background-color: #29343c;
+      --divider-color: #384450;
+    }
+    #mount {
+      max-width: 600px;
+      margin: auto;
+    }
+  </style>
+  <div id="mount"></div>
+  <script type="module">
+    // Minimal HA host elements. These do not simulate the real HA component internals.
+    customElements.define(
+      'ha-dialog',
+      class extends HTMLElement {
+        get headerTitle() {
+          return this.getAttribute('header-title');
+        }
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' }).innerHTML =
+            '<section role="dialog"><slot></slot><footer><slot name="footer"></slot></footer></section>';
+        }
+      },
+    );
+    customElements.define(
+      'ha-card',
+      class extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' }).innerHTML =
+            '<style>:host{display:block;background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:18px;overflow:hidden}h1{font-size:22px;font-weight:600;margin:0;padding:24px 20px}h1:empty{display:none}</style><h1></h1><slot></slot>';
+        }
+        set header(value) {
+          this.shadowRoot.querySelector('h1').textContent = value;
+        }
+      },
+    );
+    customElements.define(
+      'ha-button',
+      class extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' }).innerHTML =
+            '<style>button{font:inherit;color:var(--primary-color);background:transparent;border:0;padding:10px 12px;min-height:44px;cursor:pointer}</style><button><slot></slot></button>';
+        }
+        set disabled(value) {
+          this.shadowRoot.querySelector('button').disabled = value;
+        }
+      },
+    );
+    customElements.define(
+      'ha-icon',
+      class extends HTMLElement {
+        set icon(value) {
+          this.setAttribute('aria-hidden', 'true');
+          this.textContent =
+            {
+              'mdi:arrow-left': '←',
+              'mdi:plus': '+',
+              'mdi:check': '✓',
+              'mdi:calendar-edit': '✎',
+              'mdi:calendar-clock': '▦',
+              'mdi:home-thermometer-outline': '♨',
+              'mdi:radiator': '♨',
+              'mdi:lightbulb-outline': '☼',
+              'mdi:power-socket-uk': '⏻',
+            }[value] || '◷';
+        }
+      },
+    );
+    customElements.define(
+      'ha-textfield',
+      class extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' }).innerHTML = '<input style="height:44px;width:100%" />';
+        }
+        get value() {
+          return this.shadowRoot.querySelector('input').value;
+        }
+        set value(value) {
+          this.shadowRoot.querySelector('input').value = value;
+        }
+      },
+    );
+    window.loadCardHelpers = async () => ({
+      createCardElement: () => ({
+        constructor: {
+          getConfigElement: async () => {
+            if (!customElements.get('ha-selector'))
+              customElements.define(
+                'ha-selector',
+                class extends HTMLElement {
+                  constructor() {
+                    super();
+                    this.attachShadow({ mode: 'open' });
+                  }
+                  set selector(value) {
+                    this._selector = value;
+                    this.render();
+                  }
+                  set label(value) {
+                    this._label = value;
+                    this.render();
+                  }
+                  set value(value) {
+                    this._value = value;
+                    this.render();
+                  }
+                  set disabled(value) {
+                    this._disabled = value;
+                    this.render();
+                  }
+                  render() {
+                    this.shadowRoot.innerHTML = '<select style="min-height:56px;width:100%"></select>';
+                    const select = this.shadowRoot.querySelector('select');
+                    select.setAttribute('aria-label', this._label || '');
+                    select.disabled = !!this._disabled;
+                    select.add(new Option('', ''));
+                    for (const option of this._selector?.select.options || [])
+                      select.add(new Option(option.label, option.value));
+                    select.value = this._value || '';
+                    select.onchange = () =>
+                      this.dispatchEvent(
+                        new CustomEvent('value-changed', {
+                          detail: { value: select.value },
+                          bubbles: true,
+                          composed: true,
+                        }),
+                      );
+                  }
+                },
+              );
+            return document.createElement('div');
+          },
+        },
+      }),
+    });
+    await import('/card.js');
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    window.fixture = {
+      schedules: [
+        { Id: 1, Type: 'Heating', Name: 'Living room', Assignments: 2 },
+        { Id: 2, Type: 'Heating', Name: 'Bedrooms', Assignments: 3 },
+        { Id: 3, Type: 'Heating', Name: 'Home office', Assignments: 1 },
+        { Id: 4, Type: 'Lighting', Name: 'Evening lights', Assignments: 4 },
+      ],
+      rooms: [
+        { Id: 10, Name: 'Lounge' },
+        { Id: 11, Name: 'Kitchen' },
+        { Id: 12, Name: 'Office' },
+        { Id: 13, Name: 'Spare bedroom' },
+      ],
+      assignments: { 10: 1, 11: 2, 12: 1 },
+      failAssign: false,
+      fail: false,
+      delay: 0,
+      subscribers: 0,
+      calls: [],
+    };
+    window.makeHass = () => ({
+      config: { components: ['wiser'] },
+      user: { is_admin: true },
+      states: {
+        'button.wiser_movie': {
+          entity_id: 'button.wiser_movie',
+          state: 'unknown',
+          attributes: { friendly_name: 'Movie night' },
+        },
+      },
+      locale: { language: 'en', time_format: '24', number_format: 'comma_decimal' },
+      localize: (key) => key.split('.').at(-1),
+      connection: {
+        subscribeMessage: async (callback) => {
+          fixture.subscribers++;
+          fixture.notify = callback;
+          return () => {
+            fixture.subscribers--;
+          };
+        },
+      },
+      callWS: async (request) => {
+        fixture.calls.push(request);
+        if (fixture.delay) await new Promise((resolve) => setTimeout(resolve, fixture.delay));
+        if (fixture.fail) throw { message: 'Hub unavailable' };
+        switch (request.type) {
+          case 'config/entity_registry/list':
+            return [
+              {
+                entity_id: 'button.wiser_movie',
+                platform: 'wiser',
+                device_id: 'hub-device',
+                unique_id: 'a-uuid',
+                translation_key: 'moment',
+              },
+              {
+                entity_id: 'button.foreign',
+                platform: 'other',
+                device_id: 'hub-device',
+                unique_id: 'other',
+                translation_key: 'moment',
+              },
+            ];
+          case 'config/device_registry/list':
+            return [{ id: 'hub-device', identifiers: [['wiser', 'hub-one']] }];
+          case 'wiser/hubs':
+            return ['hub-one', 'hub-two'];
+          case 'wiser/schedules/types':
+            return ['Heating', 'OnOff', 'Lighting', 'Shutters'];
+          case 'wiser/schedules':
+            return structuredClone(fixture.schedules);
+          case 'wiser/suntimes':
+            return {
+              Sunrises: days.map((day) => ({ day, time: '06:00' })),
+              Sunsets: days.map((day) => ({ day, time: '18:00' })),
+            };
+          case 'wiser/schedule/id':
+            return {
+              Id: request.schedule_id,
+              Name: fixture.schedules.find((s) => s.Id === request.schedule_id)?.Name || 'Living room',
+              Type: fixture.schedules.find((s) => s.Id === request.schedule_id)?.Type || 'Heating',
+              SubType:
+                fixture.schedules.find((s) => s.Id === request.schedule_id)?.SubType ||
+                fixture.schedules.find((s) => s.Id === request.schedule_id)?.Type ||
+                'Heating',
+              Assignments: [...fixture.rooms, ...Object.values(fixture.devices || {}).flat()]
+                .filter((room) => fixture.assignments[room.Id] === request.schedule_id)
+                .map((room) => ({ id: room.Id, name: room.Name })),
+              ScheduleData: days.map((day) => ({
+                day,
+                slots: [
+                  { Time: '06:00', Setpoint: '20', SpecialTime: '' },
+                  { Time: '22:00', Setpoint: '16', SpecialTime: '' },
+                ],
+              })),
+            };
+          case 'wiser/devices':
+            return structuredClone(fixture.devices?.[request.device_type] || []);
+          case 'wiser/rooms':
+            return structuredClone(fixture.rooms);
+          case 'wiser/schedule/create':
+            fixture.schedules.push({
+              Id: Math.max(...fixture.schedules.map((s) => s.Id), 0) + 1,
+              Type: request.schedule_type,
+              Name: request.name,
+              Assignments: 0,
+            });
+            return 'success';
+          case 'wiser/schedule/assign':
+            if (fixture.failAssign) throw { message: 'Assignment failed' };
+            if (request.remove) delete fixture.assignments[request.entity_id];
+            else fixture.assignments[request.entity_id] = request.schedule_id;
+            return 'success';
+          default:
+            return true;
+        }
+      },
+    });
+    window.mountCard = (config = {}) => {
+      document.querySelector('#mount').replaceChildren();
+      const card = document.createElement('wiser-schedule-card');
+      card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', show_badges: true, ...config });
+      card.hass = makeHass();
+      document.querySelector('#mount').append(card);
+      return card;
+    };
+    window.ready = true;
+  </script>
+</html>

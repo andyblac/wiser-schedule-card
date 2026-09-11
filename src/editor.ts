@@ -1,263 +1,185 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { LitElement, html, TemplateResult, css, CSSResultGroup } from 'lit';
+import { LitElement, html, css, PropertyValues, TemplateResult } from 'lit';
 import { HomeAssistant, fireEvent, LovelaceCardEditor } from 'custom-card-helpers';
-
-import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
-import { WiserScheduleCardConfig, ScheduleListItem } from './types';
 import { customElement, property, state } from 'lit/decorators.js';
-import { formfieldDefinition } from '../elements/formfield';
-import { selectDefinition } from '../elements/select';
-import { switchDefinition } from '../elements/switch';
-import { textfieldDefinition } from '../elements/textfield';
-import { capitalize } from './helpers';
+import { WiserScheduleCardConfig, ScheduleListItem } from './types';
 import { fetchHubs, fetchSchedules } from './data/websockets';
 import { CARD_VERSION } from './const';
 
 @customElement('wiser-schedule-card-editor')
-export class WiserScheduleCardEditor extends ScopedRegistryHost(LitElement) implements LovelaceCardEditor {
+export class WiserScheduleCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass?: HomeAssistant;
-
   @state() private _config?: WiserScheduleCardConfig;
-  @state() private _helpers?: any;
-  @state() private _hubs?: string[];
-  @state() private _schedules?: ScheduleListItem[];
-
-  private _initialized = false;
-
-  static elementDefinitions = {
-    ...textfieldDefinition,
-    ...selectDefinition,
-    ...switchDefinition,
-    ...formfieldDefinition,
-  };
+  @state() private _hubs: string[] = [];
+  @state() private _schedules: ScheduleListItem[] = [];
+  @state() private _error = '';
+  private _requestId = 0;
 
   public setConfig(config: WiserScheduleCardConfig): void {
+    this._config = { ...config };
+  }
+
+  protected updated(changed: PropertyValues): void {
+    const oldConfig = changed.get('_config') as WiserScheduleCardConfig | undefined;
+    if (
+      (changed.has('hass') && !changed.get('hass')) ||
+      (changed.has('_config') && (!oldConfig || oldConfig.hub !== this._config?.hub))
+    ) {
+      void this.loadData();
+    }
+  }
+
+  private async loadData(): Promise<void> {
+    if (!this.hass || !this._config) return;
+    const requestId = ++this._requestId;
+    this._error = '';
+    this._schedules = [];
+    try {
+      const hubs = await fetchHubs(this.hass);
+      const schedules = await fetchSchedules(this.hass, this._config.hub || hubs[0]);
+      if (requestId !== this._requestId) return;
+      this._hubs = hubs;
+      this._schedules = schedules;
+    } catch (error: unknown) {
+      if (requestId === this._requestId) this._error = (error as Error)?.message || 'Unable to load schedules.';
+    }
+  }
+
+  private change(key: string, value: string | boolean): void {
+    if (!this._config) return;
+    const config = { ...this._config };
+    if (value === '') delete config[key];
+    else config[key] = value;
+    if (key === 'hub') delete config.selected_schedule;
     this._config = config;
-    this.loadCardHelpers();
+    fireEvent(this, 'config-changed', { config });
   }
 
-  protected shouldUpdate(): boolean {
-    if (!this._initialized) {
-      this._initialize();
-    }
-    return true;
+  private toggle(key: string, label: string, disabled = false): TemplateResult {
+    return html`<label class="toggle">
+      <span>${label}</span>
+      <input
+        type="checkbox"
+        .checked=${Boolean(this._config?.[key])}
+        ?disabled=${disabled}
+        @change=${(event: Event) => this.change(key, (event.target as HTMLInputElement).checked)}
+      />
+    </label>`;
   }
 
-  get _name(): string {
-    return this._config?.name || '';
-  }
-
-  get _hub(): string {
-    return this._config?.hub || '';
-  }
-
-  get _selected_schedule(): string {
-    return this._config?.selected_schedule || '';
-  }
-
-  get _theme_colors(): boolean {
-    return this._config?.theme_colors || false;
-  }
-
-  get _show_badges(): boolean {
-    return this._config?.show_badges || false;
-  }
-
-  get _show_schedule_id(): boolean {
-    return this._config?.show_schedule_id || false;
-  }
-
-  get _display_only(): boolean {
-    return this._config?.display_only || false;
-  }
-
-  get _admin_only(): boolean {
-    return this._config?.admin_only || false;
-  }
-
-  get _view_type(): string {
-    if (this._config?.view_type) {
-      return this._config?.view_type;
-    }
-    return 'default';
-  }
-
-  get _hide_card_borders(): boolean {
-    return this._config?.hide_card_borders || false;
-  }
-
-  async loadData(): Promise<void> {
-    if (this.hass) {
-      this._hubs = await fetchHubs(this.hass);
-      this._schedules = await fetchSchedules(this.hass, this._hub ? this._hub : this._hubs[0]);
-    }
-  }
-
-  protected render(): TemplateResult | void {
-    if (!this.hass || !this._helpers || !this._config || !this._hubs || !this._schedules) {
-      return html``;
-    }
-
+  protected render(): TemplateResult {
+    if (!this._config) return html``;
+    const config = this._config;
+    const listView = config.view_type === 'list';
     return html`
-      <mwc-textfield
-        label="Title (optional)"
-        .value=${this._name}
-        .configValue=${'name'}
-        @input=${this._valueChanged}
-      ></mwc-textfield>
-      ${this.hubSelector()}
-      <mwc-select
-        naturalMenuWidth
-        fixedMenuPosition
-        label="Schedule (Optional)"
-        .configValue=${'selected_schedule'}
-        .value=${this._selected_schedule}
-        @selected=${this._valueChanged}
-        @closed=${(ev) => ev.stopPropagation()}
-      >
-        <mwc-list-item></mwc-list-item>
-        ${this._schedules.map((s) => {
-          return html`<mwc-list-item .value=${s.Type + '|' + s.Id}>${s.Name}</mwc-list-item>`;
-        })}
-      </mwc-select>
-      <mwc-select
-        naturalMenuWidth
-        fixedMenuPosition
-        label="View"
-        .configValue=${'view_type'}
-        .value=${this._view_type}
-        @selected=${this._valueChanged}
-        @closed=${(ev) => ev.stopPropagation()}
-      >
-        ${['default', 'list'].map((s) => {
-          return html`<mwc-list-item .value=${s}>${capitalize(s)}</mwc-list-item>`;
-        })}
-      </mwc-select>
-      <mwc-formfield .label=${`Only Allow Display of Schedules`}>
-        <mwc-switch
-          .checked=${this._display_only !== false}
-          .configValue=${'display_only'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <mwc-formfield .label=${`Only Allow Admin to Manage Schedules`}>
-        <mwc-switch
-          ?disabled=${this._display_only === true}
-          .checked=${this._admin_only !== false}
-          .configValue=${'admin_only'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <br />
-      <mwc-formfield .label=${`Use Theme Colors`}>
-        <mwc-switch
-          .checked=${this._theme_colors !== false}
-          .configValue=${'theme_colors'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <mwc-formfield .label=${`Hide Card Borders (for stack-in cards)`}>
-        <mwc-switch
-          .checked=${this._hide_card_borders !== false}
-          .configValue=${'hide_card_borders'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <br />
-      <p>Default View Options</p>
-      <mwc-formfield .label=${`Show Assignment Count Badges`}>
-        <mwc-switch
-          .checked=${this._show_badges !== false && this._view_type == 'default'}
-          .disabled=${this._view_type != 'default'}
-          .configValue=${'show_badges'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <mwc-formfield .label=${`Show Schedule IDs`}>
-        <mwc-switch
-          .checked=${this._show_schedule_id !== false && this._view_type == 'default'}
-          .disabled=${this._view_type != 'default'}
-          .configValue=${'show_schedule_id'}
-          @change=${this._valueChanged}
-        ></mwc-switch>
-      </mwc-formfield>
-      <br />
-      <div class="version">Version: ${CARD_VERSION}</div>
+      <div class="fields">
+        <label
+          >Title<input
+            type="text"
+            .value=${config.name ?? ''}
+            placeholder="Wiser Schedule"
+            @input=${(e: Event) => this.change('name', (e.target as HTMLInputElement).value)}
+        /></label>
+        ${
+          this._hubs.length > 1
+            ? html`<label
+                >Wiser hub<select
+                  .value=${config.hub || this._hubs[0]}
+                  @change=${(e: Event) => this.change('hub', (e.target as HTMLSelectElement).value)}
+                >
+                  ${this._hubs.map((hub) => html`<option .value=${hub} ?selected=${hub === (config.hub || this._hubs[0])}>${hub}</option>`)}
+                </select></label
+              >`
+            : ''
+        }
+        <label
+          >Schedule<select
+            @change=${(e: Event) => this.change('selected_schedule', (e.target as HTMLSelectElement).value)}
+          >
+            <option value="" ?selected=${!config.selected_schedule}>All schedules</option>
+            ${this._schedules.map((s) => html`<option .value=${s.Type + '|' + s.Id} ?selected=${config.selected_schedule === s.Type + '|' + s.Id}>${s.Name}</option>`)}
+          </select></label
+        >
+        <label
+          >Layout<select @change=${(e: Event) => this.change('view_type', (e.target as HTMLSelectElement).value)}>
+            <option value="default" ?selected=${!listView}>Tiles</option>
+            <option value="list" ?selected=${listView}>List</option>
+          </select></label
+        >
+      </div>
+      ${this._error ? html`<div role="alert">${this._error} <button @click=${() => this.loadData()}>Try again</button></div>` : ''}
+      <fieldset>
+        <legend>Permissions</legend>
+        ${this.toggle('display_only', 'Display schedules only')}
+        ${this.toggle('admin_only', 'Only admins can manage schedules', config.display_only)}
+      </fieldset>
+      <fieldset>
+        <legend>Appearance</legend>
+        ${this.toggle('theme_colors', 'Use theme colours')} ${this.toggle('hide_card_borders', 'Hide card borders')}
+      </fieldset>
+      <div class="version">Wiser Schedule Card · ${CARD_VERSION}</div>
     `;
   }
 
-  private hubSelector() {
-    const hubs = this._hubs ? this._hubs : [];
-    if (hubs.length > 1) {
-      return html`
-        <mwc-select
-          naturalMenuWidth
-          fixedMenuPosition
-          label="Wiser Hub (Optional)"
-          .configValue=${'hub'}
-          .value=${this._hub ? this._hub : hubs[0]}
-          @selected=${this._valueChanged}
-          @closed=${(ev) => ev.stopPropagation()}
-        >
-          ${this._hubs?.map((hub) => {
-            return html`<mwc-list-item .value=${hub}>${hub}</mwc-list-item>`;
-          })}
-        </mwc-select>
-      `;
-    }
-    return html``;
-  }
-
-  private _initialize(): void {
-    if (this.hass === undefined) return;
-    if (this._config === undefined) return;
-    if (this._helpers === undefined) return;
-    this._initialized = true;
-  }
-
-  private async loadCardHelpers(): Promise<void> {
-    this._helpers = await (window as any).loadCardHelpers();
-    await this.loadData();
-  }
-
-  private _valueChanged(ev): void {
-    if (!this._config || !this.hass) {
-      return;
-    }
-    const target = ev.target;
-    if (this[`_${target.configValue}`] === target.value) {
-      return;
-    }
-    if (target.configValue) {
-      if (target.value === '') {
-        const tmpConfig = { ...this._config };
-        delete tmpConfig[target.configValue];
-        this._config = tmpConfig;
-      } else {
-        this._config = {
-          ...this._config,
-          [target.configValue]: target.checked !== undefined ? target.checked : target.value,
-        };
-      }
-    }
-    if (target.configValue === 'hub') {
-      this._config.selected_schedule = '';
-    }
-    fireEvent(this, 'config-changed', { config: this._config });
-  }
-
-  static styles: CSSResultGroup = css`
-    mwc-select,
-    mwc-textfield {
-      margin-bottom: 16px;
+  static styles = css`
+    :host {
       display: block;
+      color: var(--primary-text-color);
     }
-    mwc-formfield {
-      padding-bottom: 20px;
+    .fields {
+      display: grid;
+      gap: 16px;
+    }
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: calc(14px + 1pt);
+    }
+    input[type='text'],
+    select {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--divider-color, #ddd);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--card-background-color, white);
+      color: var(--primary-text-color);
+      font: inherit;
+    }
+    fieldset {
+      border: 0;
+      border-top: 1px solid var(--divider-color, #ddd);
+      padding: 16px 0 0;
+      margin: 24px 0 0;
+      min-width: 0;
+    }
+    legend {
+      padding-right: 12px;
+      color: var(--secondary-text-color);
+      font-size: calc(13px + 1pt);
+    }
+    .toggle {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      min-height: 44px;
     }
-    mwc-switch {
-      --mdc-theme-secondary: var(--switch-checked-color);
+    input[type='checkbox'] {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      accent-color: var(--primary-color);
+    }
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .version {
+      margin-top: 24px;
+      color: var(--secondary-text-color);
+      font-size: calc(12px + 1pt);
     }
   `;
 }

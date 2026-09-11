@@ -1,19 +1,15 @@
-export const CARD_VERSION = '1.4.0';
+import { version } from '../package.json';
+
+export const CARD_VERSION = version;
 export const DOMAIN = 'wiser';
 export const DefaultTimeStep = 10;
 export const DefaultActionIcon = 'flash';
 export const SEC_PER_DAY = 86400;
 export const SEC_PER_HOUR = 3600;
 
-export enum ScheduleIcons {
-  Heating = 'mdi:radiator',
-  OnOff = 'mdi:power-socket-uk',
-  Shutters = 'mdi:blinds',
-  Lighting = 'mdi:lightbulb-outline',
-}
-
 export enum EViews {
   Overview = 'OVERVIEW',
+  RoomSchedule = 'ROOM_SCHEDULE',
   ScheduleEdit = 'SCHEDULE_EDIT',
   ScheduleCopy = 'SCHEDULE_COPY',
   ScheduleAdd = 'SCHEDULE_ADD',

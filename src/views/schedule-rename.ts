@@ -1,3 +1,4 @@
+import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
 import { property, customElement, state } from 'lit/decorators.js';
@@ -6,6 +7,7 @@ import type { WiserScheduleCardConfig, Schedule } from '../types';
 import { fetchScheduleById, renameSchedule } from '../data/websockets';
 import '../components/dialog-delete-confirm';
 import { EViews } from '../const';
+import { commonStyle } from '../styles';
 import { localize } from '../localize/localize';
 
 @customElement('wiser-schedule-rename-card')
@@ -20,63 +22,64 @@ export class ScheduleRenameCard extends LitElement {
   @state() private _schedule?: Schedule;
   @state() private _rename_in_progress = false;
 
-  constructor() {
-    super();
-    this.initialise();
-  }
+  @state() private _loadError = '';
 
-  async initialise(): Promise<boolean> {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    if (await this.isComponentLoaded()) {
-      this.component_loaded = true;
-      await this.loadData();
-    }
-    return true;
-  }
-
-  async isComponentLoaded(): Promise<boolean> {
-    while (!this.hass || !this.hass.config.components.includes('wiser')) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    return true;
+  protected firstUpdated(): void {
+    void this.loadData()
+      .then(() => {
+        this.component_loaded = true;
+      })
+      .catch((error: unknown) => {
+        this._loadError = (error as { message?: string })?.message || localize('common.load_failed');
+      })
+      .then(() => notifyViewReady(this));
   }
 
   private async loadData() {
     this._schedule = await fetchScheduleById(this.hass!, this.config!.hub, this.schedule_type!, this.schedule_id!);
+    this._newScheduleName = this._schedule.Name;
   }
 
   render(): TemplateResult {
     if (!this.hass || !this.config) return html``;
+    if (this._loadError)
+      return html`<div role="alert">${this._loadError}</hui-warning
+        ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
+    if (!this.component_loaded) return html`<div role="status">${localize('common.loading')}</div>`;
     return html`
       <div>
         <div>${localize('wiser.headings.rename_schedule')}</div>
         <div class="wrapper">${localize('wiser.helpers.enter_new_name')}</div>
-        <ha-textfield
-          class="schedule-name"
-          auto-validate
-          required
-          label=${localize('wiser.headings.schedule_name')}
-          value=${this._schedule!.Name}
-          error-message="Name is required"
-          .configValue=${'Name'}
-          @input=${this._valueChanged}
-        >
-        </ha-textfield>
+        <label class="schedule-name">
+          <span>${localize('wiser.headings.schedule_name')}</span>
+          <input
+            type="text"
+            required
+            .value=${this._newScheduleName}
+            ?disabled=${this._rename_in_progress}
+            @input=${(event: Event) => {
+              this._newScheduleName = (event.target as HTMLInputElement).value;
+            }}
+          />
+        </label>
       </div>
       <div class="card-actions">
-        <ha-button
+        <button
+          type="button"
           appearance="plain"
           style="float: right"
-          .disabled=${this._newScheduleName ? false : true}
+          .disabled=${!this._newScheduleName.trim() || this._newScheduleName === this._schedule?.Name || this._rename_in_progress}
           @click=${this.confirmClick}
         >
-          ${this._rename_in_progress
-            ? html`<span class="waiting"><ha-circular-progress active size="small"></ha-circular-progress></span>`
-            : this.hass!.localize('ui.common.save')}
-        </ha-button>
-        <ha-button appearance="plain" @click=${this.cancelClick}>
+          ${
+            this._rename_in_progress
+              ? html`<span class="waiting"><progress aria-label="Working"></progress></span>`
+              : this.hass!.localize('ui.common.save')
+          }
+        </button>
+        <button type="button" appearance="plain" @click=${this.cancelClick}>
           ${this.hass!.localize('ui.common.cancel')}
-        </ha-button>
+        </button>
       </div>
     `;
   }
@@ -98,16 +101,9 @@ export class ScheduleRenameCard extends LitElement {
     this.dispatchEvent(myEvent);
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  _valueChanged(ev): void {
-    const target = ev.target;
-    if (target.configValue) {
-      this._newScheduleName = target.value;
-    }
-  }
-
   static get styles(): CSSResultGroup {
     return css`
+      ${commonStyle}
       div.wrapper {
         white-space: nowrap;
         transition:
@@ -126,6 +122,7 @@ export class ScheduleRenameCard extends LitElement {
         margin: 20px 0 0 0;
       }
       .schedule-name {
+        max-width: 420px;
         margin: 20px 0 0 0;
         width: 100%;
       }

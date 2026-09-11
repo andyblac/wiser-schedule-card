@@ -1,40 +1,22 @@
-import resolve from '@rollup/plugin-node-resolve';
-import typescript from '@rollup/plugin-typescript';
-import babel from '@rollup/plugin-babel';
-import serve from 'rollup-plugin-serve';
-import terser from '@rollup/plugin-terser';
+import buildVersion from './scripts/build-version.mjs';
+import nodeResolve from '@rollup/plugin-node-resolve';
+import typescript from './rollup.typescript.js';
 import json from '@rollup/plugin-json';
-import ignore from './rollup-plugins/ignore';
-import { ignoreTextfieldFiles } from './elements/ignore/textfield';
-import { ignoreSelectFiles } from './elements/ignore/select';
-import { ignoreSwitchFiles } from './elements/ignore/switch';
+import serve from 'rollup-plugin-serve';
 
 export default {
-  input: ['src/wiser-schedule-card.ts'],
-  output: {
-    dir: './dist',
-    format: 'es',
-  },
+  input: 'src/wiser-schedule-card.ts',
+  output: { dir: 'dist', format: 'es', sourcemap: true },
   plugins: [
-    resolve(),
+    buildVersion({ dev: true }),
+    nodeResolve({ extensions: ['.mjs', '.js', '.json', '.ts'] }),
     typescript(),
     json(),
-    babel({
-      exclude: 'node_modules/**',
-      babelHelpers: 'bundled',
-    }),
-    terser(),
     serve({
-      contentBase: './dist',
-      host: '0.0.0.0',
+      contentBase: 'dist',
+      host: '127.0.0.1',
       port: 5000,
-      allowCrossOrigin: true,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
-    }),
-    ignore({
-      files: [...ignoreTextfieldFiles, ...ignoreSelectFiles, ...ignoreSwitchFiles].map((file) => require.resolve(file)),
+      headers: { 'Access-Control-Allow-Origin': '*' },
     }),
   ],
 };

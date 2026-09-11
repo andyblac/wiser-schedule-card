@@ -3,7 +3,11 @@
     "version": "Déclinaison",
     "invalid_configuration": "Configuration Invalide",
     "no_schedules": "Aucun Programme Trouvé",
-    "name_required": "Nom est obligatoire"
+    "name_required": "Nom est obligatoire",
+    "loading": "Chargement des programmes…",
+    "retry": "Réessayer",
+    "load_failed": "Impossible de charger les programmes.",
+    "integration_unavailable": "L’intégration Wiser n’est pas disponible."
   },
   "wiser": {
     "actions": {
@@ -12,7 +16,9 @@
       "rename": "Renommer",
       "add": "Ajouter",
       "view": "Voir",
-      "add_schedule": "Ajouter un Programme"
+      "add_schedule": "Ajouter un Programme",
+      "export": "Exporter le programme",
+      "import": "Importer un programme"
     },
     "labels": {
       "setting": "Paramètre",
@@ -59,7 +65,51 @@
       "select_copy_schedule": "Sélectionnez le calendrier ci-dessous pour le copier",
       "delete_schedule_confirm": "Êtes-vous sûr de vouloir effacer ce programme",
       "select_a_schedule": "Sélectionner un programme à afficher",
-      "add_schedule": "Sélectionnez le type de programme et entrez un nom pour la programme à créer"
+      "add_schedule": "Sélectionnez le type de programme et entrez un nom pour la programme à créer",
+      "add_schedule_name": "Saisissez un nom pour le nouveau programme",
+      "no_supported_types": "Aucun type de programme compatible avec cet appareil."
+    },
+    "rooms": {
+      "title": "Pièces",
+      "schedules": "Programmes",
+      "manage": "Gérer les programmes",
+      "back": "Retour à l’accueil",
+      "missing": "Cette pièce ou cet appareil n’est plus disponible.",
+      "current": "Programme actuel",
+      "unassigned": "Aucun programme attribué",
+      "choose": "Choisir un programme",
+      "no_schedules": "Aucun programme compatible. Créez-en un avec +.",
+      "assigning": "Attribution…",
+      "assign": "Attribuer le programme",
+      "saved": "Programme attribué.",
+      "view_schedule": "Voir / modifier le programme",
+      "shared": "Ce programme est partagé : les modifications affectent toutes les pièces et appareils associés.",
+      "select": "Sélectionnez une pièce pour choisir son programme",
+      "empty": "Aucune pièce Wiser trouvée.",
+      "edit": "Modifier le programme",
+      "save_edit": "Enregistrer le programme",
+      "cancel_edit": "Annuler les modifications",
+      "delete": "Supprimer le programme",
+      "available": "Programme disponible",
+      "none": "Aucun programme",
+      "removed": "Programme désaffecté."
+    },
+    "moments": {
+      "title": "Moments",
+      "heating": "Chauffage des pièces",
+      "description": "Actions prédéfinies pour votre maison. Utilisez les automatisations Home Assistant pour les programmer.",
+      "loading": "Chargement des Moments…",
+      "failed": "Impossible de charger les Moments. L’accès aux registres peut être limité pour ce compte.",
+      "empty": "Aucun Moment Wiser activé pour ce hub. Créez des Moments dans l’application Wiser.",
+      "open": "Ouvrir les commandes",
+      "unavailable": "Indisponible"
+    },
+    "home": {
+      "title": "Maison",
+      "heating": "Chauffage",
+      "hotwater": "Eau chaude",
+      "devices": "Éclairage et appareils",
+      "empty": "Aucune pièce ni appareil Wiser programmable trouvé."
     }
   }
 }

@@ -47,34 +47,23 @@ export class VariableSlider extends LitElement {
   }
 
   getSlider(): TemplateResult {
-    if (!this.disabled) {
-      return html`
-        <ha-slider
-          pin
-          min=${this.min}
-          max=${this.max}
-          step=${this.step}
-          value=${this._displayedValue}
-          @change=${this._updateValue}
-        ></ha-slider>
-      `;
-    } else {
-      return html`
-        <ha-slider
-          pin
-          min=${this.min}
-          max=${this.max}
-          step=${this.step}
-          value=${this._displayedValue}
-          disabled
-        ></ha-slider>
-      `;
-    }
+    return html`<input
+      type="range"
+      aria-label=${this.unit === '°C' ? 'Temperature' : 'Level'}
+      min=${this.min}
+      max=${this.max}
+      step=${this.step}
+      .value=${String(this._displayedValue)}
+      ?disabled=${this.disabled}
+      @input=${this._updateValue}
+    />`;
   }
 
   getCheckbox(): TemplateResult {
     if (!this.optional) return html``;
-    return html` <ha-checkbox @change=${this._toggleChecked} ?checked=${!this.disabled}></ha-checkbox> `;
+    return html`
+      <input type="checkbox" aria-label="Enable value" @change=${this._toggleChecked} .checked=${!this.disabled} />
+    `;
   }
 
   private _toggleChecked(e: Event) {
@@ -110,7 +99,7 @@ export class VariableSlider extends LitElement {
     ${commonStyle} :host {
       width: 100%;
     }
-    ha-slider {
+    input[type='range'] {
       width: 100%;
     }
   `;

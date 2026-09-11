@@ -33,13 +33,15 @@ export class TimeBar extends LitElement {
         const w = isSpacer ? (stepSize / 48) * 100 : (stepSize / 24) * 100;
         return html`
           <div style="width: ${Math.floor(w * 100) / 100}%" class="${isSpacer ? '' : 'time'}">
-            ${!isSpacer
-              ? formatTime(
-                  stringToDate(timeToString(e * SEC_PER_HOUR)),
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  getLocale(this.hass!),
-                )
-              : ''}
+            ${
+              !isSpacer
+                ? formatTime(
+                    stringToDate(timeToString(e * SEC_PER_HOUR)),
+                    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                    getLocale(this.hass!),
+                  )
+                : ''
+            }
           </div>
         `;
       });
@@ -73,7 +75,7 @@ export class TimeBar extends LitElement {
         position: relative;
         height: 25px;
         line-height: 25px;
-        font-size: 12px;
+        font-size: calc(12px + 1pt);
         text-align: center;
         align-content: center;
         align-items: center;

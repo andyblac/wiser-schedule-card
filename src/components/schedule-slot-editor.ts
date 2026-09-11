@@ -4,6 +4,7 @@
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
 import { property, customElement, state, eventOptions } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
+import { nativeControlStyle } from '../styles';
 import { mdiRadiatorOff, mdiUnfoldMoreVertical } from '@mdi/js';
 import type { WiserScheduleCardConfig, ScheduleSlot, Schedule, ScheduleDay, SunTimes } from '../types';
 import { color_map, getLocale, get_end_time, get_setpoint, stringTimeToSeconds } from '../helpers';
@@ -115,9 +116,11 @@ export class ScheduleSlotEditor extends LitElement {
         ${this.computeDayLabel(day.day)}
         <div class="outer" id="${day.day}">
           <div class="wrapper selectable">
-            ${day.slots.length > 0
-              ? day.slots.map((slot, index) => this.renderSlot(slot, index, day))
-              : this.renderEmptySlot(slot, -1, day, true)}
+            ${
+              day.slots.length > 0
+                ? day.slots.map((slot, index) => this.renderSlot(slot, index, day))
+                : this.renderEmptySlot(slot, -1, day, true)
+            }
           </div>
         </div>
       </div>
@@ -149,10 +152,9 @@ export class ScheduleSlotEditor extends LitElement {
     return html`
       <div
         id=${day.day + '|-1'}
-        class="slot previous ${this.editMode && onlySlot ? 'selectable' : null} ${this._activeSlot == index &&
-        this._activeDay == day.day
-          ? 'selected'
-          : null} ${this.config!.theme_colors ? 'theme-colors' : null}"
+        class="slot previous ${this.editMode && onlySlot ? 'selectable' : null} ${
+          this._activeSlot == index && this._activeDay == day.day ? 'selected' : null
+        } ${this.config!.theme_colors ? 'theme-colors' : null}"
         style="width:${Math.floor(width * 1000) / 1000}%; background:${colour};"
         title="${title}"
         @click=${onlySlot ? this._slotClick : null}
@@ -192,9 +194,9 @@ export class ScheduleSlotEditor extends LitElement {
       ${index == 0 && start_time != '00:00' && start_time != '0:00' ? this.renderEmptySlot(slot, -1, day, false) : ''}
       <div
         id=${day.day + '|' + index}
-        class="slot ${this.editMode ? 'selectable' : null} ${this._activeSlot == index && this._activeDay == day.day
-          ? 'selected'
-          : null}"
+        class="slot ${this.editMode ? 'selectable' : null} ${
+          this._activeSlot == index && this._activeDay == day.day ? 'selected' : null
+        }"
         style="width:${Math.floor(width * 1000) / 1000}%; background:${colour};"
         title="${title}"
         @click=${this._slotClick}
@@ -203,22 +205,34 @@ export class ScheduleSlotEditor extends LitElement {
         <div class="slotoverlay ${this.editMode ? 'selectable' : null}">
           <span class="${label_class}">${this.computeSetpointLabel(setpoint)}</span>
         </div>
-        ${this._activeSlot == index && this._activeDay == day.day
-          ? html`
-              <div class="handle">
-                <div class="button-holder">
-                  <ha-icon-button
-                    .path=${mdiUnfoldMoreVertical}
-                    @mousedown=${this._handleTouchStart}
-                    @touchstart=${this._handleTouchStart}
-                  >
-                  </ha-icon-button>
-                </div>
-              </div>
-            `
-          : ''}
-        ${this._activeSlot == index && this._activeDay == day.day ? this.renderTooltip(day, index) : ''}
+        ${
+          this._activeSlot == index && this._activeDay == day.day
+            ? html`
+                ${stringToTime(day.slots[index].Time) > 0 ? this.renderBoundaryHandle(day, index, false) : ''}
+                ${index < day.slots.length - 1 ? this.renderBoundaryHandle(day, index + 1, true) : ''}
+              `
+            : ''
+        }
       </div>
+    `;
+  }
+
+  private renderBoundaryHandle(day: ScheduleDay, boundary: number, end: boolean): TemplateResult {
+    return html`
+      <div class=${end ? 'handle end-handle' : 'handle'}>
+        <div class="button-holder">
+          <ha-icon-button
+            class="time-handle"
+            .label=${end ? 'Adjust end time' : 'Adjust start time'}
+            .path=${mdiUnfoldMoreVertical}
+            data-boundary=${boundary}
+            @click=${(event: Event) => event.stopPropagation()}
+            @mousedown=${this._handleTouchStart}
+            @touchstart=${this._handleTouchStart}
+          ></ha-icon-button>
+        </div>
+      </div>
+      ${this.renderTooltip(day, boundary, end)}
     `;
   }
 
@@ -231,14 +245,14 @@ export class ScheduleSlotEditor extends LitElement {
         <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
         <div class="sub-section">
           <div class="sub-heading">Set Special Time</div>
-          <ha-button id=${'sunrise'} @click=${this._setSpecialTime} ?disabled=${!slot}>
+          <button type="button" id=${'sunrise'} @click=${this._setSpecialTime} ?disabled=${!slot}>
             <ha-icon id=${'sunrise'} icon="hass:weather-sunny" class="padded-right"></ha-icon>
             Sunrise
-          </ha-button>
-          <ha-button id=${'sunset'} @click=${this._setSpecialTime} ?disabled=${!slot}>
+          </button>
+          <button type="button" id=${'sunset'} @click=${this._setSpecialTime} ?disabled=${!slot}>
             <ha-icon id=${'sunset'} icon="hass:weather-night" class="padded-right"></ha-icon>
             Sunset
-          </ha-button>
+          </button>
         </div>
       </div>
     `;
@@ -255,7 +269,8 @@ export class ScheduleSlotEditor extends LitElement {
       <div class="wrapper" style="white-space: normal;">
         <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
         <div class="sub-section">
-          <ha-button
+          <button
+            type="button"
             size="small"
             style="padding: 0 2px"
             @click=${this._addSlot}
@@ -263,8 +278,9 @@ export class ScheduleSlotEditor extends LitElement {
           >
             <ha-icon slot="start" icon="hass:plus-circle-outline" class="padded-right"></ha-icon>
             ${localize('wiser.actions.add')}
-          </ha-button>
-          <ha-button
+          </button>
+          <button
+            type="button"
             size="small"
             style="padding: 0 2px"
             @click=${this._removeSlot}
@@ -272,7 +288,7 @@ export class ScheduleSlotEditor extends LitElement {
           >
             <ha-icon slot="start" icon="hass:minus-circle-outline" class="padded-right"></ha-icon>
             ${this.hass!.localize('ui.common.delete')}
-          </ha-button>
+          </button>
         </div>
       </div>
     `;
@@ -290,19 +306,19 @@ export class ScheduleSlotEditor extends LitElement {
       }
       if (this.schedule_type == 'Heating') {
         return html`
-          <div class="wrapper" style="white-space: normal; padding-top: 10px;">
-            <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
-            <div class="sub-section">
+          <div class="temperature-row">
+            <div class="temperature-controls">
               <div class="section-header">${this._show_short_days ? 'Temp' : 'Temperature'}</div>
-              <br />
-              <div style="display: flex; line-height: 32px; width: 100%; max-width: 400px;">
-                <ha-icon-button
+              <div class="temperature-input">
+                <button
+                  type="button"
+                  aria-label="Heating off"
                   class="set-off-button"
-                  .path=${mdiRadiatorOff}
                   .disabled=${this._activeSlot < 0}
                   @click=${() => this._updateSetPoint('-20')}
                 >
-                </ha-icon-button>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${mdiRadiatorOff}></path></svg>
+                </button>
                 <wiser-variable-slider
                   min="5"
                   max="30"
@@ -329,16 +345,18 @@ export class ScheduleSlotEditor extends LitElement {
                 <div class="section-header" style="padding-right: 30%">State</div>
                 <div style="display: flex; line-height: 32px;">
                   <span>Off</span>
-                  <ha-switch
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-label="Scheduled state"
                     style="margin: 8px 10px;"
-                    ?checked=${this._activeSlot >= 0 && slots[this._activeSlot!].Setpoint == 'On'}
+                    .checked=${this._activeSlot >= 0 && slots[this._activeSlot!].Setpoint == 'On'}
                     .disabled=${this._activeSlot < 0}
                     @change=${() =>
                       slots[this._activeSlot!].Setpoint == 'On'
                         ? this._updateSetPoint('Off')
                         : this._updateSetPoint('On')}
-                  >
-                  </ha-switch>
+                  />
                   <span>On</span>
                 </div>
               </div>
@@ -381,13 +399,15 @@ export class ScheduleSlotEditor extends LitElement {
         <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
         <div>
           <div class="section-header">
-            ${this._activeDay
-              ? localize('wiser.actions.copy') +
-                ' ' +
-                localize('wiser.days.' + this._activeDay.toLowerCase()) +
-                ' ' +
-                localize('wiser.labels.to')
-              : localize('wiser.actions.copy') + ' ' + localize('wiser.labels.to')}
+            ${
+              this._activeDay
+                ? localize('wiser.actions.copy') +
+                  ' ' +
+                  localize('wiser.days.' + this._activeDay.toLowerCase()) +
+                  ' ' +
+                  localize('wiser.labels.to')
+                : localize('wiser.actions.copy') + ' ' + localize('wiser.labels.to')
+            }
           </div>
           <div>
             ${days
@@ -402,41 +422,46 @@ export class ScheduleSlotEditor extends LitElement {
 
   renderCopyToButton(day: string): TemplateResult {
     return html`
-      <ha-button
+      <button
+        type="button"
         id=${day}
         appearance="plain"
         size="small"
         @click=${this._copyDay}
         ?disabled=${this._activeDay == day || !this._activeDay}
       >
-        ${days.includes(day) && this._show_short_days
-          ? localize('wiser.days.short.' + day.toLowerCase())
-          : localize('wiser.days.' + day.toLowerCase())}
-      </ha-button>
+        ${
+          days.includes(day) && this._show_short_days
+            ? localize('wiser.days.short.' + day.toLowerCase())
+            : localize('wiser.days.' + day.toLowerCase())
+        }
+      </button>
     `;
   }
 
-  renderTooltip(day: ScheduleDay, i: number): TemplateResult {
+  renderTooltip(day: ScheduleDay, i: number, end = false): TemplateResult {
     const slots = day.slots;
     const res = SPECIAL_TIMES.includes(slots![i].SpecialTime);
     return html`
-      <div class="tooltip-container center">
+      <div class=${end ? 'tooltip-container center end-time' : 'tooltip-container center'}>
         <div class="tooltip ${this._activeSlot === i ? 'active' : ''}">
-          ${res
-            ? html`
-                <ha-icon
-                  icon="hass:${slots![i].SpecialTime == SPECIAL_TIMES[0] ? 'weather-sunny' : 'weather-night'}"
-                ></ha-icon>
-                ${slots![i].SpecialTime}
-              `
-            : formatTime(stringToDate(timeToString(stringToTime(slots![i].Time))), getLocale(this.hass!))}
+          ${
+            res
+              ? html`
+                  <ha-icon
+                    icon="hass:${slots![i].SpecialTime == SPECIAL_TIMES[0] ? 'weather-sunny' : 'weather-night'}"
+                  ></ha-icon>
+                  ${slots![i].SpecialTime}
+                `
+              : formatTime(stringToDate(timeToString(stringToTime(slots![i].Time))), getLocale(this.hass!))
+          }
         </div>
       </div>
     `;
   }
 
   private _slotClick(ev): void {
-    const target = ev.target.parentElement.parentElement;
+    const target = ev.currentTarget;
     if (target.id) {
       const day = target.id.split('|')[0];
       const slot = target.id.split('|')[1];
@@ -455,7 +480,7 @@ export class ScheduleSlotEditor extends LitElement {
   }
 
   private _copyDay(ev): void {
-    const target = ev.target;
+    const target = ev.currentTarget;
     const slotData = JSON.stringify(this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots);
     if (days.includes(target.id)) {
       this.schedule!.ScheduleData[days.indexOf(target.id)].slots = JSON.parse(slotData);
@@ -521,7 +546,7 @@ export class ScheduleSlotEditor extends LitElement {
         return t.charAt(0).toUpperCase() + t.substr(1).toLowerCase();
       });
     };
-    const specialTime = titleCase(ev.target.id);
+    const specialTime = titleCase(ev.currentTarget.id);
     if (this._activeDay && this._activeSlot >= 0) {
       if (
         this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots[this._activeSlot].SpecialTime != specialTime
@@ -635,7 +660,7 @@ export class ScheduleSlotEditor extends LitElement {
   private _handleTouchStart(ev: MouseEvent | TouchEvent) {
     const activeDayIndex = days.indexOf(this._activeDay);
     let slots = this.schedule!.ScheduleData.filter((rday) => rday.day == this._activeDay)[0].slots;
-    const marker = ev.target as HTMLElement;
+    const marker = ev.currentTarget as HTMLElement;
     let m = marker;
     while (!m.classList.contains('outer')) m = m.parentElement as HTMLElement;
 
@@ -648,7 +673,8 @@ export class ScheduleSlotEditor extends LitElement {
     while (!el.classList.contains('slot')) el = el.parentElement as HTMLElement;
 
     const rightSlot = el;
-    const i = Number(rightSlot.getAttribute('slot'));
+    const i = Number(marker.dataset.boundary);
+    if (!Number.isInteger(i) || i < 0 || i >= slots.length) return;
 
     const Tmin = i > 0 ? stringToTime(slots![i - 1].Time) + 60 * this.stepSize : 0;
 
@@ -725,9 +751,11 @@ export class ScheduleSlotEditor extends LitElement {
   computeDayLabel(day: string): TemplateResult {
     return html`
       <div class="day  ${this._show_short_days ? 'short' : ''}">
-        ${this._show_short_days
-          ? localize('wiser.days.short.' + day.toLowerCase())
-          : localize('wiser.days.' + day.toLowerCase())}
+        ${
+          this._show_short_days
+            ? localize('wiser.days.short.' + day.toLowerCase())
+            : localize('wiser.days.' + day.toLowerCase())
+        }
       </div>
     `;
   }
@@ -742,6 +770,7 @@ export class ScheduleSlotEditor extends LitElement {
 
   static get styles(): CSSResultGroup {
     return css`
+      ${nativeControlStyle}
       :host {
         display: block;
         max-width: 100%;
@@ -768,13 +797,37 @@ export class ScheduleSlotEditor extends LitElement {
         line-height: 40px;
         padding: 0 5px;
         text-transform: uppercase;
-        font-size: small;
+        font-size: calc(13px + 1pt);
+      }
+      .temperature-row {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        padding-top: 10px;
+      }
+      .temperature-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: min(100%, 540px);
+      }
+      .temperature-input {
+        display: flex;
+        align-items: center;
+        flex: 1 1 240px;
+        min-width: 0;
+        max-width: 400px;
+      }
+      .temperature-input wiser-variable-slider {
+        min-width: 0;
       }
       .section-header {
-        color: var(--material-body-text-color, #000);
+        color: var(--primary-text-color);
         text-transform: uppercase;
         font-weight: 500;
-        font-size: var(--material-small-font-size);
+        font-size: calc(var(--material-small-font-size, 12px) + 1pt);
         padding: 5px 10px;
       }
       .slot {
@@ -786,7 +839,7 @@ export class ScheduleSlotEditor extends LitElement {
         position: relative;
         height: 40px;
         line-height: 40px;
-        font-size: 10px;
+        font-size: calc(10px + 1pt);
         text-align: center;
       }
       .slot:first-child {
@@ -890,7 +943,7 @@ export class ScheduleSlotEditor extends LitElement {
         position: relative;
         height: 25px;
         line-height: 25px;
-        font-size: 12px;
+        font-size: calc(12px + 1pt);
         text-align: center;
         align-content: center;
         align-items: center;
@@ -908,7 +961,7 @@ export class ScheduleSlotEditor extends LitElement {
         margin-top: 0px;
       }
       .slot span {
-        font-size: 10px;
+        font-size: calc(10px + 1pt);
         color: var(--text-primary-color);
         height: 100%;
         display: flex;
@@ -922,36 +975,61 @@ export class ScheduleSlotEditor extends LitElement {
         line-height: 1em;
       }
       div.handle {
-        display: flex;
+        position: absolute;
+        top: 0;
+        left: 0;
         height: 100%;
         width: 36px;
-        margin-left: -19px;
-        margin-bottom: -60px;
-        align-content: center;
-        align-items: center;
-        justify-content: center;
+        transform: translateX(-50%);
+        display: grid;
+        place-items: center;
+        z-index: 5;
+      }
+      div.handle.end-handle {
+        left: 100%;
+      }
+      div.tooltip-container.end-time {
+        left: 100%;
       }
       div.button-holder {
+        line-height: 0;
         background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
         border-radius: 50%;
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+      }
+      ha-icon-button.time-handle {
         display: flex;
-        visibility: hidden;
-        animation: 0.2s fadeIn;
-        animation-fill-mode: forwards;
-        z-index: 5;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
+        --ha-button-height: 32px;
+        --wa-form-control-height: 32px;
+        --ha-icon-button-padding-inline: 0px;
+        --mdc-icon-button-size: 32px;
+        --mdc-icon-size: 24px;
+        --ha-icon-button-size: 32px;
+        width: 32px;
+        height: 32px;
+        margin: 0;
+        padding: 0;
+        color: var(--primary-color);
+        cursor: ew-resize;
+        touch-action: none;
       }
       div.tooltip-container {
         position: absolute;
-        margin-top: -12px;
-        margin-left: -22px;
-        width: 40px;
+        margin-top: 0;
+        margin-left: -40px;
+        width: 80px;
         height: 0px;
         text-align: center;
         line-height: 35px;
         z-index: 3;
-        top: -26px;
+        top: -48px;
       }
 
       div.tooltip-container.visible {
@@ -970,10 +1048,13 @@ export class ScheduleSlotEditor extends LitElement {
         margin: 0px auto;
         border-radius: 5px;
         color: var(--text-primary-color);
-        font-size: 1em;
-        padding: 0px 5px;
+        font-size: calc(18px + 1pt);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        padding: 4px 10px;
         text-align: center;
-        line-height: 20px;
+        line-height: 28px;
         z-index: 5;
         transition: all 0.1s ease-in;
         transform-origin: center bottom;
@@ -997,7 +1078,7 @@ export class ScheduleSlotEditor extends LitElement {
         border-right: 6px solid transparent;
         border-top: 10px solid var(--primary-color);
         position: absolute;
-        margin-top: 25px;
+        margin-top: 36px;
         margin-left: calc(50% - 6px);
         top: 0px;
         left: 0px;
