@@ -6,19 +6,25 @@ Originally created by [Mark Parker (@msp1974)](https://github.com/msp1974).
 
 ## Installation
 
-The Wiser integration must be installed and configured in Home Assistant.
+Release versions of Wiser Schedule Card are included with the main Wiser Home Assistant integration. Install or update the integration to receive the bundled card; no separate card installation is needed.
 
-1. Build the card with the development commands below, or obtain `wiser-schedule-card.js` from a release.
-2. Copy the file into your Home Assistant `config/www/` directory.
-3. Add `/local/wiser-schedule-card.js` as a **JavaScript module** dashboard resource.
-4. Add **Wiser Schedule Card** through the dashboard card picker, or use YAML:
+Add **Wiser Schedule Card** through the dashboard card picker and select the Wiser hub in the editor, or use YAML:
 
 ```yaml
 type: custom:wiser-schedule-card
-name: Wiser Schedule
+hub: your_hub_name
 ```
 
-If the card is already installed through HACS, use its existing resource entry rather than adding a duplicate.
+### Testing a development build
+
+Manual bundle replacement is only needed when testing a development version, using the same method as Wiser Zigbee Card:
+
+1. Run `npm run build:dev` to produce `dist/wiser-schedule-card.js`.
+2. Replace the integration’s `config/custom_components/wiser/frontend/wiser-schedule-card.js` with that bundle.
+3. Update the existing dashboard resource to the version printed by the build, for example `/wiser/wiser-schedule-card.js?v=2.0.0-dev.57`, with type **JavaScript module**.
+4. Reload Home Assistant.
+
+Keep a single resource entry for the schedule card. An integration update may replace the development bundle with its included release version.
 
 ## Rooms and schedules
 
@@ -96,11 +102,12 @@ The command prints the URL, for example:
 /wiser/wiser-schedule-card.js?v=2.0.0-dev.1
 ```
 
-Copy the JavaScript file to the location your existing `/wiser/` route serves, then
-update the dashboard resource query string to the printed version. This command
-builds locally; it does not upload to Home Assistant or create the `/wiser/` route.
-For a standard `config/www/wiser/` installation, use
-`/local/wiser/wiser-schedule-card.js?v=2.0.0-dev.1` instead.
+Copy `dist/wiser-schedule-card.js` over the integration’s
+`config/custom_components/wiser/frontend/wiser-schedule-card.js`, then update the
+existing `/wiser/wiser-schedule-card.js` dashboard resource query string to the
+printed version and reload Home Assistant. The Wiser integration provides the
+`/wiser/` route. The build command only creates the local bundle; it does not
+upload it to Home Assistant.
 
 `npm start` also increments the dev number on each successful watch rebuild.
 The local counter is saved in `.dev-build.json`, outside `dist`, and excluded from
