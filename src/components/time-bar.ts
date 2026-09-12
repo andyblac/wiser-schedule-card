@@ -1,6 +1,7 @@
+import { customElement } from './register-element';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
-import { property, customElement } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 
 import { getLocale } from '../helpers';

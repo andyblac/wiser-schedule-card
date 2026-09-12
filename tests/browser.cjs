@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 (async () => {
   const server = createServer(async (req, res) => {
-    const script = req.url === '/card.js';
+    const script = req.url.split('?')[0] === '/card.js';
     res.setHeader('Content-Type', script ? 'text/javascript' : 'text/html');
     res.end(await readFile(script ? 'dist/wiser-schedule-card.js' : 'tests/fixture.html'));
   });
@@ -605,6 +605,23 @@ const assert = require('node:assert/strict');
     console.log(
       'PASS schedule-first home, multiple compatible assignments, return navigation, permissions and editor toggle',
     );
+    await fresh();
+    const duplicateLoad = await page.evaluate(async () => {
+      const original = customElements.get('wiser-schedule-card');
+      const header = customElements.get('wiser-card-header');
+      await import('/card.js?duplicate=1');
+      await import('/card.js?duplicate=2');
+      mountCard({ home_screen: 'schedules' });
+      return {
+        sameCard: customElements.get('wiser-schedule-card') === original,
+        sameHeader: customElements.get('wiser-card-header') === header,
+        pickerEntries: window.customCards.filter((card) => card.type === 'wiser-schedule-card').length,
+      };
+    });
+    assert.deepEqual(duplicateLoad, { sameCard: true, sameHeader: true, pickerEntries: 1 });
+    await page.locator('button.schedule-tile').first().click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    console.log('PASS repeated resource URLs preserve registered elements and a single picker entry');
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

@@ -1,5 +1,6 @@
+import { customElement } from './register-element';
 import { LitElement, html, css, CSSResultGroup, TemplateResult } from 'lit';
-import { property, customElement, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { nothing } from 'lit';
 

@@ -1,5 +1,6 @@
+import { customElement } from './register-element';
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import type { WiserScheduleCardConfig } from '../types';
 
 @customElement('wiser-card-header')

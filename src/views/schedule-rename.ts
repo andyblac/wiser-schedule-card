@@ -1,8 +1,9 @@
+import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
-import { property, customElement, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import type { WiserScheduleCardConfig, Schedule } from '../types';
 import { fetchScheduleById, renameSchedule } from '../data/websockets';

@@ -1,10 +1,11 @@
+import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { loadHaControls } from '../components/ha-controls';
 import { importScheduleFile } from '../data/schedule-file';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup, PropertyValues } from 'lit';
-import { property, customElement, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { CurrentUser, fireEvent } from 'custom-card-helpers';
 import type {
   WiserScheduleCardConfig,

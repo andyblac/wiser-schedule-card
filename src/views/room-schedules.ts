@@ -1,10 +1,11 @@
+import { customElement } from '../components/register-element';
 import '../components/card-header';
 import '../components/moments';
 import { plugIcon } from '../components/plug-icon';
 import { loadHaControls } from '../components/ha-controls';
 import { SchedulerEditCard } from './schedule-edit';
 import { LitElement, html, css, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { SubscribeMixin } from '../components/subscribe-mixin';
 import { notifyViewReady } from '../components/view-ready';
 import { fetchRoomsList, fetchDeviceList, fetchSchedules, fetchScheduleById, assignSchedule } from '../data/websockets';

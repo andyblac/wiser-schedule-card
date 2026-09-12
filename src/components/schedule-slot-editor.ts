@@ -1,8 +1,9 @@
+import { customElement } from './register-element';
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
-import { property, customElement, state, eventOptions } from 'lit/decorators.js';
+import { property, state, eventOptions } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { nativeControlStyle } from '../styles';
 import { mdiRadiatorOff, mdiUnfoldMoreVertical } from '@mdi/js';

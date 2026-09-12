@@ -1,5 +1,6 @@
+import { customElement } from './register-element';
 import { LitElement, html, css, TemplateResult } from 'lit';
-import { property, customElement } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { commonStyle } from '../styles';
 import { fireEvent } from 'custom-card-helpers';
 

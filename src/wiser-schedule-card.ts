@@ -1,7 +1,8 @@
+import { customElement } from './components/register-element';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LitElement, html, css, TemplateResult, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCardEditor, getLovelace } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types. https://github.com/custom-cards/custom-card-helpers
 
 import type { WiserScheduleCardConfig } from './types';
@@ -25,12 +26,13 @@ console.info(
 
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
-  type: 'wiser-schedule-card',
-  name: 'Wiser Schedule Card',
-  description: 'A card to manage Wiser schedules',
-  preview: false,
-});
+if (!(window as any).customCards.some((card: { type: string }) => card.type === 'wiser-schedule-card'))
+  (window as any).customCards.push({
+    type: 'wiser-schedule-card',
+    name: 'Wiser Schedule Card',
+    description: 'A card to manage Wiser schedules',
+    preview: false,
+  });
 
 @customElement('wiser-schedule-card')
 export class WiserScheduleCard extends LitElement {

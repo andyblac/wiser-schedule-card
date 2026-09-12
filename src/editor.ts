@@ -1,6 +1,7 @@
+import { customElement } from './components/register-element';
 import { LitElement, html, css, PropertyValues, TemplateResult } from 'lit';
 import { HomeAssistant, fireEvent, LovelaceCardEditor } from 'custom-card-helpers';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { WiserScheduleCardConfig } from './types';
 import { fetchHubs } from './data/websockets';
 import { loadHaControls } from './components/ha-controls';

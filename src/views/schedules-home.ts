@@ -1,6 +1,7 @@
+import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { LitElement, html, css, PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { SubscribeMixin } from '../components/subscribe-mixin';
 import { notifyViewReady } from '../components/view-ready';
 import { fetchSchedules } from '../data/websockets';
