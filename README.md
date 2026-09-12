@@ -6,7 +6,7 @@ Originally created by [Mark Parker (@msp1974)](https://github.com/msp1974).
 
 ## Installation
 
-Release versions of Wiser Schedule Card are included with the main Wiser Home Assistant integration. Install or update the integration to receive the bundled card; no separate card installation is needed.
+Release versions of Wiser Schedule Card are included with the [wiserHomeAssistantPlatform](https://github.com/asantaga/wiserHomeAssistantPlatform) integration. Install or update the integration to receive the bundled card; no separate card installation is needed.
 
 Add **Wiser Schedule Card** through the dashboard card picker and select the Wiser hub in the editor, or use YAML:
 
