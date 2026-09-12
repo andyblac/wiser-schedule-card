@@ -1,3 +1,4 @@
+import { toolbarColors } from '../components/toolbar-colors';
 import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { loadHaControls } from '../components/ha-controls';
@@ -847,6 +848,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       div.schedule-info {
         margin: 3px 0;
       }
+    ${toolbarColors}
     `;
   }
 }

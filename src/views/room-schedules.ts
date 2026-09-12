@@ -1,3 +1,4 @@
+import { toolbarColors } from '../components/toolbar-colors';
 import { customElement } from '../components/register-element';
 import '../components/card-header';
 import '../components/moments';
@@ -572,5 +573,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       background: var(--secondary-background-color);
       color: var(--secondary-text-color);
     }
-  `;
+  ${toolbarColors}
+    `;
 }
