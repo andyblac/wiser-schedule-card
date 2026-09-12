@@ -507,6 +507,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => lastConfig.selected_schedule), undefined);
     await page.getByLabel('Read-only mode').check();
     assert.equal(await page.evaluate(() => lastConfig.display_only), true);
+    await page.getByLabel('Hide card background', { exact: true }).check();
+    assert.equal(await page.evaluate(() => lastConfig.hide_card_background), true);
     assert.equal(await page.getByLabel('Only admins can manage schedules').isDisabled(), true);
     await fresh();
     await page.evaluate(async () => {
@@ -622,6 +624,19 @@ const assert = require('node:assert/strict');
     await page.locator('button.schedule-tile').first().click();
     await page.waitForSelector('wiser-schedule-slot-editor');
     console.log('PASS repeated resource URLs preserve registered elements and a single picker entry');
+    await fresh();
+    await page.evaluate(() => mountCard({ home_screen: 'schedules', hide_card_background: true }));
+    await page.waitForSelector('button.schedule-tile');
+    assert.equal(
+      await page.locator('ha-card').evaluate((el) => getComputedStyle(el).backgroundColor),
+      'rgba(0, 0, 0, 0)',
+    );
+    await page.locator('button.schedule-tile').first().click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    assert.equal(await page.locator('ha-card').evaluate((el) => el.style.background), 'transparent');
+    await page.evaluate(() => mountCard({ hide_card_background: false }));
+    await roomsReady();
+    assert.equal(await page.locator('ha-card').evaluate((el) => el.style.background), '');
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

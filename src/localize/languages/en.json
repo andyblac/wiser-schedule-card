@@ -120,7 +120,8 @@
     },
     "editor": {
       "display_only": "Read-only mode",
-      "display_only_help": "Prevent schedule and heating changes, including for admins."
+      "display_only_help": "Prevent schedule and heating changes, including for admins.",
+      "hide_card_background": "Hide card background"
     }
   }
 }

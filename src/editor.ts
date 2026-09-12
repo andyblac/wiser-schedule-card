@@ -114,6 +114,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       <fieldset>
         <legend>Appearance</legend>
         ${this.toggle('theme_colors', 'Use theme colours')} ${this.toggle('hide_card_borders', 'Hide card borders')}
+        ${this.toggle('hide_card_background', localize('wiser.editor.hide_card_background'))}
       </fieldset>
       <div class="version">Wiser Schedule Card · ${CARD_VERSION}</div>
     `;

@@ -120,7 +120,8 @@
     },
     "editor": {
       "display_only": "Mode lecture seule",
-      "display_only_help": "Empêcher les modifications des plannings et du chauffage, même pour les administrateurs."
+      "display_only_help": "Empêcher les modifications des plannings et du chauffage, même pour les administrateurs.",
+      "hide_card_background": "Masquer le fond de la carte"
     }
   }
 }
