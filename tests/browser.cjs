@@ -505,7 +505,7 @@ const assert = require('node:assert/strict');
     await page.getByLabel('Wiser hub').selectOption('hub-two');
     await page.waitForFunction(() => lastConfig.hub === 'hub-two');
     assert.equal(await page.evaluate(() => lastConfig.selected_schedule), undefined);
-    await page.getByLabel('Display schedules only').check();
+    await page.getByLabel('Read-only mode').check();
     assert.equal(await page.evaluate(() => lastConfig.display_only), true);
     assert.equal(await page.getByLabel('Only admins can manage schedules').isDisabled(), true);
     await fresh();

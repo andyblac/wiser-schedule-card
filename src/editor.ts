@@ -107,7 +107,8 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       ${this._error ? html`<div role="alert">${this._error} <button @click=${() => this.loadData()}>Try again</button></div>` : ''}
       <fieldset>
         <legend>Permissions</legend>
-        ${this.toggle('display_only', 'Display schedules only')}
+        ${this.toggle('display_only', localize('wiser.editor.display_only'))}
+        <p class="field-help">${localize('wiser.editor.display_only_help')}</p>
         ${this.toggle('admin_only', 'Only admins can manage schedules', config.display_only)}
       </fieldset>
       <fieldset>
@@ -119,6 +120,11 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   }
 
   static styles = css`
+    .field-help {
+      color: var(--secondary-text-color);
+      font-size: 13px;
+      margin: 0 0 12px;
+    }
     :host {
       display: block;
       color: var(--primary-text-color);

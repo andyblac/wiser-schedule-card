@@ -117,6 +117,10 @@
       "assign_devices": "Assigned rooms / devices",
       "apply_devices": "Apply assignments",
       "no_devices": "No compatible devices available."
+    },
+    "editor": {
+      "display_only": "Read-only mode",
+      "display_only_help": "Prevent schedule and heating changes, including for admins."
     }
   }
 }

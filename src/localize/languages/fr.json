@@ -117,6 +117,10 @@
       "assign_devices": "Pièces / appareils affectés",
       "apply_devices": "Appliquer les affectations",
       "no_devices": "Aucun appareil compatible disponible."
+    },
+    "editor": {
+      "display_only": "Mode lecture seule",
+      "display_only_help": "Empêcher les modifications des plannings et du chauffage, même pour les administrateurs."
     }
   }
 }
