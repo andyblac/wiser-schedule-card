@@ -21,7 +21,7 @@ Manual bundle replacement is only needed when testing a development version, usi
 
 1. Run `npm run build:dev` to produce `dist/wiser-schedule-card.js`.
 2. Replace the integration’s `config/custom_components/wiser/frontend/wiser-schedule-card.js` with that bundle.
-3. Update the existing dashboard resource to the version printed by the build, for example `/wiser/wiser-schedule-card.js?v=2.0.0-dev.57`, with type **JavaScript module**.
+3. Update the existing dashboard resource to the version printed by the build, for example `/wiser/wiser-schedule-card.js?v=2.0.0-beta.1-dev.1`, with type **JavaScript module**.
 4. Reload Home Assistant.
 
 Keep a single resource entry for the schedule card. An integration update may replace the development bundle with its included release version.
@@ -87,19 +87,20 @@ Browser checks use mocked Home Assistant elements and Wiser WebSocket responses.
 
 ## Development builds for testing
 
-The release version is **2.0.0**. To create a numbered development build:
+The current prerelease is **2.0.0-beta.1**. Build it with `npm run build`.
+Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.0-beta.1`. To create a numbered development build:
 
 ```sh
 npm run build:dev
 ```
 
-The first successful build is `2.0.0-dev.1`; the next is `2.0.0-dev.2`, and so on.
+The first successful build is `2.0.0-beta.1-dev.1`; the next is `2.0.0-beta.1-dev.2`, and so on.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
 The command prints the URL, for example:
 
 ```text
-/wiser/wiser-schedule-card.js?v=2.0.0-dev.1
+/wiser/wiser-schedule-card.js?v=2.0.0-beta.1-dev.1
 ```
 
 Copy `dist/wiser-schedule-card.js` over the integration’s
@@ -112,7 +113,7 @@ upload it to Home Assistant.
 `npm start` also increments the dev number on each successful watch rebuild.
 The local counter is saved in `.dev-build.json`, outside `dist`, and excluded from
 Git. It survives cleaning `dist` and resets to 1 when the release version changes.
-Counters are local to each checkout. `npm run build` produces the stable release
+Counters are local to each checkout. `npm run build` produces the configured release
 version without incrementing the dev counter. Release and dev builds both replace
 the bundle in `dist`.
 
