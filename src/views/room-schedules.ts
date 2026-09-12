@@ -1,4 +1,9 @@
 import { toolbarColors } from '../components/toolbar-colors';
+import '../components/heating-status';
+import { fetchRoomClimateEntities, findRoomClimate } from '../data/room-climate';
+import '../components/home-navigation';
+import { nextScheduleChange } from '../data/schedule-overview';
+import type { SunTimes } from '../types';
 import { customElement } from '../components/register-element';
 import '../components/card-header';
 import '../components/moments';
@@ -9,14 +14,42 @@ import { LitElement, html, css, PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { SubscribeMixin } from '../components/subscribe-mixin';
 import { notifyViewReady } from '../components/view-ready';
-import { fetchRoomsList, fetchDeviceList, fetchSchedules, fetchScheduleById, assignSchedule } from '../data/websockets';
+import {
+  fetchSunTimes,
+  fetchRoomsList,
+  fetchDeviceList,
+  fetchSchedules,
+  fetchScheduleById,
+  assignSchedule,
+} from '../data/websockets';
 import { allow_edit } from '../helpers';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 import type { Room, Schedule, WiserScheduleCardConfig, WiserEventData } from '../types';
 
 @customElement('wiser-room-schedules')
 export class RoomSchedules extends SubscribeMixin(LitElement) {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) config!: WiserScheduleCardConfig;
+  @state() private climateEntities: string[] = [];
+  @state() private sun?: SunTimes;
+  @state() private now = new Date();
+  @state() private expandedDevices: Record<string, boolean> = {};
+  private clock?: ReturnType<typeof setInterval>;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.clock = setInterval(() => {
+      this.now = new Date();
+    }, 30000);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearInterval(this.clock);
+  }
+
   @property({ attribute: false }) room_id?: number;
   @property({ attribute: false }) target_type = 'heating';
   @property({ attribute: false }) created_schedule?: { Id: number; Type: string };
@@ -102,9 +135,11 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     this.error = '';
     try {
       await loadHaControls();
-      const [rooms, schedules, ...deviceLists] = await Promise.all([
+      const [rooms, schedules, sun, climateEntities, ...deviceLists] = await Promise.all([
         fetchRoomsList(this.hass, this.config.hub),
         fetchSchedules(this.hass, this.config.hub),
+        fetchSunTimes(this.hass, this.config.hub).catch(() => undefined),
+        fetchRoomClimateEntities(this.hass, this.config.hub).catch(() => []),
         ...['lighting', 'onoff', 'shutters'].map((kind) => fetchDeviceList(this.hass!, this.config.hub, kind)),
       ]);
       const details = await Promise.all(
@@ -113,13 +148,15 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       if (request !== this.requestId) return;
       this.rooms = [...rooms].sort((a, b) => a.Name.localeCompare(b.Name));
       this.schedules = details;
+      this.sun = sun;
+      this.climateEntities = climateEntities;
       this.devices = deviceLists.reduce<(Room & { kind: string })[]>(
         (all, items, index) =>
           all.concat(items.map((item) => ({ ...item, kind: ['lighting', 'onoff', 'shutters'][index] }))),
         [],
       );
       if (details.some((schedule) => schedule.Id === 1000))
-        this.devices.unshift({ Id: 1000, Name: localize('wiser.home.hotwater'), kind: 'hotwater' });
+        this.devices.unshift({ Id: 1000, Name: this.localize('wiser.home.hotwater'), kind: 'hotwater' });
       this.loaded = true;
       const room = this.target;
       if (room) {
@@ -140,7 +177,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           this.selected = String(this.currentSchedule(room)?.Id ?? 'none');
       }
     } catch (error: unknown) {
-      if (request === this.requestId) this.error = (error as Error)?.message || localize('common.load_failed');
+      if (request === this.requestId) this.error = (error as Error)?.message || this.localize('common.load_failed');
     } finally {
       if (request === this.requestId) {
         this.loading = false;
@@ -168,7 +205,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       await this.loadData();
       this.saved = !this.error;
     } catch (error: unknown) {
-      this.error = (error as Error)?.message || localize('common.load_failed');
+      this.error = (error as Error)?.message || this.localize('common.load_failed');
     } finally {
       this.saving = false;
       await notifyViewReady(this);
@@ -188,7 +225,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   }
 
   private tool(label: string, icon: string, action: () => void, disabled = false) {
-    const text = localize(label);
+    const text = this.localize(label);
     return html`<button
       class="tool"
       type="button"
@@ -211,20 +248,20 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
             ?disabled=${this.saving}
             @click=${() => this.dispatchEvent(new CustomEvent('roomsBack'))}
           >
-            ← ${localize('wiser.rooms.back')}
+            ← ${this.localize('wiser.rooms.back')}
           </button>`
         : '';
     if (this.loading && !this.loaded)
       return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
-        <div class="status" role="status">${localize('common.loading')}</div>`;
+        <div class="status" role="status">${this.localize('common.loading')}</div>`;
     if (this.error)
       return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
         <div class="status" role="alert">${this.error}</div>
-        <button @click=${() => this.loadData()}>${localize('common.retry')}</button>`;
+        <button @click=${() => this.loadData()}>${this.localize('common.retry')}</button>`;
     if (this.room_id !== undefined) {
       if (!room)
         return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
-          <div class="status">${localize('wiser.rooms.missing')}</div>`;
+          <div class="status">${this.localize('wiser.rooms.missing')}</div>`;
       const current = this.currentSchedule(room);
       const choices = this.compatible(this.target_type);
       const fixed = this.target_type === 'hotwater';
@@ -253,14 +290,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
               this.editing
                 ? html`
                     ${this.tool('wiser.rooms.cancel_edit', 'mdi:close', () => this.editor?.cancelClick(), this.editorSaving)}
-                    ${this.tool(
-                      'wiser.rooms.save_edit',
-                      'mdi:content-save',
-                      () => {
-                        void this.editor?.saveClick();
-                      },
-                      this.editorSaving,
-                    )}
                   `
                 : html`
                     ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
@@ -287,16 +316,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                       editable && !fixed
                         ? html`
                             ${this.tool('wiser.actions.add_schedule', 'mdi:plus', () => this.dispatchEvent(new CustomEvent('addScheduleClick')), blocked)}
-                            ${this.tool(
-                              'wiser.rooms.assign',
-                              'mdi:check',
-                              () => {
-                                void this.assign();
-                              },
-                              blocked ||
-                                !this.selected ||
-                                (this.selected === 'none' ? !current : this.selected === String(current?.Id)),
-                            )}
                           `
                         : ''
                     }
@@ -306,7 +325,8 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
         </wiser-card-header>
         <h3>${room.Name}</h3>
         <p class="secondary">
-          ${localize('wiser.rooms.current')}: <strong>${current?.Name ?? localize('wiser.rooms.unassigned')}</strong>
+          ${this.localize('wiser.rooms.current')}:
+          <strong>${current?.Name ?? this.localize('wiser.rooms.unassigned')}</strong>
         </p>
         ${
           editable && !fixed
@@ -316,7 +336,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                     ? html`<ha-selector
                         class="schedule-picker"
                         .hass=${this.hass}
-                        .label=${localize('wiser.rooms.choose')}
+                        .label=${this.localize('wiser.rooms.choose')}
                         .selector=${{ select: { mode: 'dropdown', options: choices.map((schedule) => ({ value: String(schedule.Id), label: schedule.Name })) } }}
                         .value=${this.selected === 'none' ? undefined : this.selected || undefined}
                         .required=${false}
@@ -336,11 +356,11 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                       ></ha-selector>`
                     : choices.length === 1 && !current
                       ? html`<p class="secondary">
-                          ${localize('wiser.rooms.available')}: <strong>${choices[0].Name}</strong>
+                          ${this.localize('wiser.rooms.available')}: <strong>${choices[0].Name}</strong>
                         </p>`
                       : ''
                 }
-                ${!choices.length ? html`<p class="secondary">${localize('wiser.rooms.no_schedules')}</p>` : ''}
+                ${!choices.length ? html`<p class="secondary">${this.localize('wiser.rooms.no_schedules')}</p>` : ''}
               `
             : ''
         }
@@ -371,9 +391,20 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
               `
             : ''
         }
-        ${this.saved ? html`<p role="status">${localize(this.selected === 'none' ? 'wiser.rooms.removed' : 'wiser.rooms.saved')}</p>` : ''}
-        ${viewed && viewed.Assignments.length > 1 ? html`<p class="secondary">${localize('wiser.rooms.shared')}</p>` : ''}
-        ${this.saving ? html`<p role="status">${localize('wiser.rooms.assigning')}</p>` : ''}
+        ${this.saved ? html`<p role="status">${this.localize(this.selected === 'none' ? 'wiser.rooms.removed' : 'wiser.rooms.saved')}</p>` : ''}
+        ${viewed && viewed.Assignments.length > 1 ? html`<p class="secondary">${this.localize('wiser.rooms.shared')}</p>` : ''}
+        ${this.saving ? html`<p role="status">${this.localize('wiser.rooms.assigning')}</p>` : ''}
+        ${
+          editable && !fixed && !this.editing
+            ? html`<div class="save-actions">
+                <ha-button
+                  .disabled=${blocked || !this.selected || (this.selected === 'none' ? !current : this.selected === String(current?.Id))}
+                  @click=${() => this.assign()}
+                  >${this.localize('wiser.rooms.save_edit')}</ha-button
+                >
+              </div>`
+            : ''
+        }
       `;
     }
     const groups = [
@@ -382,43 +413,190 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       { title: 'devices', items: this.devices.filter((item) => item.kind !== 'hotwater') },
     ];
     return html`
-      <wiser-card-header .config=${this.config}></wiser-card-header>
+      <wiser-card-header .config=${this.config}
+        ><wiser-home-navigation
+          .hass=${this.hass}
+          active="overview"
+          @home-view-changed=${(event: CustomEvent) => {
+            if (event.detail !== 'overview') return;
+            event.stopPropagation();
+            const buttons = Array.from(
+              this.renderRoot.querySelectorAll<HTMLButtonElement>('.details-toggle:not(:disabled)'),
+            );
+            const expand = buttons.some((button) => button.getAttribute('aria-expanded') !== 'true');
+            this.expandedDevices = {
+              ...this.expandedDevices,
+              ...buttons.reduce<Record<string, boolean>>((values, button) => {
+                values[button.dataset.key!] = expand;
+                return values;
+              }, {}),
+            };
+            void notifyViewReady(this);
+          }}
+        ></wiser-home-navigation
+      ></wiser-card-header>
+      <h3>${this.localize('wiser.home.overview')}</h3>
+      ${this.config.home_screen !== 'overview' || this.config.overview_details !== false ? html`<p class="secondary">${this.localize('wiser.home.overview_hint')}</p>` : ''}
       ${groups
         .filter((group) => group.items.length)
         .map(
           (group) =>
             html` <section>
-              <h3 class="section-heading">${localize('wiser.home.' + group.title)}</h3>
-              <div class=${this.config.view_type === 'list' ? 'rooms list' : 'rooms'}>
-                ${group.items.map(
-                  (item) =>
-                    html` <button
-                      class="room"
-                      @click=${() => this.dispatchEvent(new CustomEvent('roomClick', { detail: { id: item.Id, kind: item.kind } }))}
-                    >
-                      <span class="icon" aria-hidden="true"
-                        ><ha-icon
-                          .icon=${{ heating: 'mdi:home-thermometer-outline', hotwater: 'mdi:water-boiler', lighting: 'mdi:lightbulb-outline', onoff: plugIcon((this.hass?.config as { country?: string | null })?.country), shutters: 'mdi:window-shutter' }[item.kind]}
-                        ></ha-icon
-                      ></span>
-                      <span class="room-text"
-                        ><strong>${item.Name}</strong
-                        ><span class="secondary"
-                          >${this.currentSchedule(item, item.kind)?.Name ?? localize('wiser.rooms.unassigned')}</span
-                        ></span
-                      >
-                      <span class="chevron" aria-hidden="true">›</span>
-                    </button>`,
-                )}
-              </div>
+              <h3 class="section-heading">${this.localize('wiser.home.' + group.title)}</h3>
+              <div class="overview-grid">${group.items.map((item) => this.renderDeviceOverview(item))}</div>
             </section>`,
         )}
-      ${!this.rooms.length && !this.devices.length ? html`<p class="secondary">${localize('wiser.home.empty')}</p>` : ''}
+      ${!this.rooms.length && !this.devices.length ? html`<p class="secondary">${this.localize('wiser.home.empty')}</p>` : ''}
       <wiser-moments .hass=${this.hass} .hub=${this.config.hub || ''}></wiser-moments>
     `;
   }
 
+  private renderDeviceOverview(item: Room & { kind: string }) {
+    const schedule = this.currentSchedule(item, item.kind);
+    const next = schedule
+      ? nextScheduleChange(schedule, this.now, this.hass!.config.time_zone || 'UTC', this.sun)
+      : undefined;
+    const setting = next
+      ? `${next.setpoint}${item.kind === 'heating' ? '°C' : ['lighting', 'shutters'].includes(item.kind) ? '%' : ''}`
+      : '';
+    const key = `${item.kind}-${item.Id}`;
+    const expanded =
+      this.expandedDevices[key] ?? (this.config.home_screen !== 'overview' || this.config.overview_details !== false);
+    const row = (label: string, value: string | number) =>
+      html`<div>
+        <dt>${this.localize('wiser.home.' + label)}</dt>
+        <dd>${value}</dd>
+      </div>`;
+    return html`<article class="device-overview">
+      <div class="device-heading">
+        <button
+          class="details-toggle"
+          type="button"
+          data-key=${key}
+          aria-label=${this.localize('wiser.home.device_details') + ': ' + item.Name}
+          title=${this.localize('wiser.home.device_details')}
+          aria-expanded=${Boolean((schedule || item.kind === 'heating') && expanded)}
+          aria-controls=${'details-' + key}
+          ?disabled=${!schedule && item.kind !== 'heating'}
+          @click=${() => {
+            this.expandedDevices = { ...this.expandedDevices, [key]: !expanded };
+            void notifyViewReady(this);
+          }}
+        >
+          <ha-icon
+            .icon=${{ heating: 'mdi:home-thermometer-outline', hotwater: 'mdi:water-boiler', lighting: 'mdi:lightbulb-outline', onoff: plugIcon((this.hass?.config as { country?: string })?.country), shutters: 'mdi:window-shutter' }[item.kind]}
+          ></ha-icon>
+        </button>
+        <button
+          class="overview-device"
+          type="button"
+          @click=${() => this.dispatchEvent(new CustomEvent('roomClick', { detail: { id: item.Id, kind: item.kind } }))}
+        >
+          <span class="device-summary"
+            ><strong>${item.Name}</strong
+            ><span class="secondary">${schedule?.Name || this.localize('wiser.rooms.unassigned')}</span></span
+          ><span aria-hidden="true">›</span>
+        </button>
+      </div>
+      ${
+        schedule
+          ? html`<div class="device-details" id=${'details-' + key} ?hidden=${!expanded}>
+              <dl>
+                ${row('schedule_name', schedule.Name)}${row('schedule_id', schedule.Id)}
+                ${row('schedule_type', schedule.SubType || schedule.Type)}
+                ${next ? html`${row('next_day', this.localize('wiser.days.' + next.day.toLowerCase()))}${row('next_change', new Intl.DateTimeFormat(this.hass!.locale?.language || 'en', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(next.date + 'T00:00:00Z')) + ' · ' + next.time)}${row('next_setting', setting)}` : html`<p class="secondary">${this.localize('wiser.home.no_next_change')}</p>`}
+              </dl>
+              ${item.kind === 'heating' ? this.renderHeating(item, true) : ''}
+            </div>`
+          : item.kind === 'heating'
+            ? html`<div class="device-details" id=${'details-' + key} ?hidden=${!expanded}>
+                ${this.renderHeating(item, false)}
+              </div>`
+            : ''
+      }
+    </article>`;
+  }
+
+  private renderHeating(item: Room, assigned: boolean) {
+    return html`<wiser-heating-status
+      .hass=${this.hass}
+      .entityId=${findRoomClimate(this.hass!, this.climateEntities, item.Name)}
+      .editable=${allow_edit(this.hass!, this.config)}
+      .assigned=${assigned}
+    ></wiser-heating-status>`;
+  }
+
   static styles = css`
+    .device-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .device-heading .details-toggle {
+      flex: 0 0 44px;
+      padding: 0;
+      width: 44px;
+      border: 0;
+      background: transparent;
+      color: var(--primary-color);
+    }
+    .device-heading .overview-device {
+      border: 0;
+      background: transparent;
+      padding: 8px;
+      min-width: 0;
+    }
+    .overview-grid {
+      align-items: start;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+      gap: 12px;
+    }
+    .device-overview {
+      border: 1px solid var(--divider-color);
+      border-radius: 14px;
+      padding: 16px;
+      background: var(--card-background-color);
+      min-width: 0;
+    }
+    .overview-device {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      text-align: start;
+    }
+    .device-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .device-summary {
+      flex: 1;
+      overflow-wrap: anywhere;
+    }
+    .overview-device ha-icon {
+      color: var(--primary-color);
+    }
+    dl {
+      margin: 12px 0 0;
+    }
+    dl > div {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 0;
+    }
+    dt {
+      color: var(--secondary-text-color);
+    }
+    dd {
+      margin: 0;
+      text-align: end;
+      overflow-wrap: anywhere;
+    }
+
     :host {
       display: block;
       color: var(--primary-text-color);
@@ -446,8 +624,16 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       padding: 0;
       display: grid;
       place-items: center;
+      color: var(--secondary-text-color);
+    }
+    .tool:disabled {
+      color: var(--disabled-text-color);
+      opacity: 1;
+    }
+    .tool:not(:disabled):hover {
       color: var(--primary-color);
     }
+
     h3 {
       margin: 16px 0 8px;
       font-size: calc(22px + 1pt);
@@ -465,14 +651,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     }
     .intro {
       margin: 0 0 16px;
-    }
-    .rooms {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
-      gap: 10px;
-    }
-    .rooms.list {
-      grid-template-columns: 1fr;
     }
     button,
     select {
@@ -498,42 +676,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     select:focus-visible {
       outline: 2px solid var(--primary-color);
       outline-offset: 3px;
-    }
-    .room {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      text-align: start;
-      padding: 14px;
-      min-height: 82px;
-    }
-    .room-text {
-      display: flex;
-      flex: 1;
-      min-width: 0;
-      flex-direction: column;
-      gap: 3px;
-      overflow-wrap: anywhere;
-    }
-    .room-text strong {
-      font-weight: 500;
-    }
-    .room-text .secondary {
-      font-size: calc(12px + 1pt);
-    }
-    .icon {
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      width: 38px;
-      height: 38px;
-      border-radius: 11px;
-      background: var(--secondary-background-color);
-      color: var(--primary-color);
-    }
-    .chevron {
-      color: var(--secondary-text-color);
-      font-size: calc(24px + 1pt);
     }
     .back {
       border: 0;
@@ -573,6 +715,11 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       background: var(--secondary-background-color);
       color: var(--secondary-text-color);
     }
-  ${toolbarColors}
-    `;
+    .save-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    ${toolbarColors}
+  `;
 }

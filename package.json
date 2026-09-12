@@ -41,7 +41,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node tests/browser.cjs",
+    "test": "node --test tests/schedule-overview.test.cjs tests/panel.test.cjs && node tests/browser.cjs && node tests/panel-browser.cjs",
     "build:dev": "npm run typecheck && rollup -c --configDev --bundleConfigAsCjs",
     "test:build": "node --test tests/build-version.test.mjs"
   },

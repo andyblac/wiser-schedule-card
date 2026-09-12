@@ -16,6 +16,7 @@ import './views/schedule-add';
 import './views/schedule-copy';
 import './views/schedule-rename';
 import './editor';
+import './wiser-schedules-panel.js';
 
 /* eslint no-console: 0 */
 console.info(
@@ -43,9 +44,12 @@ export class WiserScheduleCard extends LitElement {
   @state() private _schedule_id?: number = 0;
   @state() private _schedule_type?: string = 'heating';
   @state() private _room_id?: number;
+  @state() private _homeView: 'schedules' | 'overview' = 'schedules';
   @state() private _target_type = 'heating';
   @state() private _created_schedule?: { Id: number; Type: string };
   private _returnView = EViews.Overview;
+
+  public static readonly panelApiVersion = 1;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement('wiser-schedule-card-editor');
@@ -67,7 +71,7 @@ export class WiserScheduleCard extends LitElement {
     this.config = {
       name: 'Wiser Schedule',
       ...config,
-      home_screen: config.home_screen ?? 'schedules',
+      home_screen: (config.home_screen as string) === 'devices' ? 'overview' : (config.home_screen ?? 'schedules'),
     };
   }
 
@@ -95,6 +99,7 @@ export class WiserScheduleCard extends LitElement {
     if (changedProps.has('config')) {
       this.style.removeProperty('--wiser-view-min-height');
       this._returnView = EViews.Overview;
+      this._homeView = this.config?.home_screen || 'schedules';
       this.processConfigSchedule();
     } else if (changedProps.has('_view')) {
       // Views fetch their data after mounting. Preserve the outgoing content's
@@ -192,9 +197,16 @@ export class WiserScheduleCard extends LitElement {
       return html`<ha-card style=${cardStyle}
         ><div class="status" role="status">${localize('common.integration_unavailable')}</div></ha-card
       >`;
-    if (this._view === EViews.Overview && this.config.home_screen === 'schedules') {
+
+    if (this._view === EViews.Overview && this._homeView === 'schedules') {
       return html`<ha-card style=${cardStyle}>
-        <div class="card-content" @wiser-view-ready=${this._viewReady}>
+        <div
+          class="card-content"
+          @wiser-view-ready=${this._viewReady}
+          @home-view-changed=${(event: CustomEvent) => {
+            if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+          }}
+        >
           <wiser-schedules-home
             .hass=${this._hass}
             .config=${this.config}
@@ -210,7 +222,13 @@ export class WiserScheduleCard extends LitElement {
     }
     if (this._view === EViews.Overview || this._view === EViews.RoomSchedule) {
       return html` <ha-card style=${cardStyle}>
-        <div class="card-content" @wiser-view-ready=${this._viewReady}>
+        <div
+          class="card-content"
+          @wiser-view-ready=${this._viewReady}
+          @home-view-changed=${(event: CustomEvent) => {
+            if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+          }}
+        >
           <wiser-room-schedules
             .hass=${this._hass}
             .config=${this.config}
@@ -242,7 +260,13 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleEdit && this._schedule_id) {
       return html`
         <ha-card style=${cardStyle}>
-          <div class="card-content" @wiser-view-ready=${this._viewReady}>
+          <div
+            class="card-content"
+            @wiser-view-ready=${this._viewReady}
+            @home-view-changed=${(event: CustomEvent) => {
+              if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+            }}
+          >
             <wiser-schedule-edit-card
               .hass=${this._hass}
               .config=${this.config}
@@ -260,7 +284,13 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleAdd) {
       return html`
         <ha-card style=${cardStyle}>
-          <div class="card-content" @wiser-view-ready=${this._viewReady}>
+          <div
+            class="card-content"
+            @wiser-view-ready=${this._viewReady}
+            @home-view-changed=${(event: CustomEvent) => {
+              if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+            }}
+          >
             <wiser-schedule-add-card
               .assign_to=${this._returnView === EViews.RoomSchedule ? this._room_id : undefined}
               .allowed_types=${this._returnView === EViews.RoomSchedule ? [this._target_type] : undefined}
@@ -275,7 +305,13 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleCopy) {
       return html`
         <ha-card style=${cardStyle}>
-          <div class="card-content" @wiser-view-ready=${this._viewReady}>
+          <div
+            class="card-content"
+            @wiser-view-ready=${this._viewReady}
+            @home-view-changed=${(event: CustomEvent) => {
+              if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+            }}
+          >
             <wiser-schedule-copy-card
               .hass=${this._hass}
               .config=${this.config}
@@ -290,7 +326,13 @@ export class WiserScheduleCard extends LitElement {
     } else if (this._view == EViews.ScheduleRename) {
       return html`
         <ha-card style=${cardStyle}>
-          <div class="card-content" @wiser-view-ready=${this._viewReady}>
+          <div
+            class="card-content"
+            @wiser-view-ready=${this._viewReady}
+            @home-view-changed=${(event: CustomEvent) => {
+              if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
+            }}
+          >
             <wiser-schedule-rename-card
               .hass=${this._hass}
               .config=${this.config}

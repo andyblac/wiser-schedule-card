@@ -11,10 +11,13 @@ import { createSchedule, fetchScheduleTypes, fetchSchedules, assignSchedule } fr
 import '../components/dialog-delete-confirm';
 import { allow_edit } from '../helpers';
 import { commonStyle } from '../styles';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 
 @customElement('wiser-schedule-add-card')
 export class ScheduleAddCard extends LitElement {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: WiserScheduleCardConfig;
   @property({ attribute: false }) public component_loaded = false;
@@ -34,7 +37,7 @@ export class ScheduleAddCard extends LitElement {
         this.component_loaded = true;
       })
       .catch((error: unknown) => {
-        this._loadError = (error as { message?: string })?.message || localize('common.load_failed');
+        this._loadError = (error as { message?: string })?.message || this.localize('common.load_failed');
       })
       .then(() => notifyViewReady(this));
   }
@@ -46,7 +49,7 @@ export class ScheduleAddCard extends LitElement {
         !this.allowed_types || this.allowed_types.some((allowed) => allowed.toLowerCase() === type.toLowerCase()),
     );
     this._schedule_info = { Name: '', Type: this._schedule_types[0] || '' };
-    if (!this._schedule_types.length) throw new Error(localize('wiser.helpers.no_supported_types'));
+    if (!this._schedule_types.length) throw new Error(this.localize('wiser.helpers.no_supported_types'));
   }
 
   render(): TemplateResult {
@@ -54,32 +57,23 @@ export class ScheduleAddCard extends LitElement {
     if (this._loadError)
       return html`<div role="alert">${this._loadError}</hui-warning
         ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
-    if (!this.component_loaded) return html`<div role="status">${localize('common.loading')}</div>`;
+    if (!this.component_loaded) return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
       <wiser-card-header .config=${this.config}>
         <div class="header-actions" role="toolbar">
-          <button
-            type="button"
-            appearance="plain"
-            .disabled=${this._saving || !this._schedule_info?.Name.trim() || !this._schedule_info?.Type}
-            @click=${this.confirmClick}
-            dialogAction="close"
-          >
-            ${this.hass.localize('ui.common.save')}
-          </button>
           <button type="button" appearance="plain" @click=${this.cancelClick}>
             ${this.hass.localize('ui.common.cancel')}
           </button>
         </div>
       </wiser-card-header>
       <div>
-        <div>${localize('wiser.actions.add_schedule')}</div>
+        <div>${this.localize('wiser.actions.add_schedule')}</div>
         <div class="wrapper" style="white-space: normal">
-          ${localize(this._schedule_types.length === 1 ? 'wiser.helpers.add_schedule_name' : 'wiser.helpers.add_schedule')}
+          ${this.localize(this._schedule_types.length === 1 ? 'wiser.helpers.add_schedule_name' : 'wiser.helpers.add_schedule')}
         </div>
         ${this._schedule_types.length > 1 ? html`<div class="wrapper">${this._schedule_types.map((t, i) => this.renderScheduleTypeButtons(t, i))}</div>` : ''}
         <label class="schedule-name">
-          <span>${localize('wiser.headings.schedule_name')}</span>
+          <span>${this.localize('wiser.headings.schedule_name')}</span>
           <input
             type="text"
             required
@@ -91,6 +85,14 @@ export class ScheduleAddCard extends LitElement {
             }}
           />
         </label>
+      </div>
+      <div class="save-actions">
+        <ha-button
+          .disabled=${this._saving || !this._schedule_info?.Name.trim() || !this._schedule_info?.Type}
+          @click=${this.confirmClick}
+        >
+          ${this.hass.localize('ui.common.save')}
+        </ha-button>
       </div>
     `;
   }
@@ -140,7 +142,7 @@ export class ScheduleAddCard extends LitElement {
         await assignSchedule(this.hass, this.config.hub, created.Type, created.Id, String(this.assign_to));
       this.dispatchEvent(new CustomEvent('scheduleAdded', { detail: created }));
     } catch (error: unknown) {
-      this._loadError = (error as Error)?.message || localize('common.load_failed');
+      this._loadError = (error as Error)?.message || this.localize('common.load_failed');
     } finally {
       this._saving = false;
     }
@@ -165,6 +167,11 @@ export class ScheduleAddCard extends LitElement {
   static get styles(): CSSResultGroup {
     return css`
       ${commonStyle}
+      .save-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 24px;
+      }
       .header-actions {
         display: flex;
         flex-wrap: wrap;

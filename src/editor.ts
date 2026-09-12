@@ -5,12 +5,17 @@ import { property, state } from 'lit/decorators.js';
 import { WiserScheduleCardConfig } from './types';
 import { fetchHubs } from './data/websockets';
 import { loadHaControls } from './components/ha-controls';
-import { localize } from './localize/localize';
+import { localizeForHass } from './localize/localize';
 import { CARD_VERSION } from './const';
 
 @customElement('wiser-schedule-card-editor')
 export class WiserScheduleCardEditor extends LitElement implements LovelaceCardEditor {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public hass?: HomeAssistant;
+  @property({ attribute: false }) public hideHubSelector = false;
+  @property({ attribute: false }) public hideCardAppearance = false;
   @state() private _config?: WiserScheduleCardConfig;
   @state() private _hubs: string[] = [];
   @state() private _error = '';
@@ -58,12 +63,12 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   private toggle(key: string, label: string, disabled = false): TemplateResult {
     return html`<label class="toggle">
       <span>${label}</span>
-      <input
-        type="checkbox"
+      <ha-switch
+        aria-label=${label}
         .checked=${Boolean(this._config?.[key])}
-        ?disabled=${disabled}
-        @change=${(event: Event) => this.change(key, (event.target as HTMLInputElement).checked)}
-      />
+        .disabled=${disabled}
+        @change=${(event: Event) => this.change(key, (event.target as HTMLElement & { checked: boolean }).checked)}
+      ></ha-switch>
     </label>`;
   }
 
@@ -72,49 +77,89 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
     const config = this._config;
     return html`
       <div class="fields">
+        ${
+          this.hideHubSelector
+            ? ''
+            : html`<ha-selector
+                class="hub-picker"
+                .hass=${this.hass}
+                .label=${this.localize('wiser.editor.hub')}
+                .selector=${{ select: { mode: 'dropdown', options: this._hubs.map((hub) => ({ value: hub, label: hub })) } }}
+                .value=${config.hub || this._hubs[0]}
+                .required=${true}
+                .disabled=${this._hubs.length < 2}
+                @value-changed=${(event: CustomEvent<{ value?: string }>) => {
+                  event.stopPropagation();
+                  if (event.detail.value && this._hubs.includes(event.detail.value))
+                    this.change('hub', event.detail.value);
+                }}
+              ></ha-selector>`
+        }
         <div class="home-screen">
-          <span>${localize('wiser.home.screen')}</span>
+          <span>${this.localize('wiser.home.screen')}</span>
           <ha-selector
             .hass=${this.hass}
             .selector=${{
               button_toggle: {
                 options: [
-                  { value: 'devices', label: localize('wiser.home.devices_mode') },
-                  { value: 'schedules', label: localize('wiser.rooms.schedules') },
+                  { value: 'schedules', label: this.localize('wiser.rooms.schedules') },
+                  { value: 'overview', label: this.localize('wiser.home.overview') },
                 ],
               },
             }}
-            .value=${config.home_screen || 'schedules'}
+            .value=${(config.home_screen as string) === 'devices' ? 'overview' : config.home_screen || 'schedules'}
             @value-changed=${(event: CustomEvent) => {
               event.stopPropagation();
-              if (['devices', 'schedules'].includes(event.detail.value)) this.change('home_screen', event.detail.value);
+              if (['schedules', 'overview'].includes(event.detail.value))
+                this.change('home_screen', event.detail.value);
             }}
           ></ha-selector>
         </div>
         ${
-          this._hubs.length > 1
-            ? html`<label
-                >Wiser hub<select
-                  .value=${config.hub || this._hubs[0]}
-                  @change=${(e: Event) => this.change('hub', (e.target as HTMLSelectElement).value)}
-                >
-                  ${this._hubs.map((hub) => html`<option .value=${hub} ?selected=${hub === (config.hub || this._hubs[0])}>${hub}</option>`)}
-                </select></label
-              >`
+          (config.home_screen as string) === 'overview' || (config.home_screen as string) === 'devices'
+            ? html`
+                <div class="home-screen">
+                  <span>${this.localize('wiser.home.overview_details')}</span>
+                  <ha-selector
+                    .hass=${this.hass}
+                    .selector=${{
+                      button_toggle: {
+                        options: [
+                          { value: 'show', label: this.localize('wiser.home.show') },
+                          { value: 'hide', label: this.localize('wiser.home.hide') },
+                        ],
+                      },
+                    }}
+                    .value=${config.overview_details === false ? 'hide' : 'show'}
+                    @value-changed=${(event: CustomEvent) => {
+                      event.stopPropagation();
+                      if (['show', 'hide'].includes(event.detail.value))
+                        this.change('overview_details', event.detail.value === 'show');
+                    }}
+                  ></ha-selector>
+                </div>
+              `
             : ''
         }
       </div>
-      ${this._error ? html`<div role="alert">${this._error} <button @click=${() => this.loadData()}>Try again</button></div>` : ''}
+      ${this._error ? html`<div role="alert">${this._error} <button @click=${() => this.loadData()}>${this.localize('common.retry')}</button></div>` : ''}
       <fieldset>
-        <legend>Permissions</legend>
-        ${this.toggle('display_only', localize('wiser.editor.display_only'))}
-        <p class="field-help">${localize('wiser.editor.display_only_help')}</p>
-        ${this.toggle('admin_only', 'Only admins can manage schedules', config.display_only)}
+        <legend>${this.localize('wiser.editor.permissions')}</legend>
+        ${this.toggle('display_only', this.localize('wiser.editor.display_only'))}
+        <p class="field-help">${this.localize('wiser.editor.display_only_help')}</p>
+        ${this.toggle('admin_only', this.localize('wiser.editor.admin_only'), config.display_only)}
       </fieldset>
       <fieldset>
-        <legend>Appearance</legend>
-        ${this.toggle('theme_colors', 'Use theme colours')} ${this.toggle('hide_card_borders', 'Hide card borders')}
-        ${this.toggle('hide_card_background', localize('wiser.editor.hide_card_background'))}
+        <legend>${this.localize('wiser.editor.appearance')}</legend>
+        ${this.toggle('theme_colors', this.localize('wiser.editor.theme_colors'))}
+        ${
+          this.hideCardAppearance
+            ? ''
+            : html`
+                ${this.toggle('hide_card_borders', this.localize('wiser.editor.hide_card_borders'))}
+                ${this.toggle('hide_card_background', this.localize('wiser.editor.hide_card_background'))}
+              `
+        }
       </fieldset>
       <div class="version">Wiser Schedule Card · ${CARD_VERSION}</div>
     `;
@@ -142,6 +187,10 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       margin-inline-start: auto;
       display: flex;
       justify-content: flex-end;
+      max-width: 100%;
+    }
+    .hub-picker {
+      width: 420px;
       max-width: 100%;
     }
     .fields {
@@ -184,11 +233,8 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       gap: 16px;
       min-height: 44px;
     }
-    input[type='checkbox'] {
-      width: 20px;
-      height: 20px;
+    ha-switch {
       flex-shrink: 0;
-      accent-color: var(--primary-color);
     }
     input:focus-visible,
     select:focus-visible {

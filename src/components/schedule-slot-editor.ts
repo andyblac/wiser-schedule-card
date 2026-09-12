@@ -28,10 +28,13 @@ import { formatTime } from '../data/date-time/format_time';
 import { stringToDate } from '../data/date-time/string_to_date';
 import './variable-slider';
 import './time-bar';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 
 @customElement('wiser-schedule-slot-editor')
 export class ScheduleSlotEditor extends LitElement {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) config?: WiserScheduleCardConfig;
 
@@ -138,15 +141,15 @@ export class ScheduleSlotEditor extends LitElement {
       : 'rgba(' + color_map(this, this.schedule_type!, setpoint) + ')';
     const width = ((stringTimeToSeconds(end_time) - stringTimeToSeconds(start_time)) / SEC_PER_DAY) * 100;
     const title =
-      localize('wiser.labels.start') +
+      this.localize('wiser.labels.start') +
       ' - ' +
       start_time +
       '\n' +
-      localize('wiser.labels.end') +
+      this.localize('wiser.labels.end') +
       ' - ' +
       end_time +
       '\n' +
-      localize('wiser.labels.setting') +
+      this.localize('wiser.labels.setting') +
       ' - ' +
       this.computeSetpointLabel(setpoint);
     const label_class = (width / 100) * fullWidth < 35 ? 'setpoint rotate' : 'setpoint';
@@ -179,15 +182,15 @@ export class ScheduleSlotEditor extends LitElement {
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     const label_class = (width / 100) * fullWidth < 35 ? 'setpoint rotate' : 'setpoint';
     const title =
-      localize('wiser.labels.start') +
+      this.localize('wiser.labels.start') +
       ' - ' +
       (slot.SpecialTime ? slot.SpecialTime + ' (' + start_time + ')' : start_time) +
       '\n' +
-      localize('wiser.labels.end') +
+      this.localize('wiser.labels.end') +
       ' - ' +
       end_time +
       '\n' +
-      localize('wiser.labels.setting') +
+      this.localize('wiser.labels.setting') +
       ' - ' +
       this.computeSetpointLabel(setpoint);
 
@@ -278,7 +281,7 @@ export class ScheduleSlotEditor extends LitElement {
             .disabled=${this._activeSlot < -1 || slotCount >= 24}
           >
             <ha-icon slot="start" icon="hass:plus-circle-outline" class="padded-right"></ha-icon>
-            ${localize('wiser.actions.add')}
+            ${this.localize('wiser.actions.add')}
           </button>
           <button
             type="button"
@@ -309,7 +312,9 @@ export class ScheduleSlotEditor extends LitElement {
         return html`
           <div class="temperature-row">
             <div class="temperature-controls">
-              <div class="section-header">${this._show_short_days ? 'Temp' : 'Temperature'}</div>
+              <div class="section-header" aria-disabled=${this._activeSlot < 0}>
+                ${this._show_short_days ? 'Temp' : 'Temperature'}
+              </div>
               <div class="temperature-input">
                 <button
                   type="button"
@@ -399,15 +404,15 @@ export class ScheduleSlotEditor extends LitElement {
       <div class="wrapper" style="white-space: normal; padding-top: 10px;">
         <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
         <div>
-          <div class="section-header">
+          <div class="section-header" aria-disabled=${!this._activeDay}>
             ${
               this._activeDay
-                ? localize('wiser.actions.copy') +
+                ? this.localize('wiser.actions.copy') +
                   ' ' +
-                  localize('wiser.days.' + this._activeDay.toLowerCase()) +
+                  this.localize('wiser.days.' + this._activeDay.toLowerCase()) +
                   ' ' +
-                  localize('wiser.labels.to')
-                : localize('wiser.actions.copy') + ' ' + localize('wiser.labels.to')
+                  this.localize('wiser.labels.to')
+                : this.localize('wiser.actions.copy') + ' ' + this.localize('wiser.labels.to')
             }
           </div>
           <div>
@@ -433,8 +438,8 @@ export class ScheduleSlotEditor extends LitElement {
       >
         ${
           days.includes(day) && this._show_short_days
-            ? localize('wiser.days.short.' + day.toLowerCase())
-            : localize('wiser.days.' + day.toLowerCase())
+            ? this.localize('wiser.days.short.' + day.toLowerCase())
+            : this.localize('wiser.days.' + day.toLowerCase())
         }
       </button>
     `;
@@ -754,8 +759,8 @@ export class ScheduleSlotEditor extends LitElement {
       <div class="day  ${this._show_short_days ? 'short' : ''}">
         ${
           this._show_short_days
-            ? localize('wiser.days.short.' + day.toLowerCase())
-            : localize('wiser.days.' + day.toLowerCase())
+            ? this.localize('wiser.days.short.' + day.toLowerCase())
+            : this.localize('wiser.days.' + day.toLowerCase())
         }
       </div>
     `;
@@ -1159,6 +1164,9 @@ export class ScheduleSlotEditor extends LitElement {
       .sub-heading {
         padding: 0px 10px 0px 10px;
         font-weight: 500;
+      }
+      .section-header[aria-disabled='true'] {
+        color: var(--disabled-text-color);
       }
     `;
   }

@@ -35,6 +35,35 @@
   <script type="module">
     // Minimal HA host elements. These do not simulate the real HA component internals.
     customElements.define(
+      'ha-switch',
+      class extends HTMLElement {
+        connectedCallback() {
+          this.setAttribute('role', 'switch');
+          this.tabIndex = 0;
+          this.style.cssText = 'display:inline-block;width:40px;height:24px;background:gray';
+          this.addEventListener('click', () => {
+            if (this.disabled) return;
+            this.checked = !this.checked;
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+        }
+        set checked(value) {
+          this._checked = value;
+          this.setAttribute('aria-checked', String(value));
+        }
+        get checked() {
+          return this._checked;
+        }
+        set disabled(value) {
+          this._disabled = value;
+          this.setAttribute('aria-disabled', String(value));
+        }
+        get disabled() {
+          return this._disabled;
+        }
+      },
+    );
+    customElements.define(
       'ha-dialog',
       class extends HTMLElement {
         get headerTitle() {
@@ -231,7 +260,15 @@
         },
       },
       locale: { language: 'en', time_format: '24', number_format: 'comma_decimal' },
-      localize: (key) => key.split('.').at(-1),
+      localize: (key) =>
+        ({
+          'panel.states': 'Overview',
+          'ui.common.show': 'Show',
+          'ui.common.hide': 'Hide',
+          'ui.common.copy': 'Copy',
+          'ui.common.rename': 'Rename',
+          'ui.common.add': 'Add',
+        })[key] || key.split('.').at(-1),
       connection: {
         subscribeMessage: async (callback) => {
           fixture.subscribers++;
@@ -248,6 +285,7 @@
         switch (request.type) {
           case 'config/entity_registry/list':
             return [
+              ...(fixture.climateRegistry || []),
               {
                 entity_id: 'button.wiser_movie',
                 platform: 'wiser',
@@ -264,7 +302,7 @@
               },
             ];
           case 'config/device_registry/list':
-            return [{ id: 'hub-device', identifiers: [['wiser', 'hub-one']] }];
+            return [{ id: 'hub-device', identifiers: [['wiser', 'hub-one']] }, ...(fixture.climateDevices || [])];
           case 'wiser/hubs':
             return ['hub-one', 'hub-two'];
           case 'wiser/schedules/types':
@@ -325,7 +363,7 @@
         type: 'custom:wiser-schedule-card',
         hub: 'hub-one',
         show_badges: true,
-        home_screen: 'devices',
+        home_screen: 'overview',
         ...config,
       });
       card.hass = makeHass();

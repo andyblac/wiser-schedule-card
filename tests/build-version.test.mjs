@@ -52,7 +52,8 @@ test('cached Rollup rebuilds stamp the next version into the JavaScript', async 
       try {
         cache = bundle.cache;
         const { output } = await bundle.write({ dir: join(root, 'dist'), format: 'es' });
-        assert.ok(output.find((item) => item.type === 'chunk').code.includes(`2.0.0-dev.${number}`));
+        const code = output.find((item) => item.type === 'chunk').code;
+        assert.ok(code.startsWith(`/*! WISER-CARD-VERSION wiser-schedule-card 2.0.0-dev.${number} */`));
       } finally {
         await bundle.close();
       }

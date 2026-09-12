@@ -39,7 +39,12 @@ export default function buildVersion({ dev = false, root = process.cwd() } = {})
       if (id !== packagePath) return null;
       return { code: JSON.stringify({ ...JSON.parse(code), version }), map: null };
     },
-    generateBundle() {
+    generateBundle(_options, bundle = {}) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk' && chunk.isEntry) {
+          chunk.code = `/*! WISER-CARD-VERSION wiser-schedule-card ${version} */\n${chunk.code}`;
+        }
+      }
       this.emitFile({
         type: 'asset',
         fileName: 'build-info.json',

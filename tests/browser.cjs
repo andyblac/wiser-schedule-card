@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
       await page.goto(`http://127.0.0.1:${server.address().port}`);
       await page.waitForFunction(() => window.ready);
     };
-    const roomsReady = () => page.waitForSelector('button.room');
+    const roomsReady = () => page.waitForSelector('button.overview-device');
     const checkCreateType = async (type) => {
       await button('Add Schedule').click();
       await page.getByText('Enter a name for the new schedule', { exact: true }).waitFor();
@@ -36,16 +36,17 @@ const assert = require('node:assert/strict');
       );
       assert.equal(request.schedule_type, type);
       assert.equal(request.name, 'Test ' + type);
-      await button('Save schedule').waitFor();
+      await button('save').waitFor();
+      await button('cancel').waitFor();
       const editor = page.locator('wiser-schedule-edit-card');
       assert.equal(await editor.evaluate((el) => el.schedule.Name), 'Test ' + type);
-      await button('Cancel editing').click();
+      await button('cancel').click();
       const assigned = await page.evaluate(() =>
         fixture.calls.filter((c) => c.type === 'wiser/schedule/assign').at(-1),
       );
       const createdId = await editor.evaluate((el) => el.schedule.Id);
       assert.equal(assigned.schedule_id, createdId);
-      assert.equal(await button('Assign schedule').isDisabled(), true);
+      assert.equal(await button('save').isDisabled(), true);
     };
 
     const settleHeight = () =>
@@ -56,12 +57,15 @@ const assert = require('node:assert/strict');
     await fresh();
     await page.evaluate(() => mountCard());
     await roomsReady();
-    assert.equal(await page.locator('button.room').count(), 4);
-    assert.equal(await button('Add Schedule').count(), 0, 'home has no toolbar');
+    assert.equal(await page.locator('button.overview-device').count(), 4);
+    assert.equal(await button('Add Schedule').isDisabled(), true, 'device home keeps Add dimmed');
     assert.equal(await button('Manage schedules').count(), 0);
-    assert.match(await page.locator('button.room').filter({ hasText: 'Lounge' }).textContent(), /Living room/);
     assert.match(
-      await page.locator('button.room').filter({ hasText: 'Spare bedroom' }).textContent(),
+      await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).textContent(),
+      /Living room/,
+    );
+    assert.match(
+      await page.locator('button.overview-device').filter({ hasText: 'Spare bedroom' }).textContent(),
       /No schedule assigned/,
     );
     await page.getByRole('heading', { name: 'Heating', exact: true }).waitFor();
@@ -73,11 +77,11 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Movie night Open controls' }).click();
     assert.equal(await page.evaluate(() => window.openedMoment), 'button.wiser_movie');
     const homeHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
-    await page.locator('button.room').filter({ hasText: 'Lounge' }).focus();
+    await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).focus();
     await page.keyboard.press('Enter');
     await page.getByLabel('Choose a schedule').waitFor();
     assert.equal(await button('Manage schedules').count(), 0, 'redundant calendar button removed');
-    assert.equal(await button('Assign schedule').isDisabled(), true);
+    assert.equal(await button('save').isDisabled(), true);
     assert.equal(await page.locator('select option').filter({ hasText: 'Evening lights' }).count(), 0);
     await page.getByLabel('Choose a schedule').selectOption('2');
     assert.equal(
@@ -85,7 +89,7 @@ const assert = require('node:assert/strict');
       0,
       'selection alone never assigns',
     );
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule assigned.', { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedule/assign')), {
       type: 'wiser/schedule/assign',
@@ -96,7 +100,7 @@ const assert = require('node:assert/strict');
       remove: false,
     });
     assert.equal(await page.evaluate(() => fixture.assignments[12]), 1, 'other rooms retain their schedules');
-    assert.equal(await button('Assign schedule').isDisabled(), true);
+    assert.equal(await button('save').isDisabled(), true);
     await page.waitForSelector('wiser-room-schedules wiser-schedule-slot-editor');
     assert.equal(
       await page.locator('wiser-schedule-edit-card .assignment-wrapper').count(),
@@ -112,10 +116,10 @@ const assert = require('node:assert/strict');
       true,
       'unused schedule list is not bundled',
     );
-    await button('Edit schedule').click();
+    await button('edit').click();
     assert.equal(await page.getByLabel('Choose a schedule').isDisabled(), true);
-    await button('Cancel editing').click();
-    await button('Edit schedule').click();
+    await button('cancel').click();
+    await button('edit').click();
     await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
     assert.equal(await page.locator('.time-handle').count(), 2, 'selected slot has both movable boundaries');
     const endHandle = page.locator('.end-handle .time-handle');
@@ -133,8 +137,8 @@ const assert = require('node:assert/strict');
     await temperature.focus();
     await temperature.press('ArrowRight');
     await temperature.press('ArrowRight');
-    await button('Save schedule').click();
-    await button('Edit schedule').waitFor();
+    await button('save').click();
+    await button('edit').waitFor();
     const savedSchedule = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedule/save'));
     assert.equal(savedSchedule.schedule_id, 2);
     assert.equal(Number(savedSchedule.schedule.ScheduleData[0].slots[0].Setpoint), 21);
@@ -154,7 +158,8 @@ const assert = require('node:assert/strict');
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(exported)),
     });
-    await button('Save schedule').waitFor();
+    await button('save').waitFor();
+    await page.waitForFunction(() => document.querySelector('wiser-schedule-card').shadowRoot.querySelector('wiser-room-schedules')?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode);
     assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el._tempSchedule.Name), 'Bedrooms');
     assert.equal(
       await page
@@ -167,7 +172,7 @@ const assert = require('node:assert/strict');
       saveCount,
       'import stays a draft',
     );
-    await button('Cancel editing').click();
+    await button('cancel').click();
     await page.evaluate(() =>
       document.addEventListener('show-dialog', (event) => (window.importError = event.detail.dialogParams.error)),
     );
@@ -178,7 +183,8 @@ const assert = require('node:assert/strict');
       buffer: Buffer.from(JSON.stringify(exported)),
     });
     await page.waitForFunction(() => window.importError?.includes('different schedule type'));
-    assert.equal(await button('Save schedule').count(), 0);
+    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el.editMode), false);
+    assert.equal(await button('save').isDisabled(), true);
     console.log('PASS JSON export, import draft, preserved identity and incompatible type rejection');
     await button('Rename').click();
     await page.waitForSelector('wiser-schedule-rename-card input');
@@ -195,27 +201,27 @@ const assert = require('node:assert/strict');
     await page.waitForSelector('wiser-schedule-copy-card');
     await button('cancel').click();
     await page.getByLabel('Choose a schedule').waitFor();
-    await button('Back to home').click();
+    await button('back').click();
     await roomsReady();
     await settleHeight();
     assert.ok(Math.abs((await page.locator('wiser-schedule-card').boundingBox()).height - homeHeight) < 1);
-    assert.match(await page.locator('button.room').filter({ hasText: 'Lounge' }).textContent(), /Bedrooms/);
+    assert.match(await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).textContent(), /Bedrooms/);
     if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-desktop.png` });
-    await page.locator('button.room').filter({ hasText: 'Lounge' }).click();
+    await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).click();
     await page.getByLabel('Choose a schedule').waitFor();
     await page.waitForSelector('wiser-schedule-slot-editor');
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-room-detail.png` });
-    console.log('PASS room-first navigation, no home toolbar, explicit assignment, shared rooms and return height');
+    console.log('PASS overview navigation and disabled home Add, explicit assignment, shared rooms and return height');
 
     await page.getByLabel('Choose a schedule').selectOption('3');
     await page.evaluate(() => (fixture.failAssign = true));
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByRole('alert').waitFor();
     assert.equal(await page.evaluate(() => fixture.assignments[10]), 2, 'failed assignment preserves current schedule');
     await page.evaluate(() => (fixture.failAssign = false));
     await button('Try again').click();
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule assigned.', { exact: true }).waitFor();
     console.log('PASS assignment failure and retry');
 
@@ -256,10 +262,10 @@ const assert = require('node:assert/strict');
       await page.waitForFunction(
         (expected) => {
           const room = document.querySelector('wiser-schedule-card').shadowRoot.querySelector('wiser-room-schedules');
-          const tile = [...room.shadowRoot.querySelectorAll('button.room')].find((el) =>
+          const tile = [...room.shadowRoot.querySelectorAll('button.overview-device')].find((el) =>
             el.textContent.includes('Desk plug'),
           );
-          return tile.querySelector('ha-icon').icon === expected;
+          return tile.closest('.device-overview').querySelector('ha-icon').icon === expected;
         },
         icon ? `mdi:power-socket-${icon}` : 'mdi:power-plug',
       );
@@ -268,27 +274,27 @@ const assert = require('node:assert/strict');
 
     await page.getByRole('heading', { name: 'Hot water', exact: true }).waitFor();
     assert.equal(await page.locator('.tools').count(), 0);
-    await page.locator('button.room').filter({ hasText: 'Hall light' }).click();
-    await button('Edit schedule').waitFor();
+    await page.locator('button.overview-device').filter({ hasText: 'Hall light' }).click();
+    await button('edit').waitFor();
     assert.equal(await page.locator('select').count(), 1, 'single schedule still permits unassignment');
     await checkCreateType('Lighting');
     await page.waitForSelector('wiser-schedule-slot-editor');
-    await button('Back to home').click();
-    await page.locator('button.room').filter({ hasText: 'Desk plug' }).click();
+    await button('back').click();
+    await page.locator('button.overview-device').filter({ hasText: 'Desk plug' }).click();
     await button('Add Schedule').waitFor();
     assert.equal(await page.locator('select').count(), 1);
     await checkCreateType('OnOff');
-    await button('Back to home').click();
-    await page.locator('button.room').filter({ hasText: 'Lounge blind' }).click();
+    await button('back').click();
+    await page.locator('button.overview-device').filter({ hasText: 'Lounge blind' }).click();
     await button('Add Schedule').waitFor();
     assert.equal(await page.locator('select').count(), 1);
     await checkCreateType('Shutters');
-    await button('Back to home').click();
-    await page.locator('button.room').filter({ hasText: 'Hot water' }).click();
+    await button('back').click();
+    await page.locator('button.overview-device').filter({ hasText: 'Hot water' }).click();
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await page.locator('select').count(), 0);
-    assert.equal(await button('Delete schedule').isDisabled(), true);
-    await button('Back to home').click();
+    assert.equal(await button('delete').isDisabled(), true);
+    await button('back').click();
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-home-sections.png` });
     await fresh();
@@ -319,24 +325,24 @@ const assert = require('node:assert/strict');
       mountCard();
     });
     await roomsReady();
-    await page.locator('button.room').filter({ hasText: 'Spare bedroom' }).click();
+    await page.locator('button.overview-device').filter({ hasText: 'Spare bedroom' }).click();
     await page.getByLabel('Choose a schedule').waitFor();
     assert.equal(await page.locator('select option').filter({ hasText: 'Hot water' }).count(), 0);
     await page.getByLabel('Choose a schedule').selectOption('1');
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule assigned.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => fixture.assignments[13]), 1);
 
     await fresh();
     await page.evaluate(() => mountCard({ display_only: true, view_type: 'list' }));
     await roomsReady();
-    await page.locator('button.room').first().click();
+    await page.locator('button.overview-device').first().click();
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await button('Manage schedules').count(), 0);
-    assert.equal(await button('Assign schedule').count(), 0);
+    assert.equal(await button('save').count(), 0);
     assert.equal(await button('Add Schedule').count(), 0);
     assert.equal(await page.locator('select').count(), 0);
-    assert.equal(await button('Edit schedule').count(), 0);
+    assert.equal(await button('edit').count(), 0);
     await page.waitForSelector('wiser-schedule-slot-editor');
     await fresh();
     await page.evaluate(() => {
@@ -344,10 +350,10 @@ const assert = require('node:assert/strict');
       card.hass = { ...makeHass(), user: { is_admin: false } };
     });
     await roomsReady();
-    await page.locator('button.room').first().click();
+    await page.locator('button.overview-device').first().click();
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await button('Manage schedules').count(), 0);
-    assert.equal(await button('Assign schedule').count(), 0);
+    assert.equal(await button('save').count(), 0);
     assert.equal(await page.locator('.tools button').count(), 1, 'non-admin device toolbar only has Back');
     assert.equal(await button('Export schedule').count(), 0);
     console.log('PASS unassigned rooms, compatible schedule filter, read-only and admin restrictions');
@@ -357,11 +363,11 @@ const assert = require('node:assert/strict');
       mountCard();
     });
     await roomsReady();
-    await page.locator('button.room').filter({ hasText: 'Spare bedroom' }).click();
+    await page.locator('button.overview-device').filter({ hasText: 'Spare bedroom' }).click();
     await page.getByLabel('Choose a schedule').waitFor();
     assert.equal(await page.locator('select').count(), 1);
     assert.equal(await page.evaluate(() => fixture.assignments[13]), undefined, 'preselection does not assign');
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule assigned.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => fixture.assignments[13]), 1);
     assert.equal(await page.locator('select option').filter({ hasText: 'No schedule' }).count(), 0);
@@ -374,7 +380,7 @@ const assert = require('node:assert/strict');
       );
     assert.equal(await page.locator('ha-selector').evaluate((el) => el.required), false);
     assert.equal(await page.evaluate(() => fixture.assignments[13]), 1, 'selection alone does not unassign');
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule unassigned.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => fixture.assignments[13]), undefined);
     assert.equal(await page.evaluate(() => fixture.schedules.length), 1, 'schedule is preserved');
@@ -383,7 +389,7 @@ const assert = require('node:assert/strict');
       true,
     );
     await page.getByLabel('Choose a schedule').selectOption('1');
-    await button('Assign schedule').click();
+    await button('save').click();
     await page.getByText('Schedule assigned.', { exact: true }).waitFor();
 
     await fresh();
@@ -394,16 +400,16 @@ const assert = require('node:assert/strict');
     });
     await page.getByText('Loading schedules…').waitFor();
     await roomsReady();
-    await page.locator('button.room').first().click();
+    await page.locator('button.overview-device').first().click();
     await button('Add Schedule').waitFor();
-    assert.equal(await button('Assign schedule').isDisabled(), true);
+    assert.equal(await button('save').isDisabled(), true);
     await button('Add Schedule').click();
     await page.getByRole('textbox', { name: 'Schedule Name' }).waitFor();
     await button('cancel').click();
     await button('Add Schedule').waitFor();
     assert.equal(await page.locator('select').count(), 0, 'no schedules hides picker');
     await checkCreateType('Heating');
-    assert.equal(await button('Assign schedule').isDisabled(), true);
+    assert.equal(await button('save').isDisabled(), true);
     await fresh();
     await page.evaluate(() => {
       fixture.rooms = [];
@@ -449,7 +455,7 @@ const assert = require('node:assert/strict');
           window.testScroller = document.scrollingElement;
         }
         const card = document.createElement('wiser-schedule-card');
-        card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', home_screen: 'devices' });
+        card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', home_screen: 'overview' });
         card.hass = makeHass();
         mount.append(card);
       }, nested);
@@ -459,7 +465,7 @@ const assert = require('node:assert/strict');
         testScroller.scrollTop = 650;
         return testScroller.scrollTop;
       });
-      await page.locator('button.room').first().click();
+      await page.locator('button.overview-device').first().click();
       await page.waitForTimeout(100);
       assert.equal(await page.evaluate(() => testScroller.scrollTop), before, 'no loading collapse in dashboard');
       await page.getByLabel('Choose a schedule').waitFor();
@@ -477,13 +483,13 @@ const assert = require('node:assert/strict');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-mobile.png`, fullPage: true });
-    await page.locator('button.room').first().click();
+    await page.locator('button.overview-device').first().click();
     await page.getByLabel('Choose a schedule').waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'toolbar fits mobile');
     await page.waitForSelector('wiser-schedule-slot-editor');
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-room-mobile.png`, fullPage: true });
-    console.log('PASS mobile room list and toolbar');
+    console.log('PASS mobile overview and toolbar');
 
     await fresh();
     await page.evaluate(() => {
@@ -543,7 +549,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => mountCard({ home_screen: undefined }));
     await page.waitForSelector('button.schedule-tile');
     assert.equal(await page.locator('button.schedule-tile').count(), 4);
-    assert.equal(await page.locator('button.room').count(), 0);
+    assert.equal(await page.locator('button.overview-device').count(), 0);
     await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
     await page.getByLabel('Assigned rooms / devices').waitFor();
     assert.equal(await page.locator('wiser-schedule-edit-card .actions-wrapper').count(), 0);
@@ -556,11 +562,11 @@ const assert = require('node:assert/strict');
     );
     await page.getByLabel('Assigned rooms / devices').selectOption(['10', '11', '13']);
     assert.equal(await page.evaluate(() => fixture.assignments[11]), 2, 'selection is not applied early');
-    await button('Apply assignments').click();
+    await button('save').click();
     await page.waitForFunction(
       () => fixture.assignments[11] === 1 && fixture.assignments[13] === 1 && fixture.assignments[12] === undefined,
     );
-    await button('Apply assignments').isDisabled();
+    await button('save').isDisabled();
     await button('edit').click();
     await button('cancel').click();
     await button('back').click();
@@ -577,7 +583,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => mountCard({ home_screen: 'schedules', display_only: true }));
     await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
     await page.waitForSelector('wiser-schedule-slot-editor');
-    assert.equal(await button('Apply assignments').count(), 0);
+    assert.equal(await button('save').count(), 0);
     assert.equal(await button('edit').count(), 0);
     assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 1);
     await page.evaluate(() => {
@@ -601,9 +607,15 @@ const assert = require('node:assert/strict');
     assert.equal(await page.getByLabel('Layout', { exact: true }).count(), 0);
     await page.getByRole('radio', { name: 'Schedules', exact: true }).click();
     assert.equal(await page.evaluate(() => lastConfig.home_screen), 'schedules');
+    assert.equal(await page.getByRole('radio', { name: 'Hide', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => lastConfig.selected_schedule), undefined);
-    await page.getByRole('radio', { name: 'Devices', exact: true }).click();
-    assert.equal(await page.evaluate(() => lastConfig.home_screen), 'devices');
+    await page.getByRole('radio', { name: 'Overview', exact: true }).click();
+    assert.equal(await page.evaluate(() => lastConfig.home_screen), 'overview');
+    await page.getByRole('radio', { name: 'Hide', exact: true }).click();
+    assert.equal(await page.evaluate(() => lastConfig.overview_details), false);
+    await page.getByRole('radio', { name: 'Show', exact: true }).click();
+    assert.equal(await page.evaluate(() => lastConfig.overview_details), true);
+    assert.equal(await page.getByRole('radio', { name: 'Devices', exact: true }).count(), 0);
     console.log(
       'PASS schedule-first home, multiple compatible assignments, return navigation, permissions and editor toggle',
     );
@@ -624,6 +636,183 @@ const assert = require('node:assert/strict');
     await page.locator('button.schedule-tile').first().click();
     await page.waitForSelector('wiser-schedule-slot-editor');
     console.log('PASS repeated resource URLs preserve registered elements and a single picker entry');
+    await fresh();
+    await page.evaluate(() => mountCard({ home_screen: 'schedules' }));
+    await button('Overview').click();
+    await page.waitForSelector('.device-overview');
+    assert.equal(await button('Add Schedule').isDisabled(), true);
+    const overviewDevice = page.locator('.device-overview').filter({ hasText: 'Living room' }).first();
+    assert.ok((await overviewDevice.innerText()).includes('Next scheduled setting'));
+    assert.ok((await overviewDevice.innerText()).includes('°C'));
+    assert.ok(
+      (await page.locator('.device-overview').filter({ hasText: 'Spare bedroom' }).innerText()).includes(
+        'No schedule assigned',
+      ),
+    );
+    await overviewDevice.locator('.overview-device').click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    await button('back').click();
+    await page.waitForSelector('.device-overview');
+    await button('Schedules').click();
+    await page.waitForSelector('button.schedule-tile');
+    await page.setViewportSize({ width: 360, height: 850 });
+    await button('Overview').click();
+    await page.waitForSelector('.device-overview');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await page.evaluate(() => mountCard({ home_screen: 'devices', overview_details: false }));
+    await page.waitForSelector('.device-overview');
+    assert.equal(await page.locator('.device-overview dl:visible').count(), 0);
+    const expandable = page
+      .locator('.device-overview')
+      .filter({ has: page.locator('.device-details') })
+      .first();
+    await expandable.locator('.details-toggle').click();
+    assert.equal(await expandable.locator('dl').isVisible(), true);
+    assert.equal(await page.locator('.device-overview dl:visible').count(), 1);
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await expandable.locator('.details-toggle').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await expandable.locator('dl').isVisible(), false);
+    await button('Overview').click();
+    assert.equal(await page.locator('.device-overview .device-details[hidden]').count(), 0);
+    await button('Overview').click();
+    assert.equal(await page.locator('.device-overview dl:visible').count(), 0);
+    await expandable.locator('.details-toggle').click();
+    await button('Overview').click();
+    assert.equal(await page.locator('.device-overview .device-details[hidden]').count(), 0);
+
+    assert.ok((await page.locator('.device-overview').first().innerText()).length > 0);
+    await page.evaluate(() => mountCard({ home_screen: 'schedules', overview_details: false }));
+    await button('Overview').click();
+    await page.waitForSelector('.device-overview dl');
+    await page.evaluate(() => mountCard({ home_screen: 'overview', overview_details: true }));
+    await page.waitForSelector('.device-overview dl');
+    await button('Overview').click();
+    assert.equal(await page.locator('.device-overview dl:visible').count(), 0);
+    await button('Overview').click();
+    assert.equal(await page.locator('.device-overview .device-details[hidden]').count(), 0);
+    console.log('PASS overview details, unassigned devices, navigation round trip and mobile layout');
+
+    await fresh();
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-card-editor');
+      const hass = makeHass();
+      hass.locale = { ...hass.locale, language: 'fr-CA' };
+      hass.localize = (key) => ({ 'panel.states': 'HA Vue générale', 'ui.common.show': 'HA Afficher' })[key] || '';
+      editor.hass = hass;
+      editor.setConfig({ type: 'custom:wiser-schedule-card', home_screen: 'overview' });
+      document.querySelector('#mount').append(editor);
+    });
+    await page.getByRole('radio', { name: 'HA Vue générale', exact: true }).waitFor();
+    await page.getByRole('radio', { name: 'HA Afficher', exact: true }).waitFor();
+    await page.getByRole('radio', { name: 'Masquer', exact: true }).waitFor();
+    await page.getByText('Autorisations', { exact: true }).waitFor();
+    console.log('PASS native HA labels and regional-language fallback for missing translations');
+    await fresh();
+    await page.evaluate(() => {
+      fixture.climateRegistry = [
+        { entity_id: 'climate.renamed', platform: 'wiser', device_id: 'room-device' },
+        { entity_id: 'climate.other_hub', platform: 'wiser', device_id: 'foreign-room' },
+      ];
+      fixture.climateDevices = [
+        { id: 'room-device', identifiers: [], via_device_id: 'hub-device' },
+        { id: 'foreign-room', identifiers: [], via_device_id: 'other-hub' },
+      ];
+      const card = mountCard({ home_screen: 'overview' });
+      const hass = makeHass();
+      hass.states['climate.renamed'] = {
+        entity_id: 'climate.renamed',
+        state: 'auto',
+        attributes: {
+          name: fixture.rooms[0].Name,
+          hvac_modes: ['auto', 'heat', 'off'],
+          target_temperature_origin: 'FromSchedule',
+          is_heating: false,
+          is_override: false,
+          is_boosted: false,
+          preset_modes: ['Cancel Overrides'],
+        },
+      };
+      hass.states['climate.other_hub'] = { ...hass.states['climate.renamed'], entity_id: 'climate.other_hub' };
+      window.serviceCalls = [];
+      hass.callService = async (domain, service, data) => {
+        serviceCalls.push({ domain, service, data });
+        if (window.failHeating) throw new Error('Heating service failed');
+        const attributes = { ...hass.states['climate.renamed'].attributes };
+        if (service === 'set_preset_mode') {
+          attributes.is_override = false;
+          attributes.target_temperature_origin = 'FromSchedule';
+        }
+        hass.states = {
+          ...hass.states,
+          'climate.renamed': { ...hass.states['climate.renamed'], state: data.hvac_mode || 'auto', attributes },
+        };
+        card.hass = { ...hass };
+      };
+      window.heatingHass = hass;
+      card.hass = hass;
+    });
+    const heating = page.locator('wiser-heating-status').filter({ hasText: 'Following schedule' });
+    await heating.waitFor();
+    await heating.getByLabel('mode', { exact: true }).selectOption('heat');
+    await page.getByText('Schedule status: Manual', { exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => serviceCalls[0]), {
+      domain: 'climate',
+      service: 'set_hvac_mode',
+      data: { entity_id: 'climate.renamed', hvac_mode: 'heat' },
+    });
+    await page.evaluate(() => {
+      const entity = heatingHass.states['climate.renamed'];
+      heatingHass.states = {
+        ...heatingHass.states,
+        'climate.renamed': {
+          ...entity,
+          state: 'auto',
+          attributes: { ...entity.attributes, is_override: true, target_temperature_origin: 'FromManualOverride' },
+        },
+      };
+      document.querySelector('wiser-schedule-card').hass = { ...heatingHass };
+    });
+    await page.getByText('Schedule status: Temporary override', { exact: true }).waitFor();
+    await button('Resume schedule').click();
+    await page.getByText('Schedule status: Following schedule', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => serviceCalls.at(-1).service), 'set_preset_mode');
+    await page.evaluate(() => {
+      window.failHeating = true;
+    });
+    await page
+      .locator('wiser-heating-status')
+      .filter({ hasText: 'Following schedule' })
+      .getByLabel('mode', { exact: true })
+      .selectOption('off');
+    await page.getByRole('alert').filter({ hasText: 'Heating service failed' }).waitFor();
+    await page.evaluate(() => {
+      const card = document.querySelector('wiser-schedule-card');
+      card.setConfig({ type: 'custom:wiser-schedule-card', hub: 'hub-one', home_screen: 'overview', admin_only: true });
+      card.hass = { ...heatingHass, user: { is_admin: false } };
+    });
+    await page.getByText('Schedule status: Following schedule', { exact: true }).waitFor();
+    assert.equal(await page.locator('wiser-heating-status ha-selector').count(), 0);
+    console.log(
+      'PASS live heating status, hub-scoped entity matching, mode changes, resume overrides, errors and permissions',
+    );
+    await page.evaluate(() => {
+      const card = document.querySelector('wiser-schedule-card');
+      card.setConfig({
+        type: 'custom:wiser-schedule-card',
+        hub: 'hub-one',
+        home_screen: 'overview',
+        display_only: true,
+      });
+      card.hass = { ...heatingHass, user: { is_admin: true } };
+    });
+    await page.getByText('Schedule status: Following schedule', { exact: true }).waitFor();
+    assert.equal(
+      await page.locator('wiser-heating-status ha-selector').count(),
+      0,
+      'read-only blocks heating changes even for admins',
+    );
+    assert.equal(await button('Resume schedule').count(), 0);
     await fresh();
     await page.evaluate(() => mountCard({ home_screen: 'schedules', hide_card_background: true }));
     await page.waitForSelector('button.schedule-tile');

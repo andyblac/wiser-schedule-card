@@ -1,6 +1,6 @@
 # Wiser Schedule Card
 
-A Home Assistant dashboard card for managing schedules provided by the Wiser integration. Start with your Wiser rooms and devices, choose their schedules, and edit their daily time slots.
+A Home Assistant dashboard card for managing schedules provided by the Wiser integration. Browse schedules or open the device Overview to manage assignments and daily time slots.
 
 Originally created by [Mark Parker (@msp1974)](https://github.com/msp1974).
 
@@ -28,7 +28,7 @@ Keep a single resource entry for the schedule card. An integration update may re
 
 ## Rooms and schedules
 
-The **Wiser Home** screen groups available controls into **Heating**, **Hot water**, **Lighting & devices**, and **Moments**, with no toolbar. Empty sections are hidden. Tiles show room or device names and their assigned schedules. Moments open the corresponding Home Assistant button controls; they are preset actions, not weekly schedule editors. Use Home Assistant automations for timed activation. Moment discovery is restricted to the selected Wiser hub and requires access to the entity/device registries.
+The **Overview** screen groups available controls into **Heating**, **Hot water**, **Lighting & devices**, and **Moments**. Its toolbar switches between Schedules and Overview. Empty sections are hidden. Tiles show room or device names and their assigned schedules. Moments open the corresponding Home Assistant button controls; they are preset actions, not weekly schedule editors. Use Home Assistant automations for timed activation. Moment discovery is restricted to the selected Wiser hub and requires access to the entity/device registries.
 Select a room to see its toolbar, schedule-name assignment chooser, and full weekly timeline:
 
 - **Back arrow:** return home.
@@ -130,7 +130,7 @@ the bundle in `dist`.
 
 ### Wiser Home
 
-The home page groups available controls into Heating, Hot water, Lighting & devices, and Moments. Empty device sections are hidden. Room and device tiles show the assigned schedule and open its controls; schedule choices are limited to compatible types. Hot water opens its fixed schedule, with copy and delete disabled. Moments open Home Assistant controls and can be timed using Home Assistant automations. The home page has no toolbar.
+The home page groups available controls into Heating, Hot water, Lighting & devices, and Moments. Empty device sections are hidden. Room and device tiles show the assigned schedule and open its controls; schedule choices are limited to compatible types. Hot water opens its fixed schedule, with copy and delete disabled. Moments open Home Assistant controls and can be timed using Home Assistant automations. The home toolbar switches between Schedules and Overview; + is dimmed where adding a schedule is unavailable.
 
 Creating a schedule from a room or device offers only its compatible schedule types. A single supported type is selected automatically, so you only need to enter the schedule name.
 
@@ -146,8 +146,19 @@ Smart-plug tiles choose a regional socket icon using Home Assistant’s configur
 
 ### Home screen selection
 
-In the card editor, **Home screen → Devices / Schedules** chooses the starting view. Schedules is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: devices`.
+In the card editor, **Home screen → Schedules / Overview** chooses the starting view. Schedules is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: overview`.
+
+**Overview Details → Show / Hide** appears and applies only when Overview is the configured home start page (default Show). When starting on Schedules, opening Overview from the toolbar always shows details. Hide starts each device collapsed, keeping its name and assigned schedule visible. Tap the device icon to expand or collapse its extra information; tap the name or arrow to open its schedule. YAML: `overview_details: false`. Existing `home_screen: devices` settings migrate to Overview.
+
+The home toolbar switches between **Schedules** and **Overview** without changing the saved home-screen preference. Clicking the active **Overview** icon expands all device details if any are collapsed, or collapses them all if every device is expanded. Overview shows each room/device’s assigned schedule, ID, type, and next programmed day, time and setting in Home Assistant’s timezone. The next-change rows show planned schedule values. Heating room details also show live schedule status and heating activity from the matching Wiser climate entity. The HA mode selector changes Auto / Manual / Off, and Resume schedule cancels supported temporary overrides. Controls respect display-only and admin-only settings. If the climate entity cannot be matched uniquely within the selected hub, status is unavailable and no controls are shown. Open a device to view or edit its schedule; Back returns to Overview. Unassigned devices remain visible.
 
 The visual editor omits the legacy Title, pinned Schedule, and Layout fields. Existing YAML settings remain readable for compatibility.
 
 Use **Hide card background** in Appearance to make the outer card transparent. This is independent of **Hide card borders**. YAML: `hide_card_background: true`.
+
+
+### Wiser sidebar panel
+
+The card bundle also registers `wiser-schedules-panel`. Its source is `src/wiser-schedules-panel.js` and it is released with the card so both use the same editor API. The Wiser integration registers the sidebar route and saves panel preferences in its config entries through `wiser/schedules_panel/configure`. Dashboard cards retain their own configuration. Deploy the matching bundle and resource version together; do not load an older card alongside the panel.
+
+Compiled card builds include a `WISER-CARD-VERSION` comment containing the card name and build version. Home Assistant can read this marker to update the resource URL without relying on minified variable names or editor text.

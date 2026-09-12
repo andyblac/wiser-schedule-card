@@ -37,11 +37,14 @@ import { UnsubscribeFunc } from 'home-assistant-js-websocket';
 import '../components/schedule-slot-editor';
 import '../components/dialog-error';
 import { commonStyle } from '../styles';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 import { days, SPECIAL_TIMES, SUPPORT_SPECIAL_TIMES } from '../const';
 
 @customElement('wiser-schedule-edit-card')
 export class SchedulerEditCard extends SubscribeMixin(LitElement) {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public config!: WiserScheduleCardConfig;
   @property({ attribute: false }) public schedule_id?: number = 0;
   @property({ attribute: false }) public schedule_type?: string;
@@ -255,6 +258,26 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
               </div>
             </div>
           </div>
+          ${
+            this.editMode && allow_edit(this.hass, this.config)
+              ? html` <div class="save-actions">
+                  <ha-button .disabled=${this._save_in_progress} @click=${() => this.saveClick()}
+                    >${this.hass.localize('ui.common.save')}</ha-button
+                  >
+                </div>`
+              : ''
+          }
+          ${
+            !this.embedded && !this.editMode && this.schedule.Id !== 1000 && allow_edit(this.hass, this.config)
+              ? html`<div class="save-actions">
+                  <ha-button
+                    .disabled=${this.assigningDevices || this._save_in_progress || !this.entities.some((entity) => this.isAssigned(entity) !== this.assignmentSelection.includes(String(entity.Id)))}
+                    @click=${() => this.applyDeviceAssignments()}
+                    >${this.hass.localize('ui.common.save')}</ha-button
+                  >
+                </div>`
+              : ''
+          }
         </div>
       `;
     }
@@ -279,13 +302,13 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           entities
             .filter((entity) => this.isAssigned(entity))
             .map((entity) => entity.Name)
-            .join(', ') || localize('wiser.headings.not_assigned')
+            .join(', ') || this.localize('wiser.headings.not_assigned')
         }
       </p>`;
     return html`<div class="device-assignment">
       <ha-selector
         .hass=${this.hass}
-        .label=${localize('wiser.home.assign_devices')}
+        .label=${this.localize('wiser.home.assign_devices')}
         .selector=${{ select: { multiple: true, mode: 'dropdown', options: entities.map((entity) => ({ value: String(entity.Id), label: entity.Name })) } }}
         .value=${this.assignmentSelection}
         .required=${false}
@@ -301,7 +324,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
             this.assignmentSelection = selected;
         }}
       ></ha-selector>
-      ${!entities.length ? html`<p>${localize('wiser.home.no_devices')}</p>` : ''}
+      ${!entities.length ? html`<p>${this.localize('wiser.home.no_devices')}</p>` : ''}
     </div>`;
   }
 
@@ -331,7 +354,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       await this.loadData();
     } catch (error) {
       await this.loadData();
-      showErrorDialog(this, 'Schedule assignment', (error as Error).message || localize('common.load_failed'));
+      showErrorDialog(this, 'Schedule assignment', (error as Error).message || this.localize('common.load_failed'));
     } finally {
       this.assigningDevices = false;
     }
@@ -376,9 +399,6 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     const editable = allow_edit(this.hass!, this.config);
     const blocked = this.assigningDevices || this._save_in_progress;
     const fixed = this.schedule!.Id === 1000;
-    const changed = (this.entities || []).some(
-      (entity) => this.isAssigned(entity) !== this.assignmentSelection.includes(String(entity.Id)),
-    );
     return html` <input
         class="import-file"
         type="file"
@@ -392,25 +412,23 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         }}
       />
       <wiser-card-header .config=${this.config}>
-        <div class="tools" role="toolbar" aria-label=${localize('wiser.headings.schedule_actions')}>
+        <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
           ${
             this.editMode
               ? html`
                   ${this.tool(this.hass!.localize('ui.common.cancel'), 'mdi:close', () => this.cancelClick(), blocked)}
-                  ${editable ? this.tool(this.hass!.localize('ui.common.save'), 'mdi:content-save', () => this.saveClick(), blocked) : ''}
                 `
               : html`
                   ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
-                  ${editable ? this.tool(localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
+                  ${editable ? this.tool(this.localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
                   ${
                     editable
                       ? html`
-                          ${this.tool(localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked)}
+                          ${this.tool(this.localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked)}
                           ${this.tool(this.hass!.localize('ui.common.edit'), 'mdi:pencil', () => this.editClick(), blocked)}
-                          ${this.tool(localize('wiser.actions.rename'), 'mdi:form-textbox', () => this.renameScheduleClick(), blocked)}
-                          ${this.tool(localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || fixed)}
+                          ${this.tool(this.localize('wiser.actions.rename'), 'mdi:form-textbox', () => this.renameScheduleClick(), blocked)}
+                          ${this.tool(this.localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || fixed)}
                           ${this.tool(this.hass!.localize('ui.common.delete'), 'mdi:delete-outline', () => this.deleteClick(), blocked || fixed)}
-                          ${!fixed ? this.tool(localize('wiser.home.apply_devices'), 'mdi:check', () => this.applyDeviceAssignments(), blocked || !changed) : ''}
                         `
                       : ''
                   }
@@ -442,7 +460,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       );
       await this.loadData();
     } catch (error) {
-      showErrorDialog(this, 'Schedule assignment', (error as Error).message || localize('common.load_failed'));
+      showErrorDialog(this, 'Schedule assignment', (error as Error).message || this.localize('common.load_failed'));
     } finally {
       this._assigning_in_progress = 0;
     }
@@ -563,7 +581,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         showErrorDialog(this, 'Error Saving Schedule', 'The schedule you are trying to save has no time slots.');
       }
     } catch (error: unknown) {
-      showErrorDialog(this, 'Error Saving Schedule', (error as Error)?.message || localize('common.load_failed'));
+      showErrorDialog(this, 'Error Saving Schedule', (error as Error)?.message || this.localize('common.load_failed'));
     } finally {
       this._save_in_progress = false;
     }
@@ -601,8 +619,16 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         padding: 0;
         display: grid;
         place-items: center;
+        color: var(--secondary-text-color);
+      }
+      .tool:disabled {
+        color: var(--disabled-text-color);
+        opacity: 1;
+      }
+      .tool:not(:disabled):hover {
         color: var(--primary-color);
       }
+
       .device-assignment {
         max-width: 420px;
         margin: 20px 0;
@@ -848,7 +874,12 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       div.schedule-info {
         margin: 3px 0;
       }
-    ${toolbarColors}
+      .save-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 24px;
+      }
+      ${toolbarColors}
     `;
   }
 }

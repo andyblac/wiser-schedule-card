@@ -5,10 +5,13 @@ import { LitElement, html, css, CSSResultGroup } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { HomeAssistant } from 'custom-card-helpers';
 import { nothing } from 'lit';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 
 @customElement('wiser-dialog-delete-confirm')
 export class DialogDeleteConfirm extends LitElement {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public hass!: HomeAssistant;
 
   @state() private _params?: any;
@@ -29,12 +32,14 @@ export class DialogDeleteConfirm extends LitElement {
     return html`
       <ha-dialog
         open
-        header-title=${localize('wiser.headings.delete_schedule')}
-        .heading=${localize('wiser.headings.delete_schedule')}
+        header-title=${this.localize('wiser.headings.delete_schedule')}
+        .heading=${this.localize('wiser.headings.delete_schedule')}
         @closed=${this.closeDialog}
         @close-dialog=${this.closeDialog}
       >
-        <div class="wrapper">${localize('wiser.helpers.delete_schedule_confirm') + ' ' + this._params.name + '?'}</div>
+        <div class="wrapper">
+          ${this.localize('wiser.helpers.delete_schedule_confirm') + ' ' + this._params.name + '?'}
+        </div>
         <div
           class="actions"
           slot=${'headerTitle' in (customElements.get('ha-dialog')?.prototype || {}) ? 'footer' : nothing}

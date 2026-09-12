@@ -103,5 +103,9 @@ export class VariableSlider extends LitElement {
     input[type='range'] {
       width: 100%;
     }
+    input[type='range']:disabled {
+      opacity: 0.38;
+      cursor: default;
+    }
   `;
 }

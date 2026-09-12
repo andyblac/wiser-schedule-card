@@ -1,3 +1,4 @@
+import '../components/home-navigation';
 import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { LitElement, html, css, PropertyValues } from 'lit';
@@ -6,11 +7,14 @@ import { SubscribeMixin } from '../components/subscribe-mixin';
 import { notifyViewReady } from '../components/view-ready';
 import { fetchSchedules } from '../data/websockets';
 import { allow_edit } from '../helpers';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 import type { ScheduleListItem, WiserScheduleCardConfig, WiserEventData } from '../types';
 
 @customElement('wiser-schedules-home')
 export class SchedulesHome extends SubscribeMixin(LitElement) {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) config!: WiserScheduleCardConfig;
   @state() private schedules: ScheduleListItem[] = [];
   @state() private loading = true;
@@ -38,7 +42,7 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
       const schedules = await fetchSchedules(this.hass, this.config.hub);
       if (request === this.request) this.schedules = [...schedules].sort((a, b) => a.Name.localeCompare(b.Name));
     } catch (error) {
-      if (request === this.request) this.error = (error as Error).message || localize('common.load_failed');
+      if (request === this.request) this.error = (error as Error).message || this.localize('common.load_failed');
     } finally {
       if (request === this.request) {
         this.loading = false;
@@ -50,17 +54,22 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     if (!this.hass) return html``;
     return html`
       <wiser-card-header .config=${this.config}>
-        ${allow_edit(this.hass, this.config) ? html`<button aria-label=${localize('wiser.actions.add_schedule')} @click=${() => this.dispatchEvent(new CustomEvent('addScheduleClick'))}><ha-icon .icon=${'mdi:plus'}></ha-icon></button>` : ''}
-      </wiser-card-header>
-      <div class="heading"><h3>${localize('wiser.rooms.schedules')}</h3></div>
+        <div class="home-tools" role="toolbar" aria-label="Home">
+          <wiser-home-navigation
+            .hass=${this.hass}
+            active="schedules"
+            .canAdd=${allow_edit(this.hass, this.config) && !this.loading && !this.error}
+          ></wiser-home-navigation></div
+      ></wiser-card-header>
+      <div class="heading"><h3>${this.localize('wiser.rooms.schedules')}</h3></div>
       ${
         this.error
           ? html`<p role="alert">${this.error}</p>
-              <button @click=${this.load}>${localize('common.retry')}</button>`
+              <button @click=${this.load}>${this.localize('common.retry')}</button>`
           : this.loading
-            ? html`<p role="status">${localize('common.loading')}</p>`
+            ? html`<p role="status">${this.localize('common.loading')}</p>`
             : !this.schedules.length
-              ? html`<p>${localize('wiser.home.no_schedules')}</p>`
+              ? html`<p>${this.localize('wiser.home.no_schedules')}</p>`
               : html` <div class=${this.config.view_type === 'list' ? 'tiles list' : 'tiles'}>
                   ${this.schedules.map(
                     (schedule) =>
@@ -72,7 +81,8 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
                         <span
                           ><strong>${schedule.Name}</strong
                           ><small
-                            >${schedule.Type} · ${schedule.Assignments} ${localize('wiser.home.assignments')}</small
+                            >${schedule.Type} · ${schedule.Assignments}
+                            ${this.localize('wiser.home.assignments')}</small
                           ></span
                         ><span aria-hidden="true">›</span>
                       </button>`,
@@ -85,6 +95,12 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     :host {
       display: block;
       color: var(--primary-text-color);
+    }
+    .home-tools {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
     .heading {
       display: flex;

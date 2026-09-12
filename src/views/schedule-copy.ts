@@ -11,10 +11,13 @@ import { EViews } from '../const';
 
 import '../components/dialog-delete-confirm';
 import { commonStyle } from '../styles';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 
 @customElement('wiser-schedule-copy-card')
 export class ScheduleCopyCard extends LitElement {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public config?: WiserScheduleCardConfig;
   @property({ attribute: false }) public schedule_id?: number = 0;
@@ -33,7 +36,7 @@ export class ScheduleCopyCard extends LitElement {
         this.component_loaded = true;
       })
       .catch((error: unknown) => {
-        this._loadError = (error as { message?: string })?.message || localize('common.load_failed');
+        this._loadError = (error as { message?: string })?.message || this.localize('common.load_failed');
       })
       .then(() => notifyViewReady(this));
   }
@@ -48,7 +51,8 @@ export class ScheduleCopyCard extends LitElement {
     if (this._loadError)
       return html`<div role="alert">${this._loadError}</hui-warning
         ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
-    if (!this.component_loaded || !this.schedule) return html`<div role="status">${localize('common.loading')}</div>`;
+    if (!this.component_loaded || !this.schedule)
+      return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
       <wiser-card-header .config=${this.config}>
         <div class="header-actions" role="toolbar">
@@ -58,17 +62,17 @@ export class ScheduleCopyCard extends LitElement {
         </div>
       </wiser-card-header>
       <div>
-        <div>${localize('wiser.headings.copy_schedule')}</div>
+        <div>${this.localize('wiser.headings.copy_schedule')}</div>
         <div class="schedule-info">
-          <span class="sub-heading">${localize('wiser.headings.schedule_type')}:</span> ${this.schedule.Type}
+          <span class="sub-heading">${this.localize('wiser.headings.schedule_type')}:</span> ${this.schedule.Type}
         </div>
         <div class="schedule-info">
-          <span class="sub-heading">${localize('wiser.headings.schedule_id')}:</span> ${this.schedule.Id}
+          <span class="sub-heading">${this.localize('wiser.headings.schedule_id')}:</span> ${this.schedule.Id}
         </div>
         <div class="schedule-info">
-          <span class="sub-heading">${localize('wiser.headings.schedule_name')}:</span> ${this.schedule.Name}
+          <span class="sub-heading">${this.localize('wiser.headings.schedule_name')}:</span> ${this.schedule.Name}
         </div>
-        <div class="wrapper" style="margin: 20px 0 0 0;">${localize('wiser.helpers.select_copy_schedule')}</div>
+        <div class="wrapper" style="margin: 20px 0 0 0;">${this.localize('wiser.helpers.select_copy_schedule')}</div>
         <div class="assignment-wrapper">
           ${this._schedule_list
             .filter((schedule) => schedule.Id != this.schedule?.Id)

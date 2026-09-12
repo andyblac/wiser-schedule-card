@@ -4,7 +4,7 @@ import { property, state } from 'lit/decorators.js';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { fireEvent } from 'custom-card-helpers';
 import { fetchHubs } from '../data/websockets';
-import { localize } from '../localize/localize';
+import { localizeForHass } from '../localize/localize';
 
 interface RegistryEntity {
   entity_id: string;
@@ -23,6 +23,9 @@ interface RegistryDevice {
 
 @customElement('wiser-moments')
 export class WiserMoments extends LitElement {
+  private localize(key: string, search = '', replace = ''): string {
+    return localizeForHass(this.hass, key, search, replace);
+  }
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ attribute: false }) hub = '';
   @state() private entities: RegistryEntity[] = [];
@@ -84,7 +87,7 @@ export class WiserMoments extends LitElement {
       <span
         ><strong>${state.attributes.friendly_name || entity.original_name || entity.entity_id}</strong>
         <small
-          >${localize(state.state === 'unavailable' ? 'wiser.moments.unavailable' : 'wiser.moments.open')}</small
+          >${this.localize(state.state === 'unavailable' ? 'wiser.moments.unavailable' : 'wiser.moments.open')}</small
         ></span
       >
       <span aria-hidden="true">›</span>
@@ -95,14 +98,14 @@ export class WiserMoments extends LitElement {
     const entities = this.entities.filter((entity) => this.hass?.states[entity.entity_id]);
     if (!this.loading && !this.failed && !entities.length) return html``;
     let content;
-    if (this.loading) content = html`<p role="status">${localize('wiser.moments.loading')}</p>`;
+    if (this.loading) content = html`<p role="status">${this.localize('wiser.moments.loading')}</p>`;
     else if (this.failed)
-      content = html`<p role="status">${localize('wiser.moments.failed')}</p>
-        <button @click=${this.load}>${localize('common.retry')}</button>`;
+      content = html`<p role="status">${this.localize('wiser.moments.failed')}</p>
+        <button @click=${this.load}>${this.localize('common.retry')}</button>`;
     else content = html`<div class="moments">${entities.map((entity) => this.renderMoment(entity))}</div>`;
     return html`<section>
-      <h3>${localize('wiser.moments.title')}</h3>
-      <p>${localize('wiser.moments.description')}</p>
+      <h3>${this.localize('wiser.moments.title')}</h3>
+      <p>${this.localize('wiser.moments.description')}</p>
       ${content}
     </section>`;
   }
