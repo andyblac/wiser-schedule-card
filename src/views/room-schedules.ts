@@ -288,9 +288,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           <div class="tools">
             ${
               this.editing
-                ? html`
-                    ${this.tool('wiser.rooms.cancel_edit', 'mdi:close', () => this.editor?.cancelClick(), this.editorSaving)}
-                  `
+                ? html``
                 : html`
                     ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
                     ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}

@@ -52,13 +52,7 @@ export class ScheduleRenameCard extends LitElement {
         ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
     if (!this.component_loaded) return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
-      <wiser-card-header .config=${this.config}>
-        <div class="header-actions" role="toolbar">
-          <button type="button" appearance="plain" @click=${this.cancelClick}>
-            ${this.hass!.localize('ui.common.cancel')}
-          </button>
-        </div>
-      </wiser-card-header>
+      <wiser-card-header .config=${this.config}> </wiser-card-header>
       <div>
         <div>${this.localize('wiser.headings.rename_schedule')}</div>
         <div class="wrapper">${this.localize('wiser.helpers.enter_new_name')}</div>
@@ -76,15 +70,18 @@ export class ScheduleRenameCard extends LitElement {
         </label>
       </div>
       <div class="save-actions">
+        <ha-button appearance="plain" .disabled=${this._rename_in_progress} @click=${this.cancelClick}
+          >${this.hass.localize('ui.common.cancel')}</ha-button
+        >
         <ha-button
           .disabled=${!this._newScheduleName.trim() || this._newScheduleName === this._schedule?.Name || this._rename_in_progress}
           @click=${this.confirmClick}
         >
           ${
-              this._rename_in_progress
-                ? html`<span class="waiting"><progress aria-label="Working"></progress></span>`
-                : this.hass!.localize('ui.common.save')
-            }
+            this._rename_in_progress
+              ? html`<span class="waiting"><progress aria-label="Working"></progress></span>`
+              : this.hass!.localize('ui.common.save')
+          }
         </ha-button>
       </div>
     `;
@@ -111,6 +108,7 @@ export class ScheduleRenameCard extends LitElement {
     return css`
       ${commonStyle}
       .save-actions {
+        gap: 8px;
         display: flex;
         justify-content: flex-end;
         margin-top: 24px;

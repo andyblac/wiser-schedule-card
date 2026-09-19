@@ -59,13 +59,7 @@ export class ScheduleAddCard extends LitElement {
         ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
     if (!this.component_loaded) return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
-      <wiser-card-header .config=${this.config}>
-        <div class="header-actions" role="toolbar">
-          <button type="button" appearance="plain" @click=${this.cancelClick}>
-            ${this.hass.localize('ui.common.cancel')}
-          </button>
-        </div>
-      </wiser-card-header>
+      <wiser-card-header .config=${this.config}> </wiser-card-header>
       <div>
         <div>${this.localize('wiser.actions.add_schedule')}</div>
         <div class="wrapper" style="white-space: normal">
@@ -87,6 +81,9 @@ export class ScheduleAddCard extends LitElement {
         </label>
       </div>
       <div class="save-actions">
+        <ha-button appearance="plain" .disabled=${this._saving} @click=${this.cancelClick}
+          >${this.hass.localize('ui.common.cancel')}</ha-button
+        >
         <ha-button
           .disabled=${this._saving || !this._schedule_info?.Name.trim() || !this._schedule_info?.Type}
           @click=${this.confirmClick}
@@ -168,6 +165,7 @@ export class ScheduleAddCard extends LitElement {
     return css`
       ${commonStyle}
       .save-actions {
+        gap: 8px;
         display: flex;
         justify-content: flex-end;
         margin-top: 24px;

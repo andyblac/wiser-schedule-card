@@ -261,6 +261,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           ${
             this.editMode && allow_edit(this.hass, this.config)
               ? html` <div class="save-actions">
+                  <ha-button appearance="plain" .disabled=${this._save_in_progress} @click=${() => this.cancelClick()}
+                    >${this.hass.localize('ui.common.cancel')}</ha-button
+                  >
                   <ha-button .disabled=${this._save_in_progress} @click=${() => this.saveClick()}
                     >${this.hass.localize('ui.common.save')}</ha-button
                   >
@@ -415,9 +418,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
           ${
             this.editMode
-              ? html`
-                  ${this.tool(this.hass!.localize('ui.common.cancel'), 'mdi:close', () => this.cancelClick(), blocked)}
-                `
+              ? html``
               : html`
                   ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
                   ${editable ? this.tool(this.localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
@@ -875,6 +876,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         margin: 3px 0;
       }
       .save-actions {
+        gap: 8px;
         display: flex;
         justify-content: flex-end;
         margin-top: 24px;
