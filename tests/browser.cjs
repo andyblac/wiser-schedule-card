@@ -188,6 +188,8 @@ const assert = require('node:assert/strict');
     console.log('PASS JSON export, import draft, preserved identity and incompatible type rejection');
     await button('Rename').click();
     await page.waitForSelector('wiser-schedule-rename-card input');
+    await page.locator('wiser-schedule-rename-card wiser-schedule-slot-editor').waitFor();
+    assert.equal(await page.locator('wiser-schedule-rename-card wiser-schedule-edit-card').evaluate((el) => el.editMode), false);
     assert.equal(await page.getByRole('textbox', { name: 'Schedule Name' }).inputValue(), 'Bedrooms');
     await page.getByRole('textbox', { name: 'Schedule Name' }).fill('Renamed schedule');
     await button('save').click();

@@ -1,5 +1,6 @@
 import { customElement } from '../components/register-element';
 import '../components/card-header';
+import './schedule-edit';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
@@ -69,6 +70,13 @@ export class ScheduleRenameCard extends LitElement {
           />
         </label>
       </div>
+      <wiser-schedule-edit-card
+        .hass=${this.hass}
+        .config=${{ ...this.config, display_only: true }}
+        .embedded=${true}
+        .schedule_id=${this.schedule_id}
+        .schedule_type=${this.schedule_type}
+      ></wiser-schedule-edit-card>
       <div class="save-actions">
         <ha-button appearance="plain" .disabled=${this._rename_in_progress} @click=${this.cancelClick}
           >${this.hass.localize('ui.common.cancel')}</ha-button
