@@ -5,9 +5,9 @@ class WiserSchedulesPanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `
       <style>
-        :host { display: block; height: 100%; overflow: auto;
+        :host { display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: auto;
           color: var(--primary-text-color); background: var(--primary-background-color); }
-        header { display: flex; align-items: center; gap: 16px; height: 64px;
+        header { display: flex; flex-shrink: 0; align-items: center; gap: 16px; height: 64px;
           padding: 0 16px; background: var(--app-header-background-color);
           color: var(--app-header-text-color); }
         h1 { flex: 0 0 auto; font-size: 20px; font-weight: 400; margin: 0; }
@@ -25,7 +25,8 @@ class WiserSchedulesPanel extends HTMLElement {
         #editors h3 { font-size: 16px; font-weight: 500; margin: 0 0 16px; }
         #editor-error:empty { display: none; }
         #editor-error { color: var(--error-color, #db4437); }
-        main { max-width: 1200px; margin: auto; padding: 16px; }
+        main { display: flex; flex-direction: column; flex: 1 0 auto;
+          box-sizing: border-box; width: 100%; min-width: 0; padding: 16px; }
         #hub-tabs { display: flex; flex: 1; min-width: 0; margin-inline-start: 24px; align-self: stretch; overflow-x: auto; }
         #hub-tabs[hidden], wiser-schedule-card[hidden] { display: none; }
         .hub-tab { flex: 0 0 auto; min-height: 48px; padding: 0 24px;
@@ -40,7 +41,7 @@ class WiserSchedulesPanel extends HTMLElement {
           h1 { flex: 0 1 auto; min-width: 0; max-width: 30%; font-size: 16px; }
           .hub-tab { padding: 0 12px; }
         }
-        wiser-schedule-card { display: block; margin-bottom: 16px; }
+        wiser-schedule-card { display: flex; flex-direction: column; flex: 1; min-width: 0; }
       </style>
       <header><ha-button id="menu" appearance="plain" aria-label="Toggle sidebar"><ha-icon icon="mdi:menu"></ha-icon></ha-button>
         <h1>Wiser Schedules</h1>

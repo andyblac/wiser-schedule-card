@@ -23,6 +23,28 @@ const assert = require('node:assert/strict');
       document.querySelector('#mount').replaceChildren(panel);
     });
     await page.locator('wiser-schedule-card').waitFor();
+    await page.evaluate(() => {
+      document.querySelector('#mount').style.cssText = 'max-width:none;width:100%;height:900px';
+    });
+    for (const width of [1800, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const layout = await page.locator('wiser-schedules-panel').evaluate((panel) => {
+        const main = panel.shadowRoot.querySelector('main');
+        const card = main.querySelector('wiser-schedule-card');
+        const surface = card.shadowRoot.querySelector('ha-card');
+        return {
+          panel: panel.getBoundingClientRect().width,
+          main: main.getBoundingClientRect().width,
+          mainHeight: main.getBoundingClientRect().height,
+          card: card.getBoundingClientRect().width,
+          height: surface.getBoundingClientRect().height,
+        };
+      });
+      assert.ok(Math.abs(layout.main - layout.panel) < 1);
+      assert.ok(Math.abs(layout.card - (layout.panel - 32)) < 1);
+      assert.ok(layout.height >= layout.mainHeight - 32 - 1, JSON.stringify(layout));
+    }
+    await page.setViewportSize({ width: 1280, height: 1000 });
     await page.locator('ha-button#settings').click();
     await page.waitForFunction(() => document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open);
     await page.locator('wiser-schedule-card-editor').waitFor();

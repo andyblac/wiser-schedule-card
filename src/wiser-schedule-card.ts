@@ -130,6 +130,7 @@ export class WiserScheduleCard extends LitElement {
       color: var(--primary-text-color);
     }
     ha-card {
+      flex: 1;
       overflow: hidden;
     }
     .card-header {
