@@ -10,7 +10,7 @@ export class WiserCardHeader extends LitElement {
   render() {
     const name = this.config?.name;
     return html`<header>
-      ${name ? html`<h2><span class="brand">Wiser</span>${name !== 'Wiser Schedule' ? html`<span class="title">${name}</span>` : ''}</h2>` : ''}
+      ${name ? html`<h2><span class="brand">Wiser</span>${!['Wiser Schedule', 'Wiser Schedules'].includes(name) ? html`<span class="title">${name}</span>` : ''}</h2>` : ''}
       <div class="actions"><slot></slot></div>
     </header>`;
   }

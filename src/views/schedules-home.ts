@@ -110,7 +110,7 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     }
     h3 {
       margin: 0;
-      font-size: calc(15px + 1pt);
+      font-size: calc(22px + 1pt);
     }
     button {
       font: inherit;
