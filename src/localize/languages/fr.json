@@ -18,7 +18,8 @@
       "view": "Voir",
       "add_schedule": "Ajouter un Programme",
       "export": "Exporter le programme",
-      "import": "Importer un programme"
+      "import": "Importer un programme",
+      "duplicate_new": "Dupliquer dans un nouveau programme"
     },
     "labels": {
       "setting": "Paramètre",
@@ -58,7 +59,8 @@
       "not_assigned": "(Non Attribué)",
       "rename_schedule": "Renommer le Programme",
       "copy_schedule": "Copier le Programme",
-      "delete_schedule": "Supprimer le Programme"
+      "delete_schedule": "Supprimer le Programme",
+      "new_copy_name": "Nom du nouveau programme"
     },
     "helpers": {
       "enter_new_name": "Entrez un nom pour le Programme",
@@ -67,7 +69,8 @@
       "select_a_schedule": "Sélectionner un programme à afficher",
       "add_schedule": "Sélectionnez le type de programme et entrez un nom pour la programme à créer",
       "add_schedule_name": "Saisissez un nom pour le nouveau programme",
-      "no_supported_types": "Aucun type de programme compatible avec cet appareil."
+      "no_supported_types": "Aucun type de programme compatible avec cet appareil.",
+      "copy_target_missing": "Impossible d’identifier le nouveau programme. Vérifiez la liste avant de réessayer."
     },
     "rooms": {
       "title": "Pièces",

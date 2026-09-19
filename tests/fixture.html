@@ -346,6 +346,12 @@
               Assignments: 0,
             });
             return 'success';
+          case 'wiser/schedule/copy':
+            if (fixture.failCopy) throw { message: 'Copy failed' };
+            return true;
+          case 'wiser/schedule/rename':
+            if (fixture.failRename) throw { message: 'Rename failed' };
+            return true;
           case 'wiser/schedule/assign':
             if (fixture.failAssign) throw { message: 'Assignment failed' };
             if (request.remove) delete fixture.assignments[request.entity_id];

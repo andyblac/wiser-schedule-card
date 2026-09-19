@@ -14,7 +14,6 @@ import './views/schedules-home';
 import './views/schedule-edit';
 import './views/schedule-add';
 import './views/schedule-copy';
-import './views/schedule-rename';
 import './editor';
 import './wiser-schedules-panel.js';
 
@@ -251,7 +250,7 @@ export class WiserScheduleCard extends LitElement {
               this._schedule_id = event.detail.schedule_id;
               this._schedule_type = event.detail.schedule_type;
               this._returnView = EViews.RoomSchedule;
-              this._view = event.detail.action === 'rename' ? EViews.ScheduleRename : EViews.ScheduleCopy;
+              this._view = EViews.ScheduleCopy;
             }}
             @addScheduleClick=${this._addScheduleClick}
           >
@@ -274,7 +273,6 @@ export class WiserScheduleCard extends LitElement {
               .schedule_id=${this._schedule_id}
               .schedule_type=${this._schedule_type}
               @backClick=${this._backClick}
-              @renameClick=${this._renameClick}
               @editClick=${this._editClick}
               @copyClick=${this._copyClick}
               @scheduleDeleted=${this._scheduleDeleted}
@@ -324,27 +322,6 @@ export class WiserScheduleCard extends LitElement {
           </div>
         </ha-card>
       `;
-    } else if (this._view == EViews.ScheduleRename) {
-      return html`
-        <ha-card style=${cardStyle}>
-          <div
-            class="card-content"
-            @wiser-view-ready=${this._viewReady}
-            @home-view-changed=${(event: CustomEvent) => {
-              if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
-            }}
-          >
-            <wiser-schedule-rename-card
-              .hass=${this._hass}
-              .config=${this.config}
-              .schedule_id=${this._schedule_id}
-              .schedule_type=${this._schedule_type}
-              @backClick=${this._backClick}
-              @scheduleRenamed=${this._scheduleRenamed}
-            ></wiser-schedule-rename-card>
-          </div>
-        </ha-card>
-      `;
     }
     return html``;
   }
@@ -352,10 +329,6 @@ export class WiserScheduleCard extends LitElement {
   private _addScheduleClick() {
     this._returnView = this._view;
     this._view = EViews.ScheduleAdd;
-  }
-
-  private _renameClick() {
-    this._view = EViews.ScheduleRename;
   }
 
   private _editClick() {
@@ -390,11 +363,14 @@ export class WiserScheduleCard extends LitElement {
     this._view = this._returnView;
   }
 
-  private _scheduleCopied() {
-    this._view = this._returnView === EViews.RoomSchedule ? EViews.RoomSchedule : EViews.ScheduleEdit;
-  }
-
-  private _scheduleRenamed() {
+  private _scheduleCopied(event: CustomEvent<{ Id: number; Type: string } | undefined>) {
+    if (event.detail) {
+      this._schedule_id = event.detail.Id;
+      this._schedule_type = event.detail.Type;
+      this._returnView = EViews.Overview;
+      this._view = EViews.ScheduleEdit;
+      return;
+    }
     this._view = this._returnView === EViews.RoomSchedule ? EViews.RoomSchedule : EViews.ScheduleEdit;
   }
 }

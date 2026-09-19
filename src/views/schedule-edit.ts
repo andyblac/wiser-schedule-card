@@ -28,6 +28,7 @@ import {
   assignSchedule,
   deleteSchedule,
   saveSchedule,
+  renameSchedule,
   fetchSunTimes,
   showErrorDialog,
 } from '../data/websockets';
@@ -67,7 +68,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   @state() _save_in_progress = false;
   @state() error?: WiserError;
 
-  _tempSchedule?: Schedule;
+  @state() _tempSchedule?: Schedule;
+  @state() private _saveError = '';
   stepSize = 5;
 
   async initialise(): Promise<boolean> {
@@ -243,6 +245,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         <div>
           ${this.embedded ? '' : this.renderToolbar()}
           ${this.embedded || this.schedule.Id === 1000 ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
+          ${this.embedded && this.editMode ? this.renderEditableTitle() : ''}
+          ${this.editMode && this._saveError ? html`<p role="alert">${this._saveError}</p>` : ''}
           <div class="wrapper">
             <div class="schedules">
               <div class="slots-wrapper">
@@ -264,7 +268,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                   <ha-button appearance="plain" .disabled=${this._save_in_progress} @click=${() => this.cancelClick()}
                     >${this.hass.localize('ui.common.cancel')}</ha-button
                   >
-                  <ha-button .disabled=${this._save_in_progress} @click=${() => this.saveClick()}
+                  <ha-button
+                    .disabled=${this._save_in_progress || !this._tempSchedule?.Name.trim()}
+                    @click=${() => this.saveClick()}
                     >${this.hass.localize('ui.common.save')}</ha-button
                   >
                 </div>`
@@ -398,6 +404,20 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     </button>`;
   }
 
+  private renderEditableTitle(): TemplateResult {
+    return html`<input
+      class="editable-title"
+      type="text"
+      required
+      aria-label=${this.localize('wiser.headings.schedule_name')}
+      .value=${this._tempSchedule?.Name || ''}
+      ?disabled=${this._save_in_progress}
+      @input=${(event: Event) => {
+        this._tempSchedule = { ...this._tempSchedule!, Name: (event.target as HTMLInputElement).value };
+      }}
+    />`;
+  }
+
   private renderToolbar(): TemplateResult {
     const editable = allow_edit(this.hass!, this.config);
     const blocked = this.assigningDevices || this._save_in_progress;
@@ -427,7 +447,6 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                       ? html`
                           ${this.tool(this.localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked)}
                           ${this.tool(this.hass!.localize('ui.common.edit'), 'mdi:pencil', () => this.editClick(), blocked)}
-                          ${this.tool(this.localize('wiser.actions.rename'), 'mdi:form-textbox', () => this.renameScheduleClick(), blocked)}
                           ${this.tool(this.localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || fixed)}
                           ${this.tool(this.hass!.localize('ui.common.delete'), 'mdi:delete-outline', () => this.deleteClick(), blocked || fixed)}
                         `
@@ -437,7 +456,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           }
         </div>
       </wiser-card-header>
-      <h3 class="schedule-title">${this.schedule!.Name}</h3>`;
+      ${this.editMode ? this.renderEditableTitle() : html`<h3 class="schedule-title">${this.schedule!.Name}</h3>`}`;
   }
 
   async entityAssignmentClick(ev: Event): Promise<void> {
@@ -521,11 +540,6 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     this.dispatchEvent(myEvent);
   }
 
-  async renameScheduleClick(): Promise<void> {
-    const myEvent = new CustomEvent('renameClick');
-    this.dispatchEvent(myEvent);
-  }
-
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   async deleteClick(ev?: Event): Promise<void> {
     if (!allow_edit(this.hass!, this.config)) return;
@@ -555,6 +569,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   cancelClick(): void {
     this.editMode = false;
+    this._saveError = '';
   }
 
   validateSchedule(schedule: Schedule): boolean {
@@ -568,8 +583,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   async saveClick(): Promise<void> {
-    if (this._save_in_progress || !this._tempSchedule || !allow_edit(this.hass!, this.config)) return;
+    if (this._save_in_progress || !this._tempSchedule?.Name.trim() || !allow_edit(this.hass!, this.config)) return;
     this._save_in_progress = true;
+    this._saveError = '';
     try {
       if (this.validateSchedule(this._tempSchedule)) {
         const draft = JSON.parse(JSON.stringify(this._tempSchedule)) as Schedule;
@@ -577,12 +593,17 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           ? this.convertScheduleForSaving(draft)
           : draft;
         await saveSchedule(this.hass!, this.config.hub, this.schedule_type!, this.schedule_id!, schedule);
+        const name = draft.Name.trim();
+        if (name !== this.schedule?.Name) {
+          await renameSchedule(this.hass!, this.config.hub, this.schedule_type!, this.schedule_id!, name);
+        }
         this.editMode = false;
+        await this.loadData();
       } else {
         showErrorDialog(this, 'Error Saving Schedule', 'The schedule you are trying to save has no time slots.');
       }
     } catch (error: unknown) {
-      showErrorDialog(this, 'Error Saving Schedule', (error as Error)?.message || this.localize('common.load_failed'));
+      this._saveError = (error as Error)?.message || this.localize('common.load_failed');
     } finally {
       this._save_in_progress = false;
     }
@@ -874,6 +895,19 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       }
       div.schedule-info {
         margin: 3px 0;
+      }
+      input.editable-title {
+        display: block;
+        width: 420px;
+        max-width: 100%;
+        margin: 16px 0 24px;
+        padding: 4px 0;
+        font-size: calc(22px + 1pt);
+        font-weight: 700;
+        border: 0;
+        border-bottom: 1px solid var(--divider-color);
+        border-radius: 0;
+        background: transparent;
       }
       .save-actions {
         gap: 8px;

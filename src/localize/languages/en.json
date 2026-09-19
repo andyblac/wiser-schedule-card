@@ -18,7 +18,8 @@
       "view": "View",
       "add_schedule": "Add Schedule",
       "export": "Export schedule",
-      "import": "Import schedule"
+      "import": "Import schedule",
+      "duplicate_new": "Duplicate to new schedule"
     },
     "labels": {
       "setting": "Setting",
@@ -58,7 +59,8 @@
       "not_assigned": "(Not Assigned)",
       "rename_schedule": "Rename Schedule",
       "copy_schedule": "Copy Schedule",
-      "delete_schedule": "Delete Schedule"
+      "delete_schedule": "Delete Schedule",
+      "new_copy_name": "New schedule name"
     },
     "helpers": {
       "enter_new_name": "Enter the new name for the Schedule",
@@ -67,7 +69,8 @@
       "select_a_schedule": "Select a schedule to view",
       "add_schedule": "Select the schedule type and enter a name for the schedule to create",
       "add_schedule_name": "Enter a name for the new schedule",
-      "no_supported_types": "No compatible schedule types are available for this device."
+      "no_supported_types": "No compatible schedule types are available for this device.",
+      "copy_target_missing": "Could not identify the new schedule. Check the schedules list before trying again."
     },
     "rooms": {
       "title": "Rooms",

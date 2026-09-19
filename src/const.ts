@@ -13,7 +13,6 @@ export enum EViews {
   ScheduleEdit = 'SCHEDULE_EDIT',
   ScheduleCopy = 'SCHEDULE_COPY',
   ScheduleAdd = 'SCHEDULE_ADD',
-  ScheduleRename = 'SCHEDULE_RENAME',
 }
 
 export enum DefaultSetpoint {

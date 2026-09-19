@@ -297,7 +297,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                       editable && viewed
                         ? html`
                             ${this.tool('wiser.rooms.edit', 'mdi:pencil', () => this.editor?.editClick(), blocked || !this.editorReady)}
-                            ${this.tool('wiser.actions.rename', 'mdi:form-textbox', () => this.scheduleAction(viewed, 'rename'), blocked)}
                             ${this.tool('wiser.actions.copy', 'mdi:content-copy', () => this.scheduleAction(viewed, 'copy'), blocked || fixed)}
                             ${this.tool(
                               'wiser.rooms.delete',
