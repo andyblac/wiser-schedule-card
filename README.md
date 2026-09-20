@@ -32,7 +32,7 @@ Keep a single resource entry for the schedule card. An integration update may re
 
 ## Rooms and schedules
 
-The **Overview** screen groups available controls into **Heating**, **Hot water**, **Lighting & devices**, and **Moments**. Its toolbar switches between Schedules and Overview. Empty sections are hidden. Tiles show room or device names and their assigned schedules. Moments open the corresponding Home Assistant button controls; they are preset actions, not weekly schedule editors. Use Home Assistant automations for timed activation. Moment discovery is restricted to the selected Wiser hub and requires access to the entity/device registries.
+The **Overview** screen groups available controls into **Heating**, **Hot water**, **Lighting**, **Shutters**, **On/off**, and **Moments**. Its toolbar switches between Schedules and Overview. Empty sections are hidden. Tiles show room or device names and their assigned schedules. Moments open the corresponding Home Assistant button controls; they are preset actions, not weekly schedule editors. Use Home Assistant automations for timed activation. Moment discovery is restricted to the selected Wiser hub and requires access to the entity/device registries.
 Select a room to see its toolbar, schedule-name assignment chooser, and full weekly timeline:
 
 - **Back arrow:** return home.
@@ -136,7 +136,7 @@ the bundle in `dist`.
 
 ### Wiser Home
 
-The home page groups available controls into Heating, Hot water, Lighting & devices, and Moments. Empty device sections are hidden. Room and device tiles show the assigned schedule and open its controls; schedule choices are limited to compatible types. Hot water opens its fixed schedule, with copy and delete disabled. Moments open Home Assistant controls and can be timed using Home Assistant automations. The home toolbar switches between Schedules and Overview; + is dimmed where adding a schedule is unavailable.
+The home page groups available controls into Heating, Hot water, Lighting, Shutters, On/off, and Moments. Empty device sections are hidden. Room and device tiles show the assigned schedule and open its controls; schedule choices are limited to compatible types. Hot water opens its fixed schedule, with copy and delete disabled. Moments open Home Assistant controls and can be timed using Home Assistant automations. The home toolbar switches between Schedules and Overview; + is dimmed where adding a schedule is unavailable.
 
 Creating a schedule from a room or device offers only its compatible schedule types. A single supported type is selected automatically, so you only need to enter the schedule name.
 
@@ -152,7 +152,7 @@ Smart-plug tiles choose a regional socket icon using Home Assistant’s configur
 
 ### Home screen selection
 
-In the card editor, **Home screen → Schedules / Overview** chooses the starting view. Schedules is the default. Schedules shows schedule tiles; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: overview`.
+In the card editor, **Home screen → Schedules / Overview** chooses the starting view. Schedules is the default. Schedules groups schedule tiles into Heating, Hot water, Lighting, Shutters, and On/off sections, with empty sections hidden and names sorted within each category; selecting one opens editing and a multiple-selection HA device picker containing compatible rooms or devices. **Apply assignments** adds or removes the selected schedule’s assignments without deleting schedules. Hot water retains its fixed assignment. Changing Home screen clears a pinned schedule so the chosen home screen can appear. YAML: `home_screen: schedules` or `home_screen: overview`.
 
 **Overview Details → Show / Hide** appears and applies only when Overview is the configured home start page (default Show). When starting on Schedules, opening Overview from the toolbar always shows details. Hide starts each device collapsed, keeping its name and assigned schedule visible. Tap the device icon to expand or collapse its extra information; tap the name or arrow to open its schedule. YAML: `overview_details: false`. Existing `home_screen: devices` settings migrate to Overview.
 

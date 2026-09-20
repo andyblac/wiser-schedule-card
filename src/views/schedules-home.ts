@@ -50,6 +50,23 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
       }
     }
   }
+  private category(schedule: ScheduleListItem): string {
+    if (schedule.Id === 1000) return 'hotwater';
+    const type = (schedule.SubType || schedule.Type).toLowerCase();
+    return (
+      (
+        {
+          heating: 'heating',
+          lighting: 'lighting',
+          light: 'lighting',
+          shutters: 'shutters',
+          shutter: 'shutters',
+          onoff: 'onoff',
+        } as Record<string, string>
+      )[type] || 'other'
+    );
+  }
+
   protected render() {
     if (!this.hass) return html``;
     return html`
@@ -70,8 +87,13 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
             ? html`<p role="status">${this.localize('common.loading')}</p>`
             : !this.schedules.length
               ? html`<p>${this.localize('wiser.home.no_schedules')}</p>`
-              : html` <div class=${this.config.view_type === 'list' ? 'tiles list' : 'tiles'}>
-                  ${this.schedules.map(
+              : html`${['heating', 'hotwater', 'lighting', 'shutters', 'onoff', 'other'].map((category) => {
+                  const schedules = this.schedules.filter((schedule) => this.category(schedule) === category);
+                  return schedules.length
+                    ? html`<section data-category=${category}>
+                        <h4>${this.localize('wiser.home.' + category)}</h4>
+                        <div class=${this.config.view_type === 'list' ? 'tiles list' : 'tiles'}>
+                          ${schedules.map(
                     (schedule) =>
                       html`<button
                         class="schedule-tile"
@@ -81,13 +103,16 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
                         <span
                           ><strong>${schedule.Name}</strong
                           ><small
-                            >${schedule.Type} · ${schedule.Assignments}
+                            >${this.localize('wiser.home.' + category)} · ${schedule.Assignments}
                             ${this.localize('wiser.home.assignments')}</small
                           ></span
                         ><span aria-hidden="true">›</span>
                       </button>`,
                   )}
-                </div>`
+                        </div>
+                      </section>`
+                    : '';
+                })}`
       }
     `;
   }
@@ -95,6 +120,16 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     :host {
       display: block;
       color: var(--primary-text-color);
+    }
+    section + section {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--divider-color);
+    }
+    h4 {
+      margin: 0 0 8px;
+      font-size: calc(15px + 1pt);
+      font-weight: 600;
     }
     .home-tools {
       display: flex;

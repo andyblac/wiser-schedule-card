@@ -58,6 +58,7 @@ export interface ScheduleAssignments {
 }
 
 export interface ScheduleListItem {
+  SubType?: string;
   Id: number;
   Type: string;
   Name: string;

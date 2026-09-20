@@ -132,7 +132,11 @@
       "overview_details": "Détails de la vue d’ensemble",
       "show": "Afficher",
       "hide": "Masquer",
-      "device_details": "Détails du planning"
+      "device_details": "Détails du planning",
+      "lighting": "Éclairage",
+      "shutters": "Volets",
+      "onoff": "Marche/arrêt",
+      "other": "Autres"
     },
     "editor": {
       "hub": "Hub Wiser",

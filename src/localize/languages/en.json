@@ -132,7 +132,11 @@
       "overview_details": "Overview Details",
       "show": "Show",
       "hide": "Hide",
-      "device_details": "Schedule details"
+      "device_details": "Schedule details",
+      "lighting": "Lighting",
+      "shutters": "Shutters",
+      "onoff": "On/off",
+      "other": "Other"
     },
     "editor": {
       "hub": "Wiser hub",

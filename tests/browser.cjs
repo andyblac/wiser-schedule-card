@@ -245,7 +245,7 @@ const assert = require('node:assert/strict');
       fixture.assignments[23] = 6;
       mountCard();
     });
-    await page.getByRole('heading', { name: 'Lighting & devices', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Lighting', exact: true }).waitFor();
     for (const [country, icon] of [
       ['GB', 'uk'],
       ['US', 'us'],
@@ -303,7 +303,7 @@ const assert = require('node:assert/strict');
     await fresh();
     await page.evaluate(() => mountCard());
     await roomsReady();
-    assert.equal(await page.getByRole('heading', { name: 'Lighting & devices', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('heading', { name: 'Lighting', exact: true }).count(), 0);
     assert.equal(await page.getByRole('heading', { name: 'Hot water', exact: true }).count(), 0);
     await page.evaluate(() => {
       const card = document.querySelector('wiser-schedule-card');
@@ -877,6 +877,21 @@ const assert = require('node:assert/strict');
     await page.locator('wiser-schedule-copy-card button.schedule-button').first().click();
     await button('edit').waitFor();
     assert.equal(await page.locator('wiser-schedule-edit-card').evaluate(el => el.schedule_id), Number(destination));
+    await page.evaluate(() => {
+      fixture.schedules = [
+        { Id: 1, Name: 'Heating', Type: 'Heating', Assignments: 0 },
+        { Id: 2, Name: 'Dimmer', Type: 'Level', SubType: 'Lighting', Assignments: 0 },
+        { Id: 3, Name: 'Blind', Type: 'Level', SubType: 'Shutters', Assignments: 0 },
+        { Id: 4, Name: 'Switch', Type: 'OnOff', Assignments: 0 },
+        { Id: 5, Name: 'Lamp', Type: 'Lighting', Assignments: 0 },
+      ];
+      mountCard({ home_screen: 'schedules' });
+    });
+    await page.locator('button.schedule-tile').first().waitFor();
+    assert.equal(await page.locator('section[data-category="lighting"] button.schedule-tile').count(), 2);
+    assert.equal(await page.locator('section[data-category="shutters"] button.schedule-tile').count(), 1);
+    assert.equal(await page.locator('section[data-category="onoff"] button.schedule-tile').count(), 1);
+    assert.equal(await page.locator('section[data-category="hotwater"]').count(), 0);
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

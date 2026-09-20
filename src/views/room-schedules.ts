@@ -407,7 +407,10 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     const groups = [
       { title: 'heating', items: this.rooms.map((room) => ({ ...room, kind: 'heating' })) },
       { title: 'hotwater', items: this.devices.filter((item) => item.kind === 'hotwater') },
-      { title: 'devices', items: this.devices.filter((item) => item.kind !== 'hotwater') },
+      ...['lighting', 'shutters', 'onoff'].map((kind) => ({
+        title: kind,
+        items: this.devices.filter((item) => item.kind === kind),
+      })),
     ];
     return html`
       <wiser-card-header .config=${this.config}
