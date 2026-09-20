@@ -1,9 +1,34 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 import * as en from './languages/en.json';
 import * as fr from './languages/fr.json';
+import * as de from './languages/de.json';
+import * as enGB from './languages/en-GB.json';
 
-const languages: Record<string, unknown> = { en, fr };
+const languages: Record<string, unknown> = { en, fr, de, 'en-gb': enGB };
 const nativeKeys: Record<string, string> = {
+  'wiser.labels.name': 'ui.common.name',
+  'wiser.labels.start': 'ui.dialogs.helper_settings.schedule.start',
+  'wiser.labels.end': 'ui.dialogs.helper_settings.schedule.end',
+  'wiser.labels.temperature': 'ui.dialogs.more_info_control.climate.temperature',
+  'wiser.editor.appearance': 'ui.panel.profile.user_preferences_header',
+  'wiser.moments.unavailable': 'state.default.unavailable',
+  'wiser.heating.off': 'component.climate.entity_component._.state.off',
+  'wiser.heating.heating': 'component.climate.entity_component._.state_attributes.hvac_action.state.heating',
+  'wiser.heating.idle': 'component.climate.entity_component._.state_attributes.hvac_action.state.idle',
+  'wiser.days.monday': 'ui.weekdays.monday',
+  'wiser.days.short.monday': 'ui.components.calendar.event.repeat.weekly.weekday.mo',
+  'wiser.days.tuesday': 'ui.weekdays.tuesday',
+  'wiser.days.short.tuesday': 'ui.components.calendar.event.repeat.weekly.weekday.tu',
+  'wiser.days.wednesday': 'ui.weekdays.wednesday',
+  'wiser.days.short.wednesday': 'ui.components.calendar.event.repeat.weekly.weekday.we',
+  'wiser.days.thursday': 'ui.weekdays.thursday',
+  'wiser.days.short.thursday': 'ui.components.calendar.event.repeat.weekly.weekday.th',
+  'wiser.days.friday': 'ui.weekdays.friday',
+  'wiser.days.short.friday': 'ui.components.calendar.event.repeat.weekly.weekday.fr',
+  'wiser.days.saturday': 'ui.weekdays.saturday',
+  'wiser.days.short.saturday': 'ui.components.calendar.event.repeat.weekly.weekday.sa',
+  'wiser.days.sunday': 'ui.weekdays.sunday',
+  'wiser.days.short.sunday': 'ui.components.calendar.event.repeat.weekly.weekday.su',
   'wiser.heating.auto': 'ui.common.auto',
   'wiser.heating.unknown': 'state.default.unknown',
   'wiser.heating.mode': 'ui.card.climate.mode',
@@ -34,16 +59,17 @@ export function localize(key: string, search = '', replace = '', language?: stri
   const selected = (language || localStorage.getItem('selectedLanguage') || 'en')
     .replace(/['"]+/g, '')
     .toLowerCase()
-    .split(/[-_]/)[0];
-  const text = lookup(selected, key) || lookup('en', key) || key;
+    .replace(/_/g, '-');
+  const text = lookup(selected, key) || lookup(selected.split('-')[0], key) || lookup('en', key) || key;
   return search && replace ? text.replace(search, replace) : text;
 }
 
-/** Prefer HA's shared translations, with card translations for missing keys and Wiser concepts. */
+/** Use HA translations for native labels; card translations only cover Wiser concepts. */
 export function localizeForHass(hass: HomeAssistant | undefined, key: string, search = '', replace = ''): string {
   const nativeKey = nativeKeys[key];
-  const translated = nativeKey ? hass?.localize(nativeKey) : undefined;
-  if (translated && translated !== nativeKey)
+  if (nativeKey) {
+    const translated = hass?.localize(nativeKey) || '';
     return search && replace ? translated.replace(search, replace) : translated;
+  }
   return localize(key, search, replace, hass?.locale?.language || hass?.language);
 }

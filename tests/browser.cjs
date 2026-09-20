@@ -701,16 +701,16 @@ const assert = require('node:assert/strict');
       const editor = document.createElement('wiser-schedule-card-editor');
       const hass = makeHass();
       hass.locale = { ...hass.locale, language: 'fr-CA' };
-      hass.localize = (key) => ({ 'panel.states': 'HA Vue générale', 'ui.common.show': 'HA Afficher' })[key] || '';
+      hass.localize = (key) => ({ 'panel.states': 'HA Vue générale', 'ui.common.show': 'HA Afficher', 'ui.common.hide': 'HA Masquer' })[key] || '';
       editor.hass = hass;
       editor.setConfig({ type: 'custom:wiser-schedule-card', home_screen: 'overview' });
       document.querySelector('#mount').append(editor);
     });
     await page.getByRole('radio', { name: 'HA Vue générale', exact: true }).waitFor();
     await page.getByRole('radio', { name: 'HA Afficher', exact: true }).waitFor();
-    await page.getByRole('radio', { name: 'Masquer', exact: true }).waitFor();
+    await page.getByRole('radio', { name: 'HA Masquer', exact: true }).waitFor();
     await page.getByText('Autorisations', { exact: true }).waitFor();
-    console.log('PASS native HA labels and regional-language fallback for missing translations');
+    console.log('PASS native HA labels and regional-language selection for Wiser translations');
     await fresh();
     await page.evaluate(() => {
       fixture.climateRegistry = [
@@ -757,7 +757,7 @@ const assert = require('node:assert/strict');
     });
     const heating = page.locator('wiser-heating-status').filter({ hasText: 'Following schedule' });
     await heating.waitFor();
-    await heating.getByLabel('mode', { exact: true }).selectOption('heat');
+    await heating.getByLabel('Mode', { exact: true }).selectOption('heat');
     await page.getByText('Schedule status: Manual', { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => serviceCalls[0]), {
       domain: 'climate',
@@ -786,7 +786,7 @@ const assert = require('node:assert/strict');
     await page
       .locator('wiser-heating-status')
       .filter({ hasText: 'Following schedule' })
-      .getByLabel('mode', { exact: true })
+      .getByLabel('Mode', { exact: true })
       .selectOption('off');
     await page.getByRole('alert').filter({ hasText: 'Heating service failed' }).waitFor();
     await page.evaluate(() => {

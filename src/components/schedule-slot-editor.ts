@@ -313,12 +313,12 @@ export class ScheduleSlotEditor extends LitElement {
           <div class="temperature-row">
             <div class="temperature-controls">
               <div class="section-header" aria-disabled=${this._activeSlot < 0}>
-                ${this._show_short_days ? 'Temp' : 'Temperature'}
+                ${this.localize('wiser.labels.temperature')}
               </div>
               <div class="temperature-input">
                 <button
                   type="button"
-                  aria-label="Heating off"
+                  aria-label=${this.localize('wiser.heating.off')}
                   class="set-off-button"
                   .disabled=${this._activeSlot < 0}
                   @click=${() => this._updateSetPoint('-20')}

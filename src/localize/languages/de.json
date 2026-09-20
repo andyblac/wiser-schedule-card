@@ -1,0 +1,137 @@
+{
+  "common": {
+    "version": "Version",
+    "invalid_configuration": "Ungültige Konfiguration",
+    "no_schedules": "Keine Zeitpläne gefunden",
+    "name_required": "Ein Name ist erforderlich",
+    "loading": "Zeitpläne werden geladen…",
+    "retry": "Erneut versuchen",
+    "load_failed": "Zeitpläne konnten nicht geladen werden.",
+    "integration_unavailable": "Die Wiser-Integration ist nicht verfügbar."
+  },
+  "wiser": {
+    "actions": {
+      "files": "Dateien",
+      "view": "Anzeigen",
+      "add_schedule": "Zeitplan hinzufügen",
+      "export": "Zeitplan exportieren",
+      "import": "Zeitplan importieren",
+      "duplicate_new": "Als neuen Zeitplan duplizieren"
+    },
+    "labels": {
+      "setting": "Einstellung",
+      "assigns": "Zuordnungen",
+      "to": "bis"
+    },
+    "days": {
+      "weekdays": "Montag bis Freitag",
+      "weekend": "Wochenende",
+      "all": "Alle"
+    },
+    "headings": {
+      "schedule_actions": "Zeitplanaktionen",
+      "schedule_type": "Zeitplantyp",
+      "schedule_id": "Zeitplan-ID",
+      "schedule_name": "Zeitplanname",
+      "schedule_assignment": "Raum-/Gerätezuordnung",
+      "not_assigned": "(Nicht zugeordnet)",
+      "rename_schedule": "Zeitplan umbenennen",
+      "copy_schedule": "Zeitplan kopieren",
+      "delete_schedule": "Zeitplan löschen",
+      "new_copy_name": "Name des neuen Zeitplans"
+    },
+    "helpers": {
+      "enter_new_name": "Neuen Namen für den Zeitplan eingeben",
+      "select_copy_schedule": "Zielzeitplan zum Kopieren auswählen",
+      "delete_schedule_confirm": "Soll dieser Zeitplan wirklich gelöscht werden",
+      "select_a_schedule": "Zeitplan zum Anzeigen auswählen",
+      "add_schedule": "Zeitplantyp auswählen und einen Namen für den neuen Zeitplan eingeben",
+      "add_schedule_name": "Namen für den neuen Zeitplan eingeben",
+      "no_supported_types": "Für dieses Gerät sind keine kompatiblen Zeitplantypen verfügbar.",
+      "copy_target_missing": "Der neue Zeitplan konnte nicht gefunden werden. Vor einem erneuten Versuch die Zeitplanliste prüfen."
+    },
+    "rooms": {
+      "title": "Räume",
+      "schedules": "Zeitpläne",
+      "manage": "Zeitpläne verwalten",
+      "missing": "Dieser Raum oder dieses Gerät ist nicht mehr verfügbar.",
+      "current": "Aktueller Zeitplan",
+      "unassigned": "Kein Zeitplan zugeordnet",
+      "choose": "Zeitplan auswählen",
+      "no_schedules": "Keine kompatiblen Zeitpläne verfügbar. Über + in der Symbolleiste einen erstellen.",
+      "assigning": "Wird zugeordnet…",
+      "assign": "Zeitplan zuordnen",
+      "saved": "Zeitplan zugeordnet.",
+      "view_schedule": "Zeitplan anzeigen / bearbeiten",
+      "shared": "Dieser Zeitplan wird gemeinsam verwendet. Änderungen an den Zeiten wirken sich auf alle zugeordneten Räume und Geräte aus.",
+      "select": "Raum auswählen, um dessen Zeitplan festzulegen",
+      "empty": "Keine Wiser-Räume gefunden.",
+      "available": "Verfügbarer Zeitplan",
+      "none": "Kein Zeitplan",
+      "removed": "Zeitplanzuordnung aufgehoben."
+    },
+    "moments": {
+      "title": "Momente",
+      "heating": "Raumheizung",
+      "description": "Voreingestellte Aktionen für das Zuhause. Mit Home Assistant-Automatisierungen lassen sie sich zeitgesteuert ausführen.",
+      "loading": "Momente werden geladen…",
+      "failed": "Momente konnten nicht geladen werden. Der Zugriff auf die Registrierungen ist für dieses Konto möglicherweise eingeschränkt.",
+      "empty": "Für diesen Hub wurden keine aktivierten Wiser-Momente gefunden. Momente lassen sich in der Wiser-App erstellen.",
+      "open": "Steuerung öffnen"
+    },
+    "home": {
+      "title": "Startseite",
+      "heating": "Heizung",
+      "hotwater": "Warmwasser",
+      "devices": "Beleuchtung und Geräte",
+      "empty": "Keine Wiser-Räume oder -Geräte mit Zeitplan gefunden.",
+      "screen": "Startansicht",
+      "no_schedules": "Noch keine Zeitpläne vorhanden. Über + einen erstellen.",
+      "assignments": "zugeordnet",
+      "assign_devices": "Zugeordnete Räume / Geräte",
+      "apply_devices": "Zuordnungen übernehmen",
+      "no_devices": "Keine kompatiblen Geräte verfügbar.",
+      "schedules": "Zeitpläne",
+      "overview_hint": "Geplante Zeitplanänderungen für jedes Gerät, angezeigt in der Zeitzone von Home Assistant.",
+      "schedule_name": "Zeitplanname",
+      "schedule_id": "Zeitplan-ID",
+      "schedule_type": "Zeitplantyp",
+      "next_day": "Nächster Tag",
+      "next_change": "Nächste Änderung",
+      "next_setting": "Nächste geplante Einstellung",
+      "no_next_change": "Keine bevorstehende zeitgesteuerte Änderung verfügbar.",
+      "overview_details": "Details in der Übersicht",
+      "device_details": "Zeitplandetails",
+      "lighting": "Beleuchtung",
+      "shutters": "Rollläden",
+      "onoff": "Ein/Aus",
+      "other": "Sonstige"
+    },
+    "editor": {
+      "hub": "Wiser-Hub",
+      "permissions": "Berechtigungen",
+      "display_only": "Nur-Lese-Modus",
+      "admin_only": "Nur Administratoren dürfen Zeitpläne verwalten",
+      "theme_colors": "Theme-Farben verwenden",
+      "hide_card_borders": "Kartenrahmen ausblenden",
+      "display_only_help": "Änderungen an Zeitplänen und Heizung verhindern, auch für Administratoren.",
+      "hide_card_background": "Kartenhintergrund ausblenden"
+    },
+    "heating": {
+      "status": "Zeitplanstatus",
+      "activity": "Heizung",
+      "following": "Zeitplan wird befolgt",
+      "manual": "Manuell",
+      "override": "Vorübergehende Übersteuerung",
+      "boost": "Boost aktiv",
+      "away": "Abwesenheitsmodus",
+      "comfort": "Komfortanpassung",
+      "eco": "EcoIQ-Anpassung",
+      "passive": "Passiver Modus",
+      "unavailable": "Status nicht verfügbar",
+      "unassigned": "Kein Zeitplan zugeordnet",
+      "resume": "Zeitplan fortsetzen",
+      "failed": "Heizmodus konnte nicht geändert werden."
+    }
+  }
+}

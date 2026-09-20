@@ -11,10 +11,7 @@
   },
   "wiser": {
     "actions": {
-      "copy": "Copie",
       "files": "Fichier",
-      "rename": "Renommer",
-      "add": "Ajouter",
       "view": "Voir",
       "add_schedule": "Ajouter un Programme",
       "export": "Exporter le programme",
@@ -23,32 +20,13 @@
     },
     "labels": {
       "setting": "Paramètre",
-      "name": "Nom",
       "assigns": "Attribuers",
-      "start": "Début",
-      "end": "Fin",
       "to": "à"
     },
     "days": {
-      "monday": "Lundi",
-      "tuesday": "Mardi",
-      "wednesday": "Mercredi",
-      "thursday": "Jeudi",
-      "friday": "Vendredi",
-      "saturday": "Samedi",
-      "sunday": "Dimanche",
       "weekdays": "Lun à Ven",
       "weekend": "Sam et Dim",
-      "all": "Toute",
-      "short": {
-        "monday": "Lun",
-        "tuesday": "Mar",
-        "wednesday": "Mer",
-        "thursday": "Jeu",
-        "friday": "Ven",
-        "saturday": "Sam",
-        "sunday": "Dim"
-      }
+      "all": "Toute"
     },
     "headings": {
       "schedule_actions": "Programmer des Actions",
@@ -76,7 +54,6 @@
       "title": "Pièces",
       "schedules": "Programmes",
       "manage": "Gérer les programmes",
-      "back": "Retour à l’accueil",
       "missing": "Cette pièce ou cet appareil n’est plus disponible.",
       "current": "Programme actuel",
       "unassigned": "Aucun programme attribué",
@@ -89,10 +66,6 @@
       "shared": "Ce programme est partagé : les modifications affectent toutes les pièces et appareils associés.",
       "select": "Sélectionnez une pièce pour choisir son programme",
       "empty": "Aucune pièce Wiser trouvée.",
-      "edit": "Modifier le programme",
-      "save_edit": "Enregistrer le programme",
-      "cancel_edit": "Annuler les modifications",
-      "delete": "Supprimer le programme",
       "available": "Programme disponible",
       "none": "Aucun programme",
       "removed": "Programme désaffecté."
@@ -104,8 +77,7 @@
       "loading": "Chargement des Moments…",
       "failed": "Impossible de charger les Moments. L’accès aux registres peut être limité pour ce compte.",
       "empty": "Aucun Moment Wiser activé pour ce hub. Créez des Moments dans l’application Wiser.",
-      "open": "Ouvrir les commandes",
-      "unavailable": "Indisponible"
+      "open": "Ouvrir les commandes"
     },
     "home": {
       "title": "Maison",
@@ -120,7 +92,6 @@
       "apply_devices": "Appliquer les affectations",
       "no_devices": "Aucun appareil compatible disponible.",
       "schedules": "Plannings",
-      "overview": "Vue d’ensemble",
       "overview_hint": "Changements planifiés par appareil, dans le fuseau horaire de Home Assistant.",
       "schedule_name": "Nom du planning",
       "schedule_id": "ID du planning",
@@ -130,8 +101,6 @@
       "next_setting": "Prochaine consigne planifiée",
       "no_next_change": "Aucun prochain changement horaire disponible.",
       "overview_details": "Détails de la vue d’ensemble",
-      "show": "Afficher",
-      "hide": "Masquer",
       "device_details": "Détails du planning",
       "lighting": "Éclairage",
       "shutters": "Volets",
@@ -141,7 +110,6 @@
     "editor": {
       "hub": "Hub Wiser",
       "permissions": "Autorisations",
-      "appearance": "Apparence",
       "display_only": "Mode lecture seule",
       "admin_only": "Seuls les administrateurs peuvent gérer les plannings",
       "theme_colors": "Utiliser les couleurs du thème",
@@ -152,22 +120,16 @@
     "heating": {
       "status": "État du planning",
       "activity": "Chauffage",
-      "mode": "Mode de chauffage",
       "following": "Suit le planning",
-      "auto": "Auto",
       "manual": "Manuel",
-      "off": "Arrêt",
       "override": "Dérogation temporaire",
       "boost": "Boost actif",
       "away": "Mode absence",
       "comfort": "Ajustement Comfort",
       "eco": "Ajustement EcoIQ",
       "passive": "Mode passif",
-      "unknown": "Inconnu",
       "unavailable": "État indisponible",
       "unassigned": "Aucun planning attribué",
-      "heating": "En chauffe",
-      "idle": "Au repos",
       "resume": "Reprendre le planning",
       "failed": "Impossible de changer le mode de chauffage."
     }
