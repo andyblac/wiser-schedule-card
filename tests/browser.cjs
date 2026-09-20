@@ -159,7 +159,13 @@ const assert = require('node:assert/strict');
       buffer: Buffer.from(JSON.stringify(exported)),
     });
     await button('save').waitFor();
-    await page.waitForFunction(() => document.querySelector('wiser-schedule-card').shadowRoot.querySelector('wiser-room-schedules')?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode);
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('wiser-schedule-card')
+          .shadowRoot.querySelector('wiser-room-schedules')
+          ?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode,
+    );
     assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el._tempSchedule.Name), 'Bedrooms');
     assert.equal(
       await page
@@ -701,7 +707,9 @@ const assert = require('node:assert/strict');
       const editor = document.createElement('wiser-schedule-card-editor');
       const hass = makeHass();
       hass.locale = { ...hass.locale, language: 'fr-CA' };
-      hass.localize = (key) => ({ 'panel.states': 'HA Vue générale', 'ui.common.show': 'HA Afficher', 'ui.common.hide': 'HA Masquer' })[key] || '';
+      hass.localize = (key) =>
+        ({ 'panel.states': 'HA Vue générale', 'ui.common.show': 'HA Afficher', 'ui.common.hide': 'HA Masquer' })[key] ||
+        '';
       editor.hass = hass;
       editor.setConfig({ type: 'custom:wiser-schedule-card', home_screen: 'overview' });
       document.querySelector('#mount').append(editor);
@@ -836,19 +844,21 @@ const assert = require('node:assert/strict');
     await button('Copy').click();
     await page.locator('wiser-schedule-copy-card wiser-schedule-slot-editor').waitFor();
     await page.getByLabel('New schedule name', { exact: true }).fill('Winter duplicate');
-    await page.evaluate(() => fixture.failCopy = true);
+    await page.evaluate(() => (fixture.failCopy = true));
     await button('Duplicate to new schedule').click();
     await page.getByRole('alert').filter({ hasText: 'Copy failed' }).waitFor();
-    const createCount = await page.evaluate(() => fixture.calls.filter(c => c.type === 'wiser/schedule/create').length);
+    const createCount = await page.evaluate(
+      () => fixture.calls.filter((c) => c.type === 'wiser/schedule/create').length,
+    );
     await page.getByLabel('New schedule name', { exact: true }).fill('Renamed duplicate');
-    await page.evaluate(() => fixture.failCopy = false);
+    await page.evaluate(() => (fixture.failCopy = false));
     await button('Duplicate to new schedule').click();
     await page.getByLabel('Assigned rooms / devices').waitFor();
     const duplicate = await page.evaluate(() => ({
-      created: fixture.schedules.find(s => s.Name === 'Winter duplicate'),
-      copy: fixture.calls.filter(c => c.type === 'wiser/schedule/copy').at(-1),
-      creates: fixture.calls.filter(c => c.type === 'wiser/schedule/create').length,
-      rename: fixture.calls.filter(c => c.type === 'wiser/schedule/rename').at(-1),
+      created: fixture.schedules.find((s) => s.Name === 'Winter duplicate'),
+      copy: fixture.calls.filter((c) => c.type === 'wiser/schedule/copy').at(-1),
+      creates: fixture.calls.filter((c) => c.type === 'wiser/schedule/create').length,
+      rename: fixture.calls.filter((c) => c.type === 'wiser/schedule/rename').at(-1),
     }));
     assert.equal(duplicate.creates, createCount);
     assert.equal(duplicate.copy.to_schedule_id, duplicate.created.Id);
@@ -859,24 +869,27 @@ const assert = require('node:assert/strict');
     await button('edit').click();
     await page.locator('wiser-schedule-slot-editor').waitFor();
     await page.getByLabel('Schedule Name', { exact: true }).fill('Edited duplicate');
-    await page.evaluate(() => fixture.failRename = true);
+    await page.evaluate(() => (fixture.failRename = true));
     await button('save').click();
     await page.getByRole('alert').filter({ hasText: 'Rename failed' }).waitFor();
     assert.equal(await page.getByLabel('Schedule Name', { exact: true }).isEnabled(), true);
     assert.equal(await page.getByLabel('Schedule Name', { exact: true }).inputValue(), 'Edited duplicate');
     assert.equal(await button('cancel').isEnabled(), true);
-    await page.evaluate(() => fixture.failRename = false);
+    await page.evaluate(() => (fixture.failRename = false));
     await button('save').click();
     await button('edit').waitFor();
-    const rename = await page.evaluate(() => fixture.calls.filter(c => c.type === 'wiser/schedule/rename').at(-1));
+    const rename = await page.evaluate(() => fixture.calls.filter((c) => c.type === 'wiser/schedule/rename').at(-1));
     assert.equal(rename.schedule_id, duplicate.created.Id);
     assert.equal(rename.schedule_name, 'Edited duplicate');
-    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate(el => el.schedule_id), duplicate.created.Id);
+    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el.schedule_id), duplicate.created.Id);
     await button('Copy').click();
-    const destination = await page.locator('wiser-schedule-copy-card button.schedule-button').first().getAttribute('id');
+    const destination = await page
+      .locator('wiser-schedule-copy-card button.schedule-button')
+      .first()
+      .getAttribute('id');
     await page.locator('wiser-schedule-copy-card button.schedule-button').first().click();
     await button('edit').waitFor();
-    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate(el => el.schedule_id), Number(destination));
+    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el.schedule_id), Number(destination));
     await page.evaluate(() => {
       fixture.schedules = [
         { Id: 1, Name: 'Heating', Type: 'Heating', Assignments: 0 },

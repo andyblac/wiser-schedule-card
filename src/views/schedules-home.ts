@@ -94,21 +94,23 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
                         <h4>${this.localize('wiser.home.' + category)}</h4>
                         <div class=${this.config.view_type === 'list' ? 'tiles list' : 'tiles'}>
                           ${schedules.map(
-                    (schedule) =>
-                      html`<button
-                        class="schedule-tile"
-                        @click=${() => this.dispatchEvent(new CustomEvent('scheduleClick', { detail: schedule }))}
-                      >
-                        <ha-icon .icon=${schedule.Id === 1000 ? 'mdi:water-boiler' : 'mdi:calendar-clock'}></ha-icon>
-                        <span
-                          ><strong>${schedule.Name}</strong
-                          ><small
-                            >${this.localize('wiser.home.' + category)} · ${schedule.Assignments}
-                            ${this.localize('wiser.home.assignments')}</small
-                          ></span
-                        ><span aria-hidden="true">›</span>
-                      </button>`,
-                  )}
+                            (schedule) =>
+                              html`<button
+                                class="schedule-tile"
+                                @click=${() => this.dispatchEvent(new CustomEvent('scheduleClick', { detail: schedule }))}
+                              >
+                                <ha-icon
+                                  .icon=${schedule.Id === 1000 ? 'mdi:water-boiler' : 'mdi:calendar-clock'}
+                                ></ha-icon>
+                                <span
+                                  ><strong>${schedule.Name}</strong
+                                  ><small
+                                    >${this.localize('wiser.home.' + category)} · ${schedule.Assignments}
+                                    ${this.localize('wiser.home.assignments')}</small
+                                  ></span
+                                ><span aria-hidden="true">›</span>
+                              </button>`,
+                          )}
                         </div>
                       </section>`
                     : '';

@@ -91,20 +91,20 @@ Browser checks use mocked Home Assistant elements and Wiser WebSocket responses.
 
 ## Development builds for testing
 
-The current release is **2.0.0**. Build it with `npm run build`.
-Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.0`. To create a numbered development build:
+The current release is **2.0.1**. Build it with `npm run build`.
+Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.1`. To create a numbered development build:
 
 ```sh
 npm run build:dev
 ```
 
-After release `2.0.0`, the first successful development build is `2.0.1-dev.1`; the next is `2.0.1-dev.2`, and so on.
+After release `2.0.1`, the first successful development build is `2.0.2-dev.1`; the next is `2.0.2-dev.2`, and so on.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
 The command prints the URL for reference; the integration sets it automatically, including the development build number. No manual resource changes are needed. For example:
 
 ```text
-/wiser/wiser-schedule-card.js?v=2.0.1-dev.1
+/wiser/wiser-schedule-card.js?v=2.0.2-dev.1
 ```
 
 Copy `dist/wiser-schedule-card.js` over the integration’s
@@ -161,7 +161,6 @@ The home toolbar switches between **Schedules** and **Overview** without changin
 The visual editor omits the legacy Title, pinned Schedule, and Layout fields. Existing YAML settings remain readable for compatibility.
 
 Use **Hide card background** in Appearance to make the outer card transparent. This is independent of **Hide card borders**. YAML: `hide_card_background: true`.
-
 
 ### Wiser sidebar panel
 

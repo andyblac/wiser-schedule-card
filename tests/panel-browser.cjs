@@ -8,12 +8,12 @@ const assert = require('node:assert/strict');
     res.setHeader('Content-Type', script ? 'text/javascript' : 'text/html');
     res.end(await readFile(script ? 'dist/wiser-schedule-card.js' : 'tests/fixture.html'));
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForFunction(() => window.ready);
     await page.evaluate(() => {
@@ -46,7 +46,9 @@ const assert = require('node:assert/strict');
     }
     await page.setViewportSize({ width: 1280, height: 1000 });
     await page.locator('ha-button#settings').click();
-    await page.waitForFunction(() => document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open);
+    await page.waitForFunction(
+      () => document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open,
+    );
     await page.locator('wiser-schedule-card-editor').waitFor();
     assert.equal(await page.locator('wiser-schedule-card-editor .hub-picker').count(), 0);
     assert.equal(await page.locator('ha-button#save').count(), 1);
@@ -54,10 +56,12 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('ha-dialog #editor-actions').getAttribute('slot'), 'footer');
     assert.equal(await page.getByLabel('Hide card background', { exact: true }).count(), 0);
     assert.equal(await page.getByLabel('Hide card borders', { exact: true }).count(), 0);
-    await page.getByLabel('Use theme colours', { exact: true }).check();
+    await page.getByLabel('Use theme colors', { exact: true }).check();
     await page.locator('ha-button#save').click();
-    await page.waitForFunction(() => !document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open);
-    const call = await page.evaluate(() => fixture.calls.find(c => c.type === 'wiser/schedules_panel/configure'));
+    await page.waitForFunction(
+      () => !document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open,
+    );
+    const call = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedules_panel/configure'));
     assert.equal(call.configs['hub-one'].theme_colors, true);
     assert.equal(await page.locator('wiser-schedules-panel').count(), 1);
     assert.equal(await page.locator('#hub-tabs').isVisible(), true);
@@ -93,6 +97,9 @@ const assert = require('node:assert/strict');
     console.log('PASS bundled panel, native HA dialog/buttons, existing editor toggle and save without navigation');
   } finally {
     await browser.close();
-    await new Promise(resolve => server.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
   }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
