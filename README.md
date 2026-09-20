@@ -4,9 +4,11 @@ A Home Assistant dashboard card for managing schedules provided by the Wiser int
 
 Originally created by [Mark Parker (@msp1974)](https://github.com/msp1974).
 
-## Installation
+## Installation and updates
 
-Release versions of Wiser Schedule Card are included with the [wiserHomeAssistantPlatform](https://github.com/asantaga/wiserHomeAssistantPlatform) integration. Install or update the integration to receive the bundled card; no separate card installation is needed.
+Wiser Schedule Card is installed and updated automatically through the [wiserHomeAssistantPlatform](https://github.com/asantaga/wiserHomeAssistantPlatform) integration’s update mechanism. Use the main integration to manage card updates; no separate card installation, JavaScript download, or manual dashboard resource version change is needed for normal releases.
+
+The integration detects the installed card’s version and manages its dashboard resource URL. After an update, refresh your browser or reopen the Home Assistant app if it still displays the previous version.
 
 Add **Wiser Schedule Card** through the dashboard card picker and select the Wiser hub in the editor, or use YAML:
 
@@ -19,10 +21,12 @@ hub: your_hub_name
 
 Manual bundle replacement is only needed when testing a development version, using the same method as Wiser Zigbee Card:
 
+Development versions are detected automatically too. Do not manually edit the dashboard resource URL or its version query string.
+
 1. Run `npm run build:dev` to produce `dist/wiser-schedule-card.js`.
 2. Replace the integration’s `config/custom_components/wiser/frontend/wiser-schedule-card.js` with that bundle.
-3. Update the existing dashboard resource to the version printed by the build, for example `/wiser/wiser-schedule-card.js?v=2.0.0-dev.1`, with type **JavaScript module**.
-4. Reload Home Assistant.
+3. Reload the Wiser integration or restart Home Assistant so the integration detects the new bundle version and updates its existing dashboard resource.
+4. Refresh your browser or reopen the Home Assistant app.
 
 Keep a single resource entry for the schedule card. An integration update may replace the development bundle with its included release version.
 
@@ -94,20 +98,21 @@ Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.0`. To create a numbere
 npm run build:dev
 ```
 
-The first successful build is `2.0.0-dev.1`; the next is `2.0.0-dev.2`, and so on.
+After release `2.0.0`, the first successful development build is `2.0.1-dev.1`; the next is `2.0.1-dev.2`, and so on.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
-The command prints the URL, for example:
+The command prints the URL for reference; the integration sets it automatically, including the development build number. No manual resource changes are needed. For example:
 
 ```text
-/wiser/wiser-schedule-card.js?v=2.0.0-dev.1
+/wiser/wiser-schedule-card.js?v=2.0.1-dev.1
 ```
 
 Copy `dist/wiser-schedule-card.js` over the integration’s
-`config/custom_components/wiser/frontend/wiser-schedule-card.js`, then update the
-existing `/wiser/wiser-schedule-card.js` dashboard resource query string to the
-printed version and reload Home Assistant. The Wiser integration provides the
-`/wiser/` route. The build command only creates the local bundle; it does not
+`config/custom_components/wiser/frontend/wiser-schedule-card.js`, then reload the
+Wiser integration or restart Home Assistant. The integration detects the embedded
+build version and updates the existing dashboard resource URL automatically.
+Refresh your browser or reopen the Home Assistant app to load the new build.
+The Wiser integration provides the `/wiser/` route. The build command only creates the local bundle; it does not
 upload it to Home Assistant.
 
 `npm start` also increments the dev number on each successful watch rebuild.
@@ -160,6 +165,6 @@ Use **Hide card background** in Appearance to make the outer card transparent. T
 
 ### Wiser sidebar panel
 
-The card bundle also registers `wiser-schedules-panel`. Its source is `src/wiser-schedules-panel.js` and it is released with the card so both use the same editor API. The Wiser integration registers the sidebar route and saves panel preferences in its config entries through `wiser/schedules_panel/configure`. Dashboard cards retain their own configuration. Deploy the matching bundle and resource version together; do not load an older card alongside the panel.
+The card bundle also registers `wiser-schedules-panel`. Its source is `src/wiser-schedules-panel.js` and it is released with the card so both use the same editor API. The Wiser integration registers the sidebar route and saves panel preferences in its config entries through `wiser/schedules_panel/configure`. Dashboard cards retain their own configuration. Updates to the card and panel are handled together by the main integration’s update mechanism.
 
-Compiled card builds include a `WISER-CARD-VERSION` comment containing the card name and build version. Home Assistant can read this marker to update the resource URL without relying on minified variable names or editor text.
+Compiled card builds include a `WISER-CARD-VERSION` comment containing the card name and build version. The Wiser integration reads this marker to update the resource URL automatically, without relying on minified variable names or editor text.
