@@ -25,14 +25,14 @@ test('dev versions increment on successful builds and reset for a new release', 
   };
   try {
     setRelease('2.0.0');
-    assert.equal(run(true), '2.0.0-dev.1');
-    assert.equal(run(true), '2.0.0-dev.2');
+    assert.equal(run(true), '2.0.1-dev.1');
+    assert.equal(run(true), '2.0.1-dev.2');
     assert.equal(run(false), '2.0.0');
-    assert.equal(run(true, false), '2.0.0-dev.3');
-    assert.equal(run(true), '2.0.0-dev.3');
+    assert.equal(run(true, false), '2.0.1-dev.3');
+    assert.equal(run(true), '2.0.1-dev.3');
     assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '2.0.0');
     setRelease('2.1.0');
-    assert.equal(run(true), '2.1.0-dev.1');
+    assert.equal(run(true), '2.1.1-dev.1');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -53,7 +53,7 @@ test('cached Rollup rebuilds stamp the next version into the JavaScript', async 
         cache = bundle.cache;
         const { output } = await bundle.write({ dir: join(root, 'dist'), format: 'es' });
         const code = output.find((item) => item.type === 'chunk').code;
-        assert.ok(code.startsWith(`/*! WISER-CARD-VERSION wiser-schedule-card 2.0.0-dev.${number} */`));
+        assert.ok(code.startsWith(`/*! WISER-CARD-VERSION wiser-schedule-card 2.0.1-dev.${number} */`));
       } finally {
         await bundle.close();
       }

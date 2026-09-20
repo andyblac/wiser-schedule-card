@@ -17,6 +17,12 @@ export default function buildVersion({ dev = false, root = process.cwd() } = {})
       baseVersion = JSON.parse(readFileSync(packagePath, 'utf8')).version;
       version = baseVersion;
       if (dev) {
+        const release = /^(\d+)\.(\d+)\.(\d+)$/.exec(baseVersion);
+        const development = /^(\d+\.\d+\.\d+-dev)\.\d+$/.exec(baseVersion);
+        const developmentBase = release
+          ? `${release[1]}.${release[2]}.${BigInt(release[3]) + 1n}-dev`
+          : development?.[1];
+        if (!developmentBase) throw new Error(`Cannot create a dev build from version ${baseVersion}`);
         let previous;
         try {
           previous = JSON.parse(readFileSync(counterPath, 'utf8'));
@@ -26,8 +32,9 @@ export default function buildVersion({ dev = false, root = process.cwd() } = {})
         if (previous && (!Number.isSafeInteger(previous.build) || previous.build < 0)) {
           throw new Error('Invalid dev build counter in .dev-build.json');
         }
-        build = previous?.baseVersion === baseVersion ? previous.build + 1 : 1;
-        version = `${baseVersion}-dev.${build}`;
+        build = previous?.baseVersion === developmentBase ? previous.build + 1 : 1;
+        version = `${developmentBase}.${build}`;
+        baseVersion = developmentBase;
       }
       resourceUrl = `/wiser/wiser-schedule-card.js?v=${version}`;
     },
