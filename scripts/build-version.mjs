@@ -36,6 +36,12 @@ export default function buildVersion({ dev = false, root = process.cwd() } = {})
         version = `${developmentBase}.${build}`;
         baseVersion = developmentBase;
       }
+      if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) {
+        throw new Error(`Build requires a semantic package version, received ${version}`);
+      }
+      if (process.env.RELEASE_TAG && process.env.RELEASE_TAG !== `v${version}`) {
+        throw new Error(`Release tag ${process.env.RELEASE_TAG} does not match package version v${version}`);
+      }
       resourceUrl = `/wiser/wiser-schedule-card.js?v=${version}`;
     },
     shouldTransformCachedModule({ id }) {

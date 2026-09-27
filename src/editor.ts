@@ -245,6 +245,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       margin-top: 24px;
       color: var(--secondary-text-color);
       font-size: calc(12px + 1pt);
+      text-align: right;
     }
   `;
 }

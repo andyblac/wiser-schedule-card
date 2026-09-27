@@ -62,3 +62,19 @@ test('cached Rollup rebuilds stamp the next version into the JavaScript', async 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('release tags must match the semantic package version', () => {
+  const root = mkdtempSync(join(tmpdir(), 'wiser-version-release-'));
+  const previousTag = process.env.RELEASE_TAG;
+  try {
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '2.1.0-beta.1' }));
+    process.env.RELEASE_TAG = 'v2.1.0-beta.1';
+    buildVersion({ root }).buildStart();
+    process.env.RELEASE_TAG = 'v2.1.0';
+    assert.throws(() => buildVersion({ root }).buildStart(), /does not match/);
+  } finally {
+    if (previousTag === undefined) delete process.env.RELEASE_TAG;
+    else process.env.RELEASE_TAG = previousTag;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
