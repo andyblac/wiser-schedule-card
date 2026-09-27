@@ -12,7 +12,7 @@ export default (args) => ({
     sourcemap: false,
   },
   plugins: [
-    buildVersion({ dev: Boolean(args.configDev) }),
+    buildVersion({ dev: Boolean(args.configDev), final: Boolean(args.configRelease) }),
     nodeResolve({ extensions: ['.mjs', '.js', '.json', '.ts'] }),
     typescript(),
     json(),

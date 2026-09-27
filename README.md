@@ -98,7 +98,7 @@ Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.1`. To create a numbere
 npm run build:dev
 ```
 
-After release `2.0.1`, the first successful development build is `2.0.2-dev.1`; the next is `2.0.2-dev.2`, and so on.
+After release `2.0.1`, the first successful development build is `2.0.2-dev.1`; the next is `2.0.2-dev.2`, and so on. After a beta such as `2.0.2-beta.1`, development continues as `2.0.2-beta.2-dev.1`.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
 The command prints the URL for reference; the integration sets it automatically, including the development build number. No manual resource changes are needed. For example:
@@ -116,11 +116,11 @@ The Wiser integration provides the `/wiser/` route. The build command only creat
 upload it to Home Assistant.
 
 `npm start` also increments the dev number on each successful watch rebuild.
-The local counter is saved in `.dev-build.json`, outside `dist`, and excluded from
-Git. It survives cleaning `dist` and resets to 1 when the release version changes.
-Counters are local to each checkout. `npm run build` produces the configured release
-version without incrementing the dev counter. Release and dev builds both replace
-the bundle in `dist`.
+Successful builds update the version in `package.json`; failed builds do not consume
+a number. `npm run build` removes the trailing `-dev.N` to prepare the current
+stable or beta target. `npm run build:release` removes both the development and
+beta suffixes to prepare the final stable release. Release and dev builds both
+replace the bundle in `dist`.
 
 ## Modernisation
 

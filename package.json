@@ -43,6 +43,7 @@
     "format:check": "prettier --check .",
     "test": "node --test tests/schedule-overview.test.cjs tests/panel.test.cjs && node tests/browser.cjs && node tests/panel-browser.cjs",
     "build:dev": "npm run typecheck && rollup -c --configDev --bundleConfigAsCjs",
+    "build:release": "npm run lint && rollup -c --configRelease --bundleConfigAsCjs",
     "test:build": "node --test tests/build-version.test.mjs"
   },
   "engines": {

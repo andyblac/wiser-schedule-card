@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import buildVersion from '../scripts/build-version.mjs';
 
-test('dev versions increment on successful builds and continue after a prerelease', () => {
+test('successful builds advance package versions through stable and beta development cycles', () => {
   const root = mkdtempSync(join(tmpdir(), 'wiser-version-'));
   const packagePath = join(root, 'package.json');
   const setRelease = (version) => writeFileSync(packagePath, JSON.stringify({ version }));
-  const run = (dev, success = true) => {
-    const plugin = buildVersion({ dev, root });
+  const run = (dev, success = true, final = false) => {
+    const plugin = buildVersion({ dev, final, root });
     plugin.buildStart();
     const version = JSON.parse(plugin.transform(readFileSync(packagePath, 'utf8'), packagePath).code).version;
     plugin.generateBundle.call({
@@ -25,16 +25,17 @@ test('dev versions increment on successful builds and continue after a prereleas
   };
   try {
     setRelease('2.0.0');
+    assert.equal(run(true, false), '2.0.1-dev.1');
+    assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '2.0.0');
     assert.equal(run(true), '2.0.1-dev.1');
     assert.equal(run(true), '2.0.1-dev.2');
-    assert.equal(run(false), '2.0.0');
-    assert.equal(run(true, false), '2.0.1-dev.3');
-    assert.equal(run(true), '2.0.1-dev.3');
-    assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '2.0.0');
-    setRelease('2.1.0');
-    assert.equal(run(true), '2.1.1-dev.1');
+    assert.equal(run(false), '2.0.1');
+    assert.equal(run(true), '2.0.2-dev.1');
     setRelease('2.1.1-beta.1');
-    assert.equal(run(true), '2.1.2-dev.1');
+    assert.equal(run(true), '2.1.1-beta.2-dev.1');
+    assert.equal(run(true), '2.1.1-beta.2-dev.2');
+    assert.equal(run(false, false, true), '2.1.1');
+    assert.equal(run(false), '2.1.1-beta.2');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -74,6 +75,11 @@ test('release tags must match the semantic package version', () => {
     buildVersion({ root }).buildStart();
     process.env.RELEASE_TAG = 'v2.1.0';
     assert.throws(() => buildVersion({ root }).buildStart(), /does not match/);
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '2.1.0-beta.2-dev.7' }));
+    process.env.RELEASE_TAG = 'v2.1.0-beta.2';
+    buildVersion({ root }).buildStart();
+    process.env.RELEASE_TAG = 'v2.1.0';
+    buildVersion({ root, final: true }).buildStart();
   } finally {
     if (previousTag === undefined) delete process.env.RELEASE_TAG;
     else process.env.RELEASE_TAG = previousTag;
