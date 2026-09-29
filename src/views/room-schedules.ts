@@ -413,8 +413,9 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       })),
     ];
     return html`
-      <wiser-card-header .config=${this.config}
-        ><wiser-home-navigation
+      <wiser-card-header .config=${this.config}>
+        <h3 slot="heading">${this.localize('wiser.home.overview')}</h3>
+        <wiser-home-navigation
           .hass=${this.hass}
           active="overview"
           @home-view-changed=${(event: CustomEvent) => {
@@ -435,7 +436,6 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           }}
         ></wiser-home-navigation
       ></wiser-card-header>
-      <h3>${this.localize('wiser.home.overview')}</h3>
       ${this.config.home_screen !== 'overview' || this.config.overview_details !== false ? html`<p class="secondary">${this.localize('wiser.home.overview_hint')}</p>` : ''}
       ${groups
         .filter((group) => group.items.length)
@@ -637,6 +637,9 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     h3 {
       margin: 16px 0 8px;
       font-size: calc(22px + 1pt);
+    }
+    h3[slot='heading'] {
+      margin: 0;
     }
     .section-heading {
       font-size: calc(15px + 1pt);

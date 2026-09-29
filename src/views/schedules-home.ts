@@ -71,6 +71,7 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     if (!this.hass) return html``;
     return html`
       <wiser-card-header .config=${this.config}>
+        <h3 slot="heading">${this.localize('wiser.rooms.schedules')}</h3>
         <div class="home-tools" role="toolbar" aria-label="Home">
           <wiser-home-navigation
             .hass=${this.hass}
@@ -78,7 +79,6 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
             .canAdd=${allow_edit(this.hass, this.config) && !this.loading && !this.error}
           ></wiser-home-navigation></div
       ></wiser-card-header>
-      <div class="heading"><h3>${this.localize('wiser.rooms.schedules')}</h3></div>
       ${
         this.error
           ? html`<p role="alert">${this.error}</p>
@@ -138,12 +138,6 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
       align-items: center;
       flex-wrap: wrap;
       gap: 6px;
-    }
-    .heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
     }
     h3 {
       margin: 0;

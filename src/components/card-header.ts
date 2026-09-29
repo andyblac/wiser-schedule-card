@@ -12,6 +12,7 @@ export class WiserCardHeader extends LitElement {
     const title = name && !['Wiser Schedule', 'Wiser Schedules'].includes(name) ? name : undefined;
     return html`<header>
       ${title ? html`<h2>${title}</h2>` : ''}
+      <slot name="heading"></slot>
       <div class="actions"><slot></slot></div>
     </header>`;
   }
@@ -35,6 +36,11 @@ export class WiserCardHeader extends LitElement {
       font-size: calc(15px + 1pt);
       font-weight: 500;
       line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    ::slotted([slot='heading']) {
+      margin: 0;
+      min-width: 0;
       overflow-wrap: anywhere;
     }
     .actions {
