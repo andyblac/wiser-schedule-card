@@ -132,39 +132,6 @@ export class WiserScheduleCard extends LitElement {
       flex: 1;
       overflow: hidden;
     }
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-height: 44px;
-      padding: 22px 20px 20px;
-    }
-    .brand-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin: 0;
-      min-width: 0;
-      line-height: 1.2;
-    }
-    .brand-name {
-      flex-shrink: 0;
-      color: var(--wiser-brand-color, #279f43);
-      font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
-      font-size: calc(32px + 1pt);
-      font-weight: 700;
-      letter-spacing: -1.5px;
-    }
-    .brand-title {
-      min-width: 0;
-      padding-inline-start: 14px;
-      border-inline-start: 1px solid var(--divider-color, #ddd);
-      color: var(--primary-text-color);
-      font-size: calc(15px + 1pt);
-      font-weight: 500;
-      line-height: 1.4;
-      overflow-wrap: anywhere;
-    }
     .card-content {
       box-sizing: border-box;
       min-height: var(--wiser-view-min-height, 0px);
@@ -175,15 +142,6 @@ export class WiserScheduleCard extends LitElement {
       color: var(--secondary-text-color);
     }
     @media (max-width: 400px) {
-      .card-header {
-        padding: 18px 12px;
-      }
-      .brand-header {
-        gap: 12px;
-      }
-      .brand-title {
-        padding-inline-start: 12px;
-      }
       .card-content {
         padding: 18px 12px 12px;
       }

@@ -28,6 +28,11 @@ class WiserSchedulesPanel extends HTMLElement {
         main { display: flex; flex-direction: column; flex: 1 0 auto;
           box-sizing: border-box; width: 100%; min-width: 0; padding: 16px; }
         #hub-tabs { display: flex; flex: 1; min-width: 0; margin-inline-start: 24px; align-self: stretch; overflow-x: auto; }
+        :host([nested]) header { flex-basis:56px; height:56px; }
+        :host([nested]) #menu, :host([nested]) h1 { display:none; }
+        :host([nested]) #hub-tabs { margin-inline-start:0; }
+        :host([nested]) #settings { display:none; }
+        :host([nested][single-hub]) header { display:none; }
         #hub-tabs[hidden], wiser-schedule-card[hidden] { display: none; }
         .hub-tab { flex: 0 0 auto; min-height: 48px; padding: 0 24px;
           border: 0; border-bottom: 2px solid transparent; background: transparent;
@@ -112,7 +117,9 @@ class WiserSchedulesPanel extends HTMLElement {
   _renderHubTabs() {
     const hubs = this._config.hubs;
     const container = this.shadowRoot.getElementById('hub-tabs');
-    container.hidden = hubs.length === 0;
+    if (hubs.length <= 1) this.setAttribute('single-hub', '');
+    else this.removeAttribute('single-hub');
+    container.hidden = hubs.length <= 1;
     this._tabs = hubs.map((hub, index) => {
       const tab = document.createElement('button');
       tab.type = 'button';

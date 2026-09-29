@@ -91,7 +91,7 @@ const assert = require('node:assert/strict');
         config: { hubs: ['hub-one'], card_configs: {} },
       };
     });
-    assert.equal(await page.locator('#hub-tabs').isVisible(), true);
+    assert.equal(await page.locator('#hub-tabs').isVisible(), false);
     assert.equal(await page.locator('wiser-schedule-card:visible').count(), 1);
     assert.deepEqual(errors, []);
     console.log('PASS bundled panel, native HA dialog/buttons, existing editor toggle and save without navigation');

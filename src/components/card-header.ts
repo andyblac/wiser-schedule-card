@@ -9,8 +9,9 @@ export class WiserCardHeader extends LitElement {
 
   render() {
     const name = this.config?.name;
+    const title = name && !['Wiser Schedule', 'Wiser Schedules'].includes(name) ? name : undefined;
     return html`<header>
-      ${name ? html`<h2><span class="brand">Wiser</span>${!['Wiser Schedule', 'Wiser Schedules'].includes(name) ? html`<span class="title">${name}</span>` : ''}</h2>` : ''}
+      ${title ? html`<h2>${title}</h2>` : ''}
       <div class="actions"><slot></slot></div>
     </header>`;
   }
@@ -28,26 +29,12 @@ export class WiserCardHeader extends LitElement {
       min-height: 44px;
     }
     h2 {
-      display: flex;
-      align-items: center;
-      gap: 14px;
       margin: 0;
       min-width: 0;
-      line-height: 1.2;
-    }
-    .brand {
-      color: var(--wiser-brand-color, #279f43);
-      font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
-      font-size: calc(32px + 1pt);
-      font-weight: 700;
-      letter-spacing: -1.5px;
-    }
-    .title {
-      padding-inline-start: 14px;
-      border-inline-start: 1px solid var(--divider-color, #ddd);
       color: var(--primary-text-color);
       font-size: calc(15px + 1pt);
       font-weight: 500;
+      line-height: 1.4;
       overflow-wrap: anywhere;
     }
     .actions {
