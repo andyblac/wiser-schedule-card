@@ -8,7 +8,11 @@ import buildVersion from '../scripts/build-version.mjs';
 test('successful builds advance package versions through stable and beta development cycles', () => {
   const root = mkdtempSync(join(tmpdir(), 'wiser-version-'));
   const packagePath = join(root, 'package.json');
-  const setRelease = (version) => writeFileSync(packagePath, JSON.stringify({ version }));
+  const packageLockPath = join(root, 'package-lock.json');
+  const setRelease = (version) => {
+    writeFileSync(packagePath, JSON.stringify({ version }));
+    writeFileSync(packageLockPath, JSON.stringify({ version, packages: { '': { version } } }));
+  };
   const run = (dev, success = true, final = false) => {
     const plugin = buildVersion({ dev, final, root });
     plugin.buildStart();
@@ -25,12 +29,14 @@ test('successful builds advance package versions through stable and beta develop
   };
   try {
     setRelease('2.0.0');
-    assert.equal(run(true, false), '2.0.1-dev.1');
+    assert.equal(run(true, false), '2.0.1-beta.1-dev.1');
     assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '2.0.0');
-    assert.equal(run(true), '2.0.1-dev.1');
-    assert.equal(run(true), '2.0.1-dev.2');
-    assert.equal(run(false), '2.0.1');
-    assert.equal(run(true), '2.0.2-dev.1');
+    assert.equal(run(true), '2.0.1-beta.1-dev.1');
+    assert.equal(JSON.parse(readFileSync(packageLockPath, 'utf8')).version, '2.0.1-beta.1-dev.1');
+    assert.equal(JSON.parse(readFileSync(packageLockPath, 'utf8')).packages[''].version, '2.0.1-beta.1-dev.1');
+    assert.equal(run(true), '2.0.1-beta.1-dev.2');
+    assert.equal(run(false), '2.0.1-beta.1');
+    assert.equal(run(true), '2.0.1-beta.2-dev.1');
     setRelease('2.1.1-beta.1');
     assert.equal(run(true), '2.1.1-beta.2-dev.1');
     assert.equal(run(true), '2.1.1-beta.2-dev.2');
@@ -56,7 +62,7 @@ test('cached Rollup rebuilds stamp the next version into the JavaScript', async 
         cache = bundle.cache;
         const { output } = await bundle.write({ dir: join(root, 'dist'), format: 'es' });
         const code = output.find((item) => item.type === 'chunk').code;
-        assert.ok(code.startsWith(`/*! WISER-CARD-VERSION wiser-schedule-card 2.0.1-dev.${number} */`));
+        assert.ok(code.startsWith(`/*! WISER-CARD-VERSION wiser-schedule-card 2.0.1-beta.1-dev.${number} */`));
       } finally {
         await bundle.close();
       }
