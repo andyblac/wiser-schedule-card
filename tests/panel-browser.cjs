@@ -64,13 +64,14 @@ const assert = require('node:assert/strict');
     const call = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedules_panel/configure'));
     assert.equal(call.configs['hub-one'].theme_colors, true);
     assert.equal(await page.locator('wiser-schedules-panel').count(), 1);
-    assert.equal(await page.locator('#hub-tabs').isVisible(), true);
+    assert.equal(await page.locator('#hub-tabs').isVisible(), false);
     await page.evaluate(() => {
       document.querySelector('wiser-schedules-panel').panel = {
         config: { hubs: ['hub-one', 'hub-two'], card_configs: {} },
       };
     });
     const tabs = page.locator('#hub-tabs [role="tab"]');
+    assert.equal(await page.locator('#hub-tabs').isVisible(), true);
     assert.deepEqual(await tabs.allTextContents(), ['hub-one', 'hub-two']);
     assert.equal(await page.locator('wiser-schedule-card:visible').count(), 1);
     await tabs.nth(1).click();
