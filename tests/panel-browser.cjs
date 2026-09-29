@@ -19,7 +19,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => {
       const panel = document.createElement('wiser-schedules-panel');
       panel.hass = makeHass();
-      panel.panel = { config: { panel_id: "registry-panel", hubs: ['hub-one'], card_configs: {} } };
+      panel.panel = { config: { panel_id: 'registry-panel', hubs: ['hub-one'], card_configs: {} } };
       document.querySelector('#mount').replaceChildren(panel);
     });
     await page.locator('wiser-schedule-card').waitFor();
@@ -67,7 +67,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#hub-tabs').isVisible(), false);
     await page.evaluate(() => {
       document.querySelector('wiser-schedules-panel').panel = {
-        config: { panel_id: "registry-panel", hubs: ['hub-one', 'hub-two'], card_configs: {} },
+        config: { panel_id: 'registry-panel', hubs: ['hub-one', 'hub-two'], card_configs: {} },
       };
     });
     const tabs = page.locator('#hub-tabs [role="tab"]');
@@ -83,13 +83,17 @@ const assert = require('node:assert/strict');
     assert.equal(await tabs.nth(1).getAttribute('aria-selected'), 'true');
     await page.evaluate(() => {
       document.querySelector('wiser-schedules-panel').panel = {
-        config: { panel_id: "registry-panel", hubs: ['hub-one', 'hub-two'], card_configs: { 'hub-two': { hide_card_background: true } } },
+        config: {
+          panel_id: 'registry-panel',
+          hubs: ['hub-one', 'hub-two'],
+          card_configs: { 'hub-two': { hide_card_background: true } },
+        },
       };
     });
     assert.equal(await tabs.nth(1).getAttribute('aria-selected'), 'true');
     await page.evaluate(() => {
       document.querySelector('wiser-schedules-panel').panel = {
-        config: { panel_id: "registry-panel", hubs: ['hub-one'], card_configs: {} },
+        config: { panel_id: 'registry-panel', hubs: ['hub-one'], card_configs: {} },
       };
     });
     assert.equal(await page.locator('#hub-tabs').isVisible(), false);

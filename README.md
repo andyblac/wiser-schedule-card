@@ -91,20 +91,20 @@ Browser checks use mocked Home Assistant elements and Wiser WebSocket responses.
 
 ## Development builds for testing
 
-The current release is **2.0.2**. Build it with `npm run build`.
-Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.2`. To create a numbered development build:
+The current release is **2.0.3**. Build it with `npm run build`.
+Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.3`. To create a numbered development build:
 
 ```sh
 npm run build:dev
 ```
 
-After release `2.0.2`, the first successful development build is `2.0.3-beta.1-dev.1`; the next is `2.0.3-beta.1-dev.2`, and so on. After a beta such as `2.0.3-beta.1`, development continues as `2.0.3-beta.2-dev.1`.
+After release `2.0.3`, the first successful development build is `2.0.4-beta.1-dev.1`; the next is `2.0.4-beta.1-dev.2`, and so on. After a beta such as `2.0.4-beta.1`, development continues as `2.0.4-beta.2-dev.1`.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
 The command prints the URL for reference; the integration sets it automatically, including the development build number. No manual resource changes are needed. For example:
 
 ```text
-/wiser/wiser-schedule-card.js?v=2.0.3-beta.1-dev.1
+/wiser/wiser-schedule-card.js?v=2.0.4-beta.1-dev.1
 ```
 
 Copy `dist/wiser-schedule-card.js` over the integration’s
@@ -164,6 +164,6 @@ Use **Hide card background** in Appearance to make the outer card transparent. T
 
 ### Wiser sidebar panel
 
-The card bundle also registers `wiser-schedules-panel`. Its source is `src/wiser-schedules-panel.js` and it is released with the card so both use the same editor API. The Wiser integration registers the sidebar route and saves panel preferences in its config entries through `wiser/schedules_panel/configure`. Dashboard cards retain their own configuration. Updates to the card and panel are handled together by the main integration’s update mechanism.
+The card bundle also registers `wiser-schedules-panel`. Its source is `src/wiser-schedules-panel.js` and it is released with the card so both use the same editor API. The Wiser integration registers the sidebar route and saves panel preferences in its config entries through `wiser/panel/configure`. Dashboard cards retain their own configuration. Updates to the card and panel are handled together by the main integration’s update mechanism.
 
 Compiled card builds include a `WISER-CARD-VERSION` comment containing the card name and build version. The Wiser integration reads this marker to update the resource URL automatically, without relying on minified variable names or editor text.
