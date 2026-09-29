@@ -69,7 +69,7 @@ test('panel creates a schedule editor per enabled hub and forwards hass updates'
   const panel = setup();
   const hass = { states: {} };
   panel.hass = hass;
-  panel.panel = { config: { hubs: ['first', 'second'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['first', 'second'] } };
   const cards = panel.shadowRoot.querySelector('main').children;
   assert.equal(cards.length, 2);
   assert.equal(cards[0].config.hub, 'first');
@@ -78,17 +78,17 @@ test('panel creates a schedule editor per enabled hub and forwards hass updates'
   const updated = { states: { example: {} } };
   panel.hass = updated;
   assert.equal(cards[1].hass, updated);
-  panel.panel = { config: { hubs: ['first', 'second'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['first', 'second'] } };
   assert.equal(panel.shadowRoot.querySelector('main').children[0], cards[0]);
 });
 
 test('panel accepts hass after configuration and replaces cards when hubs change', () => {
   const panel = setup();
-  panel.panel = { config: { hubs: ['first'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['first'] } };
   const hass = {};
   panel.hass = hass;
   assert.equal(panel.shadowRoot.querySelector('main').children[0].hass, hass);
-  panel.panel = { config: { hubs: ['second'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['second'] } };
   const cards = panel.shadowRoot.querySelector('main').children;
   assert.equal(cards.length, 1);
   assert.equal(cards[0].config.hub, 'second');
@@ -105,11 +105,11 @@ test("menu button dispatches Home Assistant's sidebar event", () => {
 
 test('load errors display a retry action', async () => {
   const panel = setup();
-  panel.panel = { config: { hubs: null } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: null } };
   const children = panel.shadowRoot.querySelector('main').children;
   assert.ok(children[0].textContent);
   assert.equal(children[1].textContent, 'Retry');
-  panel._config = { hubs: ['recovered'] };
+  panel._config = { panel_id: "registry-panel", hubs: ['recovered'] };
   await children[1].listeners.click();
   assert.equal(panel.shadowRoot.querySelector('main').children[0].config.hub, 'recovered');
 });
@@ -118,7 +118,7 @@ test('cog saves shared integration config over websocket', async () => {
   const panel = setup();
   const calls = [];
   panel.hass = { user: { is_admin: true }, callWS: async (msg) => calls.push(msg) };
-  panel.panel = { config: { hubs: ['hub'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['hub'] } };
   await panel.shadowRoot.getElementById('settings').listeners.click();
   assert.equal(panel.shadowRoot.getElementById('editor-dialog').open, true);
   panel._editors[0].listeners['config-changed']({
@@ -126,12 +126,13 @@ test('cog saves shared integration config over websocket', async () => {
     detail: { config: { name: 'My heating', hide_hw_schedule: true } },
   });
   await panel.shadowRoot.getElementById('save').listeners.click();
-  assert.equal(calls[0].type, 'wiser/schedules_panel/configure');
+  assert.equal(calls[0].type, 'wiser/panel/configure');
+  assert.equal(calls[0].panel_id, "registry-panel");
   assert.equal(calls[0].configs.hub.hide_hw_schedule, true);
   assert.equal(panel.shadowRoot.getElementById('editor-dialog').open, false);
   assert.equal(panel._cards[0].config.hide_hw_schedule, true);
   const reloaded = setup();
-  reloaded.panel = { config: { hubs: ['hub'], card_configs: calls[0].configs } };
+  reloaded.panel = { config: { panel_id: "registry-panel", hubs: ['hub'], card_configs: calls[0].configs } };
   assert.equal(reloaded._cards[0].config.name, 'My heating');
 });
 
@@ -143,7 +144,7 @@ test('failed save keeps editor open and offers retry', async () => {
       throw Error('Offline');
     },
   };
-  panel.panel = { config: { hubs: ['hub'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['hub'] } };
   await panel._openEditor();
   await panel._saveEditor();
   assert.equal(panel.shadowRoot.getElementById('editor-dialog').open, true);
@@ -154,7 +155,7 @@ test('failed save keeps editor open and offers retry', async () => {
 test('Cancel leaves the card unchanged', async () => {
   const panel = setup();
   panel.hass = { user: { is_admin: true } };
-  panel.panel = { config: { hubs: ['hub'] } };
+  panel.panel = { config: { panel_id: "registry-panel", hubs: ['hub'] } };
   await panel._openEditor();
   panel._editors[0].listeners['config-changed']({
     stopPropagation() {},

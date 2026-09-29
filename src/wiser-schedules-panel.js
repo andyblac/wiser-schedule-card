@@ -214,7 +214,8 @@ class WiserSchedulesPanel extends HTMLElement {
     save.disabled = true;
     try {
       await this._hass.callWS({
-        type: 'wiser/schedules_panel/configure',
+        type: 'wiser/panel/configure',
+        panel_id: this._config.panel_id,
         configs: this._drafts,
       });
       this._config = {
