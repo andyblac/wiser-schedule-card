@@ -21,7 +21,9 @@
     "labels": {
       "setting": "Paramètre",
       "assigns": "Attribuers",
-      "to": "à"
+      "to": "à",
+      "level": "Niveau",
+      "special_time": "Définir une heure spéciale"
     },
     "days": {
       "weekdays": "Lun à Ven",

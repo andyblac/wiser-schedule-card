@@ -905,6 +905,54 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('section[data-category="shutters"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="onoff"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="hotwater"]').count(), 0);
+    // Explicit scheduled states and shutter endpoints, including narrow layouts.
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const kind of ['OnOff', 'Shutters']) {
+        await page.evaluate((kind) => {
+          const editor = document.createElement('wiser-schedule-slot-editor');
+          editor.hass = makeHass();
+          editor.config = { hub: 'hub-one' };
+          editor.editMode = true;
+          editor.schedule_type = kind;
+          editor.schedule = {
+            Type: kind,
+            ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+              day,
+              slots: [{ Time: '00:00', Setpoint: kind === 'OnOff' ? 'On' : 100, SpecialTime: '' }],
+            })),
+          };
+          editor.suntimes = {};
+          editor._activeDay = 'Monday';
+          editor._activeSlot = 0;
+          document.querySelector('#mount').replaceChildren(editor);
+        }, kind);
+        const editor = page.locator('wiser-schedule-slot-editor');
+        if (kind === 'OnOff') {
+          await editor.getByRole('radio', { name: 'On', exact: true }).waitFor();
+          assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), true);
+          await editor.getByRole('radio', { name: 'Off', exact: true }).check();
+          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 'Off');
+          assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), false);
+        } else {
+          await editor.getByText('Closed', { exact: true }).waitFor();
+          await editor.getByText('Open', { exact: true }).waitFor();
+          const heading = await editor.locator('.level-controls .section-header').boundingBox();
+          const range = await editor.getByRole('slider').boundingBox();
+          assert.ok(Math.abs(heading.y + heading.height / 2 - range.y - range.height / 2) < 2);
+          await editor.getByRole('slider').fill('0');
+          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 0);
+          const special = await editor.locator('.special-times .section-header').boundingBox();
+          const sunrise = await editor.locator('#sunrise').first().boundingBox();
+          assert.ok(Math.abs(special.y + special.height / 2 - sunrise.y - sunrise.height / 2) < 2);
+        }
+        await editor.evaluate((el) => {
+          el._activeSlot = -99;
+        });
+        for (const input of await editor.locator('input[type="radio"], input[type="range"]').all())
+          assert.equal(await input.isDisabled(), true);
+      }
+    }
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

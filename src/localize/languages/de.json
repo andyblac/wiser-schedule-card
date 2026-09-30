@@ -21,7 +21,9 @@
     "labels": {
       "setting": "Einstellung",
       "assigns": "Zuordnungen",
-      "to": "bis"
+      "to": "bis",
+      "level": "Stufe",
+      "special_time": "Besondere Zeit festlegen"
     },
     "days": {
       "weekdays": "Montag bis Freitag",

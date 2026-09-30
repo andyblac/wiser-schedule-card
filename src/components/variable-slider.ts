@@ -37,12 +37,17 @@ export class VariableSlider extends LitElement {
   @property({ type: Number })
   _displayedValue = 0;
 
+  @property({ type: String }) label = '';
+  @property({ type: String }) minLabel = '';
+  @property({ type: String }) maxLabel = '';
+
   render(): TemplateResult {
     return html`
       <div class="checkbox-container">
         <div class="checkbox">${this.getCheckbox()}</div>
         <div class="slider">${this.getSlider()}</div>
         <div class="value${this.disabled ? ' disabled' : ''}">${this._displayedValue}${this.unit}</div>
+        ${this.minLabel || this.maxLabel ? html`<div class="end-labels${this.disabled ? ' disabled' : ''}"><span>${this.minLabel}</span><span>${this.maxLabel}</span></div>` : ''}
       </div>
     `;
   }
@@ -50,7 +55,7 @@ export class VariableSlider extends LitElement {
   getSlider(): TemplateResult {
     return html`<input
       type="range"
-      aria-label=${this.unit === '°C' ? 'Temperature' : 'Level'}
+      aria-label=${this.label}
       min=${this.min}
       max=${this.max}
       step=${this.step}
@@ -100,7 +105,20 @@ export class VariableSlider extends LitElement {
     ${commonStyle} :host {
       width: 100%;
     }
+    div.checkbox-container {
+      grid-template-rows: 36px auto;
+    }
+    .end-labels {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--secondary-text-color);
+      font-size: calc(12px + 1pt);
+    }
     input[type='range'] {
+      margin-inline: 0;
       width: 100%;
     }
     input[type='range']:disabled {

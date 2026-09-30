@@ -6,6 +6,13 @@ import * as enGB from './languages/en-GB.json';
 
 const languages: Record<string, unknown> = { en, fr, de, 'en-gb': enGB };
 const nativeKeys: Record<string, string> = {
+  'wiser.labels.state': 'ui.dialogs.more_info_control.state',
+  'wiser.labels.sunrise': 'ui.panel.config.automation.editor.triggers.type.sun.sunrise',
+  'wiser.labels.sunset': 'ui.panel.config.automation.editor.triggers.type.sun.sunset',
+  'wiser.labels.on': 'component.switch.entity_component._.state.on',
+  'wiser.labels.off': 'component.switch.entity_component._.state.off',
+  'wiser.labels.open': 'component.cover.entity_component._.state.open',
+  'wiser.labels.closed': 'component.cover.entity_component._.state.closed',
   'wiser.labels.name': 'ui.common.name',
   'wiser.labels.start': 'ui.dialogs.helper_settings.schedule.start',
   'wiser.labels.end': 'ui.dialogs.helper_settings.schedule.end',

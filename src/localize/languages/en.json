@@ -21,7 +21,9 @@
     "labels": {
       "setting": "Setting",
       "assigns": "Assigns",
-      "to": "to"
+      "to": "to",
+      "level": "Level",
+      "special_time": "Set special time"
     },
     "days": {
       "weekdays": "Weekdays",

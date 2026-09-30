@@ -245,17 +245,16 @@ export class ScheduleSlotEditor extends LitElement {
       ? this.schedule!.ScheduleData.filter((rday) => rday.day == this._activeDay)[0].slots[this._activeSlot]
       : null;
     return html`
-      <div class="wrapper special-times" style="white-space: normal;">
-        <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
-        <div class="sub-section">
-          <div class="sub-heading">Set Special Time</div>
+      <div class="setpoint-row">
+        <div class="special-times">
+          <div class="section-header" aria-disabled=${!slot}>${this.localize('wiser.labels.special_time')}</div>
           <button type="button" id=${'sunrise'} @click=${this._setSpecialTime} ?disabled=${!slot}>
             <ha-icon id=${'sunrise'} icon="hass:weather-sunny" class="padded-right"></ha-icon>
-            Sunrise
+            ${this.localize('wiser.labels.sunrise')}
           </button>
           <button type="button" id=${'sunset'} @click=${this._setSpecialTime} ?disabled=${!slot}>
             <ha-icon id=${'sunset'} icon="hass:weather-night" class="padded-right"></ha-icon>
-            Sunset
+            ${this.localize('wiser.labels.sunset')}
           </button>
         </div>
       </div>
@@ -331,6 +330,7 @@ export class ScheduleSlotEditor extends LitElement {
                   step="0.5"
                   value=${this._activeSlot >= 0 ? parseFloat(slots![this._activeSlot!].Setpoint) : 0}
                   unit="°C"
+                  .label=${this.localize('wiser.labels.temperature')}
                   .optional=${false}
                   .disabled=${this._activeSlot < 0}
                   @value-changed=${(ev: CustomEvent) => {
@@ -344,52 +344,49 @@ export class ScheduleSlotEditor extends LitElement {
         `;
       } else if (this.schedule_type == 'OnOff') {
         return html`
-          <div class="wrapper" style="height: 36px;">
-            <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
-            <div class="sub-section">
-              <div style="display: flex; justify-content: center;">
-                <div class="section-header" style="padding-right: 30%">State</div>
-                <div style="display: flex; line-height: 32px;">
-                  <span>Off</span>
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    aria-label="Scheduled state"
-                    style="margin: 8px 10px;"
-                    .checked=${this._activeSlot >= 0 && slots[this._activeSlot!].Setpoint == 'On'}
-                    .disabled=${this._activeSlot < 0}
-                    @change=${() =>
-                      slots[this._activeSlot!].Setpoint == 'On'
-                        ? this._updateSetPoint('Off')
-                        : this._updateSetPoint('On')}
-                  />
-                  <span>On</span>
-                </div>
+          <div class="setpoint-row">
+            <div class="state-controls" role="radiogroup" aria-label=${this.localize('wiser.labels.state')}>
+              <div class="section-header" aria-disabled=${this._activeSlot < 0}>
+                ${this.localize('wiser.labels.state')}
               </div>
+              ${['Off', 'On'].map(
+                (value) => html`
+                  <label class="state-choice">
+                    <span>${this.localize('wiser.labels.' + value.toLowerCase())}</span>
+                    <input
+                      type="radio"
+                      name="scheduled-state"
+                      value=${value}
+                      .checked=${this._activeSlot >= 0 && slots[this._activeSlot!].Setpoint === value}
+                      .disabled=${this._activeSlot < 0}
+                      @change=${() => this._updateSetPoint(value)}
+                    />
+                  </label>
+                `,
+              )}
             </div>
           </div>
         `;
       } else if (['Lighting', 'Shutters'].includes(this.schedule_type!)) {
         return html`
-          <div class="wrapper" style="white-space: normal;">
-            <div class="day  ${this._show_short_days ? 'short' : ''}">&nbsp;</div>
-            <div class="sub-section">
-              <div class="section-header">Level</div>
-              <div style="display: flex; line-height: 32px; width: 100%; max-width: 400px;">
-                <wiser-variable-slider
-                  min="0"
-                  max="100"
-                  step="1"
-                  value=${this._activeSlot >= 0 ? parseFloat(slots![this._activeSlot!].Setpoint) : 0}
-                  unit="%"
-                  .optional=${false}
-                  .disabled=${this._activeSlot < 0}
-                  @value-changed=${(ev: CustomEvent) => {
-                    this._updateSetPoint(Number(ev.detail.value));
-                  }}
-                >
-                </wiser-variable-slider>
+          <div class="setpoint-row">
+            <div class="level-controls">
+              <div class="section-header" aria-disabled=${this._activeSlot < 0}>
+                ${this.localize('wiser.labels.level')}
               </div>
+              <wiser-variable-slider
+                min="0"
+                max="100"
+                step="1"
+                value=${this._activeSlot >= 0 ? parseFloat(slots![this._activeSlot!].Setpoint) : 0}
+                unit="%"
+                .label=${this.localize('wiser.labels.level')}
+                .minLabel=${this.schedule_type === 'Shutters' ? this.localize('wiser.labels.closed') : ''}
+                .maxLabel=${this.schedule_type === 'Shutters' ? this.localize('wiser.labels.open') : ''}
+                .optional=${false}
+                .disabled=${this._activeSlot < 0}
+                @value-changed=${(ev: CustomEvent) => this._updateSetPoint(Number(ev.detail.value))}
+              ></wiser-variable-slider>
             </div>
           </div>
         `;
@@ -799,11 +796,51 @@ export class ScheduleSlotEditor extends LitElement {
         width: 100%;
       }
       .special-times {
-        justify-content: flex-end;
-        line-height: 40px;
-        padding: 0 5px;
-        text-transform: uppercase;
-        font-size: calc(13px + 1pt);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .special-times button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+      }
+      .setpoint-row {
+        display: flex;
+        justify-content: center;
+        padding-top: 10px;
+      }
+      .state-controls {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .state-choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        cursor: pointer;
+      }
+      .state-choice:has(input:disabled) {
+        opacity: 0.38;
+        cursor: default;
+      }
+      .level-controls {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 400px);
+        align-items: start;
+        gap: 8px;
+        width: min(100%, 540px);
+      }
+      .level-controls .section-header {
+        min-height: 36px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
       }
       .temperature-row {
         display: flex;
