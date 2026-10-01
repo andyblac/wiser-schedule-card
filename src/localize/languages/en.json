@@ -119,6 +119,19 @@
       "display_only_help": "Prevent schedule and heating changes, including for admins.",
       "hide_card_background": "Hide card background"
     },
+    "panel": {
+      "title": "Wiser Schedules",
+      "menu": "Toggle sidebar",
+      "hubs": "Wiser hubs",
+      "settings": "Panel settings",
+      "edit_settings": "Edit schedule card settings",
+      "description": "Customize this panel. Dashboard cards keep their own settings.",
+      "loading": "Loading Wiser schedules…",
+      "editor_error": "Unable to open the editor. Close this dialog and try again.",
+      "save_error": "Unable to save settings to Home Assistant. Please try again.",
+      "load_error": "Unable to load Wiser schedules. Please try again.",
+      "version_error": "Wiser Schedules needs its matching schedule card build. Update the card resource and refresh the browser."
+    },
     "heating": {
       "status": "Schedule status",
       "activity": "Heating",

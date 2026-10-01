@@ -119,6 +119,19 @@
       "display_only_help": "Empêcher les modifications des plannings et du chauffage, même pour les administrateurs.",
       "hide_card_background": "Masquer le fond de la carte"
     },
+    "panel": {
+      "title": "Programmes Wiser",
+      "menu": "Afficher ou masquer la barre latérale",
+      "hubs": "Hubs Wiser",
+      "settings": "Paramètres du panneau",
+      "edit_settings": "Modifier les paramètres de la carte des programmes",
+      "description": "Personnalisez ce panneau. Les cartes du tableau de bord conservent leurs propres paramètres.",
+      "loading": "Chargement des programmes Wiser…",
+      "editor_error": "Impossible d’ouvrir l’éditeur. Fermez cette boîte de dialogue et réessayez.",
+      "save_error": "Impossible d’enregistrer les paramètres dans Home Assistant. Veuillez réessayer.",
+      "load_error": "Impossible de charger les programmes Wiser. Veuillez réessayer.",
+      "version_error": "La version correspondante de la carte des programmes Wiser est requise. Mettez à jour la ressource de la carte et actualisez le navigateur."
+    },
     "heating": {
       "status": "État du planning",
       "activity": "Chauffage",

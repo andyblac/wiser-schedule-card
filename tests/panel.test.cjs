@@ -5,6 +5,23 @@ const { resolve } = require('node:path');
 const vm = require('node:vm');
 
 function setup() {
+  const translations = {
+    'wiser.panel.title': 'Wiser Schedules',
+    'wiser.panel.menu': 'Toggle sidebar',
+    'wiser.panel.hubs': 'Wiser hubs',
+    'wiser.panel.settings': 'Panel settings',
+    'wiser.panel.edit_settings': 'Edit schedule card settings',
+    'wiser.panel.description': 'Customize this panel. Dashboard cards keep their own settings.',
+    'wiser.panel.loading': 'Loading Wiser schedules…',
+    'wiser.panel.cancel': 'Cancel',
+    'wiser.panel.save': 'Save',
+    'wiser.panel.retry': 'Retry',
+    'wiser.panel.editor_error': 'Unable to open the editor. Close this dialog and try again.',
+    'wiser.panel.save_error': 'Unable to save settings to Home Assistant. Please try again.',
+    'wiser.panel.load_error': 'Unable to load Wiser schedules. Please try again.',
+    'wiser.panel.version_error':
+      'Wiser Schedules needs its matching schedule card build. Update the card resource and refresh the browser.',
+  };
   class Element {
     constructor() {
       this.listeners = {};
@@ -59,9 +76,14 @@ function setup() {
     },
     customElements: { get: (key) => registry.get(key), define: (key, value) => registry.set(key, value) },
     document: { createElement: () => new Element() },
+    localizeForHass: (_hass, key) => translations[key] || key,
     console: { error() {} },
   });
-  vm.runInContext(readFileSync(resolve(__dirname, '../src/wiser-schedules-panel.js'), 'utf8'), context);
+  const source = readFileSync(resolve(__dirname, '../src/wiser-schedules-panel.js'), 'utf8').replace(
+    "import { localizeForHass } from './localize/localize';",
+    '',
+  );
+  vm.runInContext(source, context);
   return new (registry.get('wiser-schedules-panel'))();
 }
 

@@ -2,6 +2,9 @@
   "wiser": {
     "editor": {
       "theme_colors": "Use theme colours"
+    },
+    "panel": {
+      "description": "Customise this panel. Dashboard cards keep their own settings."
     }
   }
 }

@@ -79,13 +79,17 @@ export class WiserMoments extends LitElement {
 
   private renderMoment(entity: RegistryEntity) {
     const state = this.hass!.states[entity.entity_id];
+    const formatEntityName = (this.hass as HomeAssistant & {
+      formatEntityName?: (stateObject: typeof state, name: undefined) => string;
+    }).formatEntityName;
+    const name = formatEntityName?.call(this.hass, state, undefined);
     return html`<button
       class="moment"
       @click=${() => fireEvent(this, 'hass-more-info', { entityId: entity.entity_id })}
     >
       <ha-icon .icon=${'mdi:play-circle-outline'} aria-hidden="true"></ha-icon>
       <span
-        ><strong>${state.attributes.friendly_name || entity.original_name || entity.entity_id}</strong>
+        ><strong>${name || state.attributes.friendly_name || entity.original_name || entity.entity_id}</strong>
         <small
           >${this.localize(state.state === 'unavailable' ? 'wiser.moments.unavailable' : 'wiser.moments.open')}</small
         ></span

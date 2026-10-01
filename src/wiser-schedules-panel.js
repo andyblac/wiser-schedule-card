@@ -1,3 +1,5 @@
+import { localizeForHass } from './localize/localize';
+
 /** Sidebar host for the existing Wiser schedule card. */
 class WiserSchedulesPanel extends HTMLElement {
   constructor() {
@@ -49,20 +51,20 @@ class WiserSchedulesPanel extends HTMLElement {
         wiser-schedule-card { display: flex; flex-direction: column; flex: 1; min-width: 0; }
       </style>
       <header><ha-button id="menu" appearance="plain" aria-label="Toggle sidebar"><ha-icon icon="mdi:menu"></ha-icon></ha-button>
-        <h1>Wiser Schedules</h1>
+        <h1 id="panel-title">Wiser Schedules</h1>
         <nav id="hub-tabs" role="tablist" aria-label="Wiser hubs" hidden></nav>
         <ha-button id="settings" appearance="plain" aria-label="Edit schedule card settings" title="Edit schedule card settings" disabled>
           <ha-icon icon="mdi:cog"></ha-icon>
         </ha-button></header>
       <ha-dialog id="editor-dialog" header-title="Panel settings" width="medium">
-        <p class="dialog-description">Customize this panel. Dashboard cards keep their own settings.</p>
+        <p id="editor-description" class="dialog-description">Customize this panel. Dashboard cards keep their own settings.</p>
         <div id="editors"></div><p id="editor-error" role="alert"></p>
         <div class="dialog-actions" id="editor-actions" slot="footer">
           <ha-button id="cancel" appearance="plain">Cancel</ha-button>
           <ha-button id="save">Save</ha-button>
         </div>
       </ha-dialog>
-      <main><p role="status">Loading Wiser schedules…</p></main>`;
+      <main><p id="loading" role="status">Loading Wiser schedules…</p></main>`;
     this.shadowRoot.getElementById('menu').addEventListener('click', () => {
       this.dispatchEvent(
         new CustomEvent('hass-toggle-menu', {
@@ -81,8 +83,35 @@ class WiserSchedulesPanel extends HTMLElement {
     this._generation = 0;
   }
 
+  _t(key) {
+    return localizeForHass(this._hass, key);
+  }
+
+  _localizeControls() {
+    const root = this.shadowRoot;
+    root.getElementById('panel-title').textContent = this._t('wiser.panel.title');
+    root.getElementById('hub-tabs').setAttribute('aria-label', this._t('wiser.panel.hubs'));
+    for (const [id, key] of [
+      ['menu', 'wiser.panel.menu'],
+      ['settings', 'wiser.panel.edit_settings'],
+    ]) {
+      const element = root.getElementById(id);
+      element.setAttribute('aria-label', this._t(key));
+      element.title = this._t(key);
+    }
+    root.getElementById('editor-description').textContent = this._t('wiser.panel.description');
+    const loading = root.getElementById('loading');
+    if (loading) loading.textContent = this._t('wiser.panel.loading');
+    root.getElementById('cancel').textContent = this._t('wiser.panel.cancel');
+    root.getElementById('save').textContent = this._t('wiser.panel.save');
+    const dialog = root.getElementById('editor-dialog');
+    dialog.setAttribute('header-title', this._t('wiser.panel.settings'));
+    dialog.heading = this._t('wiser.panel.settings');
+  }
+
   set hass(hass) {
     this._hass = hass;
+    this._localizeControls();
     for (const card of this._cards) card.hass = hass;
     for (const editor of this._editors) editor.hass = hass;
     this.shadowRoot.getElementById('settings').hidden = !hass?.user?.is_admin;
@@ -97,7 +126,7 @@ class WiserSchedulesPanel extends HTMLElement {
 
   _cardConfig(hub) {
     return {
-      name: this._config.hubs.length > 1 ? hub : 'Wiser Schedules',
+      name: this._config.hubs.length > 1 ? hub : this._t('wiser.panel.title'),
       ...this._config.card_configs?.[hub],
       type: 'custom:wiser-schedule-card',
       hub,
@@ -166,7 +195,7 @@ class WiserSchedulesPanel extends HTMLElement {
     error.textContent = '';
     container.replaceChildren();
     save.disabled = true;
-    dialog.heading = 'Panel settings';
+    dialog.heading = this._t('wiser.panel.settings');
     if (!('headerTitle' in (customElements.get('ha-dialog')?.prototype || {}))) {
       this.shadowRoot.getElementById('editor-actions').removeAttribute('slot');
     }
@@ -204,7 +233,7 @@ class WiserSchedulesPanel extends HTMLElement {
       }
       save.disabled = false;
     } catch (err) {
-      error.textContent = 'Unable to open the editor. Close this dialog and try again.';
+      error.textContent = this._t('wiser.panel.editor_error');
       console.error('Unable to open Wiser editor', err);
     }
   }
@@ -230,7 +259,7 @@ class WiserSchedulesPanel extends HTMLElement {
       this._loadCards();
     } catch (error) {
       this.shadowRoot.getElementById('editor-error').textContent =
-        'Unable to save settings to Home Assistant. Please try again.';
+        this._t('wiser.panel.save_error');
       console.error('Unable to save Wiser panel settings', error);
     } finally {
       save.disabled = false;
@@ -245,7 +274,7 @@ class WiserSchedulesPanel extends HTMLElement {
       const Card = customElements.get('wiser-schedule-card');
       if (Card?.panelApiVersion !== 1) {
         throw new Error(
-          'Wiser Schedules needs its matching schedule card build. Update the card resource and refresh the browser.',
+          this._t('wiser.panel.version_error'),
         );
       }
       if (generation !== this._generation) return;
@@ -266,9 +295,9 @@ class WiserSchedulesPanel extends HTMLElement {
       this.shadowRoot.getElementById('settings').disabled = true;
       const message = document.createElement('p');
       message.setAttribute('role', 'alert');
-      message.textContent = error.message || 'Unable to load Wiser schedules. Please try again.';
+      message.textContent = error.message || this._t('wiser.panel.load_error');
       const retry = document.createElement('ha-button');
-      retry.textContent = 'Retry';
+      retry.textContent = this._t('wiser.panel.retry');
       retry.addEventListener('click', () => this._loadCards());
       main.replaceChildren(message, retry);
       console.error('Unable to load Wiser schedules', error);
