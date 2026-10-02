@@ -612,7 +612,7 @@ export class ScheduleSlotEditor extends LitElement {
           ? { Time: this.getSunTime(day.day, slot.SpecialTime), Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime }
           : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime };
       })
-      .sort((a, b) => (parseInt(a.Time.replace(':', '')) < parseInt(b.Time.replace(':', '')) ? 0 : 1));
+      .sort((a, b) => stringToTime(a.Time) - stringToTime(b.Time));
 
     const outputSlotsSet = new Set(outputSlots.map((e) => JSON.stringify(e)));
     const res = Array.from(outputSlotsSet).map((e) => JSON.parse(e));
@@ -699,6 +699,7 @@ export class ScheduleSlotEditor extends LitElement {
           },
           ...this.schedule!.ScheduleData[activeDayIndex].slots.slice(this._activeSlot + 1),
         ];
+        this._activeSlot++;
       } else {
         startTime = roundTime(startTime - stringToTime('01:00'), this.stepSize);
         this.schedule!.ScheduleData[activeDayIndex].slots = [
@@ -711,7 +712,6 @@ export class ScheduleSlotEditor extends LitElement {
           ...this.schedule!.ScheduleData[activeDayIndex].slots.slice(this._activeSlot),
         ];
       }
-      this._activeSlot++;
     }
 
     const myEvent = new CustomEvent('scheduleChanged', {

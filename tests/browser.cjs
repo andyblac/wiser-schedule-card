@@ -1085,8 +1085,26 @@ const assert = require('node:assert/strict');
           assert.equal(await editor.locator('.special-times ha-button.selected').getAttribute('id'), 'fixed');
           await editor.locator('.special-times ha-button#sunrise').click();
           assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].SpecialTime), 'Sunrise');
-          await editor.locator('.special-times ha-button#fixed').click();
-          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].SpecialTime), '');
+          await editor.locator('.add-period-row ha-button').click();
+          const addedBeforeSunrise = await editor.evaluate((el) => ({
+            activeSlot: el._activeSlot,
+            slots: structuredClone(el.schedule.ScheduleData[0].slots),
+          }));
+          assert.equal(addedBeforeSunrise.activeSlot, 0);
+          assert.equal(addedBeforeSunrise.slots.length, 2);
+          assert.equal(addedBeforeSunrise.slots[0].SpecialTime, '');
+          assert.equal(addedBeforeSunrise.slots[1].SpecialTime, 'Sunrise');
+          assert.ok(minutes(addedBeforeSunrise.slots[0].Time) < minutes(addedBeforeSunrise.slots[1].Time));
+          await editor.locator('.special-times ha-button#sunset').click();
+          const changedToSunset = await editor.evaluate((el) => ({
+            activeSlot: el._activeSlot,
+            slots: structuredClone(el.schedule.ScheduleData[0].slots),
+          }));
+          assert.deepEqual(
+            changedToSunset.slots.map((slot) => slot.SpecialTime),
+            ['Sunrise', 'Sunset'],
+          );
+          assert.equal(changedToSunset.slots[changedToSunset.activeSlot].SpecialTime, 'Sunset');
         }
         await editor.evaluate((el) => {
           el._activeSlot = -99;
