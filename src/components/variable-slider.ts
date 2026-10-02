@@ -118,7 +118,7 @@ export class VariableSlider extends LitElement {
       font-size: calc(12px + 1pt);
     }
     input[type='range'] {
-      margin-inline: 0;
+      margin: 0;
       width: 100%;
     }
     input[type='range']:disabled {

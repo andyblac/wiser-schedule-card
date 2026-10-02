@@ -16,14 +16,19 @@
       "add_schedule": "Ajouter un Programme",
       "export": "Exporter le programme",
       "import": "Importer un programme",
-      "duplicate_new": "Dupliquer dans un nouveau programme"
+      "duplicate_new": "Dupliquer dans un nouveau programme",
+      "add_period": "Ajouter une période",
+      "delete_period": "Supprimer la période"
     },
     "labels": {
       "setting": "Paramètre",
       "assigns": "Attribuers",
       "to": "à",
       "level": "Niveau",
-      "special_time": "Définir une heure spéciale"
+      "special_time": "Définir une heure spéciale",
+      "selected_period": "Période sélectionnée",
+      "time": "Heure",
+      "fixed": "Fixe"
     },
     "days": {
       "weekdays": "Lun à Ven",

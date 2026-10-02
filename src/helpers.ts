@@ -41,8 +41,8 @@ export function getGreyToYellow(percent: number): string {
   if (percent == 0) {
     return '50,50,50';
   }
-  const r_max = 235;
-  const g_max = 200;
+  const r_max = 255;
+  const g_max = 204;
   const min = 50;
   const r = int(min + ((r_max - min) / 100) * percent);
   const g = int(min + ((g_max - min) / 100) * percent);

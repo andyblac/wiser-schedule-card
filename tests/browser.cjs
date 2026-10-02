@@ -133,6 +133,69 @@ const assert = require('node:assert/strict');
       .evaluate((el) => el.schedule.ScheduleData[0].slots.map((slot) => slot.Time));
     assert.equal(draggedTimes[0], '06:00', 'end handle preserves selected start');
     assert.notEqual(draggedTimes[1], '22:00', 'end handle moves next boundary');
+    const startHandle = page.locator('.handle:not(.end-handle) .time-handle').first();
+    const startBox = await startHandle.boundingBox();
+    await page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(startBox.x + startBox.width / 2 + 40, startBox.y + startBox.height / 2);
+    await page.mouse.up();
+    const movedStart = await page
+      .locator('wiser-schedule-slot-editor')
+      .evaluate((el) => el.schedule.ScheduleData[0].slots[0].Time);
+    assert.notEqual(movedStart, '06:00', 'whole start handle moves the selected boundary');
+    const beforeBlockDrag = await page
+      .locator('wiser-schedule-slot-editor')
+      .evaluate((el) => el.schedule.ScheduleData[0].slots.slice(0, 2).map((slot) => slot.Time));
+    const selectedBlock = page.locator('.slot.selected.movable .slotoverlay').first();
+    const selectedBlockBox = await selectedBlock.boundingBox();
+    await page.mouse.move(
+      selectedBlockBox.x + selectedBlockBox.width / 2,
+      selectedBlockBox.y + selectedBlockBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      selectedBlockBox.x + selectedBlockBox.width / 2 + 50,
+      selectedBlockBox.y + selectedBlockBox.height / 2,
+    );
+    await page.mouse.up();
+    const afterBlockDrag = await page
+      .locator('wiser-schedule-slot-editor')
+      .evaluate((el) => el.schedule.ScheduleData[0].slots.slice(0, 2).map((slot) => slot.Time));
+    const minutes = (value) => {
+      const [hours, mins] = value.split(':').map(Number);
+      return hours * 60 + mins;
+    };
+    const startDelta = minutes(afterBlockDrag[0]) - minutes(beforeBlockDrag[0]);
+    const endDelta = minutes(afterBlockDrag[1]) - minutes(beforeBlockDrag[1]);
+    assert.notEqual(startDelta, 0, 'dragging selected period moves its start');
+    assert.equal(endDelta, startDelta, 'dragging selected period preserves its duration');
+    const beforeDayCopy = await page.locator('wiser-schedule-slot-editor').evaluate((el) => ({
+      source: structuredClone(el.schedule.ScheduleData[0].slots),
+      start: el.schedule.ScheduleData[0].slots[0].Time,
+      end: el.schedule.ScheduleData[0].slots[1].Time,
+      setpoint: el.schedule.ScheduleData[0].slots[0].Setpoint,
+    }));
+    const blockForCopy = await selectedBlock.boundingBox();
+    const tuesdayRow = await page.locator('wiser-schedule-slot-editor .outer#Tuesday').boundingBox();
+    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, blockForCopy.y + blockForCopy.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, tuesdayRow.y + tuesdayRow.height / 2);
+    assert.equal(await page.locator('wiser-schedule-slot-editor .outer#Tuesday.drop-target').count(), 1);
+    await page.mouse.up();
+    const afterDayCopy = await page.locator('wiser-schedule-slot-editor').evaluate((el) => ({
+      source: el.schedule.ScheduleData[0].slots,
+      target: el.schedule.ScheduleData[1].slots,
+    }));
+    assert.deepEqual(afterDayCopy.source, beforeDayCopy.source, 'cross-day copy preserves the source period');
+    assert.equal(
+      afterDayCopy.target.find((slot) => slot.Time === beforeDayCopy.start)?.Setpoint,
+      beforeDayCopy.setpoint,
+      'cross-day copy adds the selected period to the target day',
+    );
+    assert.ok(
+      afterDayCopy.target.some((slot) => slot.Time === beforeDayCopy.end),
+      'cross-day copy restores the target schedule at the copied period end',
+    );
     const temperature = page.getByRole('slider', { name: 'Temperature' });
     await temperature.focus();
     await temperature.press('ArrowRight');
@@ -905,10 +968,10 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('section[data-category="shutters"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="onoff"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="hotwater"]').count(), 0);
-    // Explicit scheduled states and shutter endpoints, including narrow layouts.
+    // Native controls and centered alignment for every schedule type, including narrow layouts.
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const kind of ['OnOff', 'Shutters']) {
+      for (const kind of ['Heating', 'OnOff', 'Lighting', 'Shutters']) {
         await page.evaluate((kind) => {
           const editor = document.createElement('wiser-schedule-slot-editor');
           editor.hass = makeHass();
@@ -919,15 +982,47 @@ const assert = require('node:assert/strict');
             Type: kind,
             ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
               day,
-              slots: [{ Time: '00:00', Setpoint: kind === 'OnOff' ? 'On' : 100, SpecialTime: '' }],
+              slots: [
+                {
+                  Time: '00:00',
+                  Setpoint: kind === 'OnOff' ? 'On' : kind === 'Heating' ? 18 : 100,
+                  SpecialTime: '',
+                },
+              ],
             })),
           };
-          editor.suntimes = {};
+          editor.suntimes = {
+            Sunrises: Array.from({ length: 7 }, () => ({ time: '06:30' })),
+            Sunsets: Array.from({ length: 7 }, () => ({ time: '19:30' })),
+          };
           editor._activeDay = 'Monday';
           editor._activeSlot = 0;
           document.querySelector('#mount').replaceChildren(editor);
         }, kind);
         const editor = page.locator('wiser-schedule-slot-editor');
+        const timelineBox = await editor.locator('.outer').first().boundingBox();
+        const panelBox = await editor.locator('.selected-period').boundingBox();
+        const addBox = await editor.locator('.add-period-row ha-button').boundingBox();
+        const timelineCenter = timelineBox.x + timelineBox.width / 2;
+        assert.ok(Math.abs(panelBox.x + panelBox.width / 2 - timelineCenter) < 2);
+        assert.ok(Math.abs(addBox.x + addBox.width / 2 - timelineCenter) < 2);
+        const rowBoxes = await editor.locator('.editor-control-row').evaluateAll((rows) =>
+          rows.map((row) => {
+            const box = row.getBoundingClientRect();
+            return { x: box.x, width: box.width };
+          }),
+        );
+        assert.ok(rowBoxes.length >= 1);
+        for (const box of rowBoxes) {
+          assert.ok(Math.abs(box.x + box.width / 2 - timelineCenter) < 2);
+          assert.ok(Math.abs(box.x - rowBoxes[0].x) < 2);
+          assert.ok(Math.abs(box.width - rowBoxes[0].width) < 2);
+        }
+        assert.equal(await editor.locator('.add-period-row ha-button').count(), 1);
+        assert.equal(await editor.locator('.delete-period-row ha-button').count(), 1);
+        assert.equal(await editor.locator('.selected-period').count(), 1);
+        assert.equal(await editor.locator('ha-button#Tuesday').count(), 1);
+        assert.equal(await editor.locator('ha-button#Monday').count(), 0);
         if (kind === 'OnOff') {
           await editor.getByRole('radio', { name: 'On', exact: true }).waitFor();
           assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), true);
@@ -935,16 +1030,67 @@ const assert = require('node:assert/strict');
           assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 'Off');
           assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), false);
         } else {
+          const range = editor.getByRole('slider');
+          await range.waitFor();
+          const heading = await editor.locator('.editor-control-row > .section-header').last().boundingBox();
+          const rangeBox = await range.boundingBox();
+          assert.ok(
+            Math.abs(heading.y + heading.height / 2 - rangeBox.y - rangeBox.height / 2) < 2,
+            JSON.stringify({ width, kind, heading, rangeBox }),
+          );
+          if (['Lighting', 'Shutters'].includes(kind)) {
+            assert.equal(
+              await editor
+                .locator('.slot')
+                .first()
+                .evaluate((el) => getComputedStyle(el.querySelector('span')).color),
+              'rgb(28, 28, 28)',
+            );
+          }
+          await range.fill(kind === 'Heating' ? '5' : '0');
+          assert.equal(
+            await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint),
+            kind === 'Heating' ? 5 : 0,
+          );
+          if (['Lighting', 'Shutters'].includes(kind)) {
+            await editor.evaluate((el) => el.updateComplete);
+            await page.waitForTimeout(150);
+            const inactiveAppearance = await editor.evaluate((el) => {
+              const slot = el.shadowRoot.querySelector('.slot');
+              return {
+                background: getComputedStyle(slot).backgroundColor,
+                inlineStyle: slot.getAttribute('style'),
+                scheduleType: el.schedule_type,
+                setpoint: el.schedule.ScheduleData[0].slots[0].Setpoint,
+                themeColors: el.config.theme_colors,
+              };
+            });
+            assert.equal(
+              inactiveAppearance.background,
+              'rgb(240, 245, 245)',
+              JSON.stringify(inactiveAppearance),
+            );
+            assert.equal(
+              await editor
+                .locator('.slot')
+                .first()
+                .evaluate((el) => getComputedStyle(el.querySelector('span')).color),
+              'rgb(32, 48, 68)',
+            );
+          }
+        }
+        if (kind === 'Shutters') {
           await editor.getByText('Closed', { exact: true }).waitFor();
           await editor.getByText('Open', { exact: true }).waitFor();
-          const heading = await editor.locator('.level-controls .section-header').boundingBox();
-          const range = await editor.getByRole('slider').boundingBox();
-          assert.ok(Math.abs(heading.y + heading.height / 2 - range.y - range.height / 2) < 2);
-          await editor.getByRole('slider').fill('0');
-          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 0);
-          const special = await editor.locator('.special-times .section-header').boundingBox();
-          const sunrise = await editor.locator('#sunrise').first().boundingBox();
-          assert.ok(Math.abs(special.y + special.height / 2 - sunrise.y - sunrise.height / 2) < 2);
+        }
+        if (['Lighting', 'Shutters'].includes(kind)) {
+          assert.equal(await editor.locator('.special-times ha-button').count(), 3);
+          assert.equal(await editor.locator('.special-times ha-icon').count(), 0);
+          assert.equal(await editor.locator('.special-times ha-button.selected').getAttribute('id'), 'fixed');
+          await editor.locator('.special-times ha-button#sunrise').click();
+          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].SpecialTime), 'Sunrise');
+          await editor.locator('.special-times ha-button#fixed').click();
+          assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].SpecialTime), '');
         }
         await editor.evaluate((el) => {
           el._activeSlot = -99;

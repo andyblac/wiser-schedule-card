@@ -16,14 +16,19 @@
       "add_schedule": "Zeitplan hinzufügen",
       "export": "Zeitplan exportieren",
       "import": "Zeitplan importieren",
-      "duplicate_new": "Als neuen Zeitplan duplizieren"
+      "duplicate_new": "Als neuen Zeitplan duplizieren",
+      "add_period": "Zeitraum hinzufügen",
+      "delete_period": "Zeitraum löschen"
     },
     "labels": {
       "setting": "Einstellung",
       "assigns": "Zuordnungen",
       "to": "bis",
       "level": "Stufe",
-      "special_time": "Besondere Zeit festlegen"
+      "special_time": "Besondere Zeit festlegen",
+      "selected_period": "Ausgewählter Zeitraum",
+      "time": "Zeit",
+      "fixed": "Fest"
     },
     "days": {
       "weekdays": "Montag bis Freitag",

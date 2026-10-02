@@ -16,14 +16,19 @@
       "add_schedule": "Add Schedule",
       "export": "Export schedule",
       "import": "Import schedule",
-      "duplicate_new": "Duplicate to new schedule"
+      "duplicate_new": "Duplicate to new schedule",
+      "add_period": "Add period",
+      "delete_period": "Delete period"
     },
     "labels": {
       "setting": "Setting",
       "assigns": "Assigns",
       "to": "to",
       "level": "Level",
-      "special_time": "Set special time"
+      "special_time": "Set special time",
+      "selected_period": "Selected period",
+      "time": "Time",
+      "fixed": "Fixed"
     },
     "days": {
       "weekdays": "Weekdays",
