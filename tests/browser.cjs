@@ -1065,11 +1065,7 @@ const assert = require('node:assert/strict');
                 themeColors: el.config.theme_colors,
               };
             });
-            assert.equal(
-              inactiveAppearance.background,
-              'rgb(240, 245, 245)',
-              JSON.stringify(inactiveAppearance),
-            );
+            assert.equal(inactiveAppearance.background, 'rgb(240, 245, 245)', JSON.stringify(inactiveAppearance));
             assert.equal(
               await editor
                 .locator('.slot')

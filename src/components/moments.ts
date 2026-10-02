@@ -79,9 +79,11 @@ export class WiserMoments extends LitElement {
 
   private renderMoment(entity: RegistryEntity) {
     const state = this.hass!.states[entity.entity_id];
-    const formatEntityName = (this.hass as HomeAssistant & {
-      formatEntityName?: (stateObject: typeof state, name: undefined) => string;
-    }).formatEntityName;
+    const formatEntityName = (
+      this.hass as HomeAssistant & {
+        formatEntityName?: (stateObject: typeof state, name: undefined) => string;
+      }
+    ).formatEntityName;
     const name = formatEntityName?.call(this.hass, state, undefined);
     return html`<button
       class="moment"

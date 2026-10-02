@@ -258,8 +258,7 @@ class WiserSchedulesPanel extends HTMLElement {
       this._editors = [];
       this._loadCards();
     } catch (error) {
-      this.shadowRoot.getElementById('editor-error').textContent =
-        this._t('wiser.panel.save_error');
+      this.shadowRoot.getElementById('editor-error').textContent = this._t('wiser.panel.save_error');
       console.error('Unable to save Wiser panel settings', error);
     } finally {
       save.disabled = false;
@@ -273,9 +272,7 @@ class WiserSchedulesPanel extends HTMLElement {
     try {
       const Card = customElements.get('wiser-schedule-card');
       if (Card?.panelApiVersion !== 1) {
-        throw new Error(
-          this._t('wiser.panel.version_error'),
-        );
+        throw new Error(this._t('wiser.panel.version_error'));
       }
       if (generation !== this._generation) return;
       const cards = config.hubs.map((hub) => {

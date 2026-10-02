@@ -91,20 +91,20 @@ Browser checks use mocked Home Assistant elements and Wiser WebSocket responses.
 
 ## Development builds for testing
 
-The current release is **2.0.4**. Build it with `npm run build`.
-Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.4`. To create a numbered development build:
+The current release is **2.0.5**. Build it with `npm run build`.
+Its resource URL is `/wiser/wiser-schedule-card.js?v=2.0.5`. To create a numbered development build:
 
 ```sh
 npm run build:dev
 ```
 
-After release `2.0.4`, the first successful development build is `2.0.5-beta.1-dev.1`; the next is `2.0.5-beta.1-dev.2`, and so on. After a beta such as `2.0.5-beta.1`, development continues as `2.0.5-beta.2-dev.1`.
+After release `2.0.5`, the first successful development build is `2.0.6-beta.1-dev.1`; the next is `2.0.6-beta.1-dev.2`, and so on. After a beta such as `2.0.6-beta.1`, development continues as `2.0.6-beta.2-dev.1`.
 Each build writes `dist/wiser-schedule-card.js` with that version embedded in the
 card, plus `dist/build-info.json` containing the version and dashboard resource URL.
 The command prints the URL for reference; the integration sets it automatically, including the development build number. No manual resource changes are needed. For example:
 
 ```text
-/wiser/wiser-schedule-card.js?v=2.0.5-beta.1-dev.1
+/wiser/wiser-schedule-card.js?v=2.0.6-beta.1-dev.1
 ```
 
 Copy `dist/wiser-schedule-card.js` over the integration’s
