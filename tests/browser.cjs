@@ -1240,9 +1240,9 @@ const assert = require('node:assert/strict');
           );
           assert.equal(sunriseToSunset.activeSlot, 0, 'setting the end keeps the same period selected');
           assert.deepEqual(
-            await editor.locator('.special-times ha-button.selected').evaluateAll((buttons) =>
-              buttons.map((button) => button.id),
-            ),
+            await editor
+              .locator('.special-times ha-button.selected')
+              .evaluateAll((buttons) => buttons.map((button) => button.id)),
             ['sunrise', 'sunset'],
           );
           await editor.locator('.special-times ha-button#sunrise').click();
