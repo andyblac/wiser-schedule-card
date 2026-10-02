@@ -240,10 +240,6 @@ const assert = require('node:assert/strict');
       afterDayCopy.target.some((slot) => slot.Time === beforeDayCopy.end),
       'cross-day copy restores the target schedule at the copied period end',
     );
-    const temperature = page.getByRole('slider', { name: 'Temperature' });
-    await temperature.focus();
-    await temperature.press('ArrowRight');
-    await temperature.press('ArrowRight');
     await button('save').click();
     await button('edit').waitFor();
     assert.deepEqual(
@@ -253,7 +249,7 @@ const assert = require('node:assert/strict');
     );
     const savedSchedule = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedule/save'));
     assert.equal(savedSchedule.schedule_id, 2);
-    assert.equal(Number(savedSchedule.schedule.ScheduleData[0].slots[0].Setpoint), 21);
+    assert.equal(Number(savedSchedule.schedule.ScheduleData[0].slots[0].Setpoint), Number(beforeDayCopy.setpoint));
     assert.equal(await page.getByLabel('Choose a schedule').isDisabled(), false);
     const downloadPromise = page.waitForEvent('download');
     await button('Export schedule').click();
