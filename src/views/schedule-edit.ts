@@ -3,6 +3,7 @@ import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { loadHaControls } from '../components/ha-controls';
 import { importScheduleFile } from '../data/schedule-file';
+import { stringToTime } from '../data/date-time/time';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup, PropertyValues } from 'lit';
@@ -70,6 +71,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   @state() _tempSchedule?: Schedule;
   @state() private _saveError = '';
+  @state() private _undoHistory: Schedule[] = [];
+  @state() private _redoHistory: Schedule[] = [];
+  private _historySnapshot?: Schedule;
+  private _nameEditSnapshot?: Schedule;
   stepSize = 5;
 
   async initialise(): Promise<boolean> {
@@ -100,10 +105,12 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   getSunTime(day: string, time: string): string {
-    if (time == SPECIAL_TIMES[0]) {
-      return this.suntimes!.Sunrises[days.indexOf(day)].time;
-    }
-    return this.suntimes!.Sunsets[days.indexOf(day)].time;
+    const times = time === SPECIAL_TIMES[0] ? this.suntimes!.Sunrises : this.suntimes!.Sunsets;
+    return (
+      times.find((item) => item.day?.toLowerCase() === day.toLowerCase())?.time ||
+      times[days.indexOf(day)]?.time ||
+      '00:00'
+    );
   }
 
   convertLoadedSchedule(schedule: Schedule): Schedule {
@@ -120,7 +127,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           ? { Time: this.getSunTime(day.day, slot.Time), Setpoint: slot.Setpoint, SpecialTime: slot.Time }
           : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: '' };
       })
-      .sort((a, b) => (parseInt(a.Time.replace(':', '')) < parseInt(b.Time.replace(':', '')) ? 0 : 1));
+      .sort((a, b) => stringToTime(a.Time) - stringToTime(b.Time));
 
     const outputSlotsSet = new Set(outputSlots.map((e) => JSON.stringify(e)));
     const res = Array.from(outputSlotsSet).map((e) => JSON.parse(e));
@@ -136,13 +143,11 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   convertScheduleDayForSaving(day: ScheduleDay): ScheduleDay {
     const slots = day.slots;
-    const outputSlots: ScheduleSlot[] = slots
-      .map((slot) => {
-        return SPECIAL_TIMES.includes(slot.SpecialTime)
-          ? { Time: slot.SpecialTime, Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime }
-          : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: '' };
-      })
-      .sort((a, b) => (a.Time.replace(':', '') < b.Time.replace(':', '') ? 0 : 1));
+    const outputSlots: ScheduleSlot[] = slots.map((slot) => {
+      return SPECIAL_TIMES.includes(slot.SpecialTime)
+        ? { Time: slot.SpecialTime, Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime }
+        : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: '' };
+    });
     const outputSlotsSet = new Set(outputSlots.map((e) => JSON.stringify(e)));
     const res = Array.from(outputSlotsSet).map((e) => JSON.parse(e));
     const outputDay: ScheduleDay = { day: day.day, slots: res };
@@ -211,6 +216,9 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       changedProps.has('editMode') ||
       changedProps.has('_assigning_in_progress') ||
       changedProps.has('_save_in_progress') ||
+      changedProps.has('_tempSchedule') ||
+      changedProps.has('_undoHistory') ||
+      changedProps.has('_redoHistory') ||
       changedProps.has('assignmentSelection') ||
       changedProps.has('assigningDevices') ||
       (changedProps.has('error') && isDefined(this.error))
@@ -243,9 +251,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     if (this.schedule && this.entities && this.suntimes) {
       return html`
         <div>
-          ${this.embedded ? '' : this.renderToolbar()}
+          ${this.embedded && !this.editMode ? '' : this.renderToolbar()}
           ${this.embedded || this.schedule.Id === 1000 ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
-          ${this.embedded && this.editMode ? this.renderEditableTitle() : ''}
           ${this.editMode && this._saveError ? html`<p role="alert">${this._saveError}</p>` : ''}
           <div class="wrapper">
             <div class="schedules">
@@ -406,15 +413,18 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   private renderEditableTitle(): TemplateResult {
     return html`<input
+      slot="heading"
       class="editable-title"
       type="text"
       required
       aria-label=${this.localize('wiser.headings.schedule_name')}
       .value=${this._tempSchedule?.Name || ''}
       ?disabled=${this._save_in_progress}
+      @focus=${() => this.beginNameEdit()}
       @input=${(event: Event) => {
         this._tempSchedule = { ...this._tempSchedule!, Name: (event.target as HTMLInputElement).value };
       }}
+      @change=${() => this.commitNameEdit()}
     />`;
   }
 
@@ -435,10 +445,15 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         }}
       />
       <wiser-card-header .config=${this.config}>
+        ${
+          this.editMode
+            ? this.renderEditableTitle()
+            : html`<h3 slot="heading" class="schedule-title">${this.schedule!.Name}</h3>`
+        }
         <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
           ${
             this.editMode
-              ? html``
+              ? ''
               : html`
                   ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
                   ${editable ? this.tool(this.localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
@@ -454,9 +469,20 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                   }
                 `
           }
+          ${this.tool(
+            this.hass!.localize('ui.common.undo'),
+            'mdi:undo',
+            () => this.undoClick(),
+            !this.editMode || this._save_in_progress || !this._undoHistory.length,
+          )}
+          ${this.tool(
+            this.hass!.localize('ui.common.redo'),
+            'mdi:redo',
+            () => this.redoClick(),
+            !this.editMode || this._save_in_progress || !this._redoHistory.length,
+          )}
         </div>
-      </wiser-card-header>
-      ${this.editMode ? this.renderEditableTitle() : html`<h3 class="schedule-title">${this.schedule!.Name}</h3>`}`;
+      </wiser-card-header>`;
   }
 
   async entityAssignmentClick(ev: Event): Promise<void> {
@@ -493,7 +519,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   editClick(): void {
     if (!this.schedule || this.schedule.Id !== this.schedule_id || !allow_edit(this.hass!, this.config)) return;
-    this._tempSchedule = JSON.parse(JSON.stringify(this.schedule));
+    this._tempSchedule = this.cloneSchedule(this.schedule);
+    this.resetHistory(this._tempSchedule);
     this.editMode = !this.editMode;
   }
 
@@ -529,6 +556,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       if (file.size > 1024 * 1024) throw new Error('Schedule file is too large.');
       const draft = importScheduleFile(await file.text(), this.schedule);
       this._tempSchedule = this.convertLoadedSchedule(draft);
+      this.resetHistory(this._tempSchedule);
       this.editMode = true;
     } catch (error: unknown) {
       showErrorDialog(this, 'Import schedule', (error as Error).message);
@@ -570,6 +598,78 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   cancelClick(): void {
     this.editMode = false;
     this._saveError = '';
+    this.resetHistory();
+  }
+
+  private cloneSchedule(schedule: Schedule): Schedule {
+    return JSON.parse(JSON.stringify(schedule));
+  }
+
+  private resetHistory(schedule?: Schedule): void {
+    this._undoHistory = [];
+    this._redoHistory = [];
+    this._historySnapshot = schedule ? this.cloneSchedule(schedule) : undefined;
+    this._nameEditSnapshot = undefined;
+  }
+
+  private schedulesMatch(left?: Schedule, right?: Schedule): boolean {
+    return Boolean(left && right && JSON.stringify(left) === JSON.stringify(right));
+  }
+
+  private recordHistory(nextSchedule: Schedule): void {
+    const next = this.cloneSchedule(nextSchedule);
+    if (!this._historySnapshot) {
+      this._historySnapshot = next;
+      this._tempSchedule = next;
+      return;
+    }
+    if (this.schedulesMatch(this._historySnapshot, next)) return;
+    this._undoHistory = [...this._undoHistory.slice(-99), this.cloneSchedule(this._historySnapshot)];
+    this._redoHistory = [];
+    this._historySnapshot = this.cloneSchedule(next);
+    this._tempSchedule = next;
+  }
+
+  private beginNameEdit(): void {
+    if (this._tempSchedule && !this._nameEditSnapshot) this._nameEditSnapshot = this.cloneSchedule(this._tempSchedule);
+  }
+
+  private commitNameEdit(): void {
+    if (!this._nameEditSnapshot || !this._tempSchedule) return;
+    const before = this._nameEditSnapshot;
+    this._nameEditSnapshot = undefined;
+    if (this.schedulesMatch(before, this._tempSchedule)) return;
+    this._undoHistory = [...this._undoHistory.slice(-99), before];
+    this._redoHistory = [];
+    this._historySnapshot = this.cloneSchedule(this._tempSchedule);
+  }
+
+  private clearEditorSelection(): void {
+    this.renderRoot
+      .querySelector<HTMLElement & { clearSelection?: () => void }>('wiser-schedule-slot-editor')
+      ?.clearSelection?.();
+  }
+
+  undoClick(): void {
+    this.commitNameEdit();
+    const previous = this._undoHistory[this._undoHistory.length - 1];
+    if (!previous || !this._tempSchedule) return;
+    this._redoHistory = [...this._redoHistory, this.cloneSchedule(this._tempSchedule)];
+    this._undoHistory = this._undoHistory.slice(0, -1);
+    this._tempSchedule = this.cloneSchedule(previous);
+    this._historySnapshot = this.cloneSchedule(previous);
+    this.clearEditorSelection();
+  }
+
+  redoClick(): void {
+    this.commitNameEdit();
+    const next = this._redoHistory[this._redoHistory.length - 1];
+    if (!next || !this._tempSchedule) return;
+    this._undoHistory = [...this._undoHistory, this.cloneSchedule(this._tempSchedule)];
+    this._redoHistory = this._redoHistory.slice(0, -1);
+    this._tempSchedule = this.cloneSchedule(next);
+    this._historySnapshot = this.cloneSchedule(next);
+    this.clearEditorSelection();
   }
 
   validateSchedule(schedule: Schedule): boolean {
@@ -598,6 +698,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           await renameSchedule(this.hass!, this.config.hub, this.schedule_type!, this.schedule_id!, name);
         }
         this.editMode = false;
+        this.resetHistory();
         await this.loadData();
       } else {
         showErrorDialog(this, 'Error Saving Schedule', 'The schedule you are trying to save has no time slots.');
@@ -611,8 +712,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   scheduleChanged(ev): void {
-    this._tempSchedule = ev.detail.schedule;
-    this.render();
+    this.recordHistory(ev.detail.schedule);
   }
 
   static get styles(): CSSResultGroup {
@@ -626,7 +726,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         gap: 12px;
       }
       .schedule-title {
-        margin: 16px 0 8px;
+        margin: 0;
         font-size: calc(22px + 1pt);
       }
       .tools {
@@ -900,7 +1000,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         display: block;
         width: 420px;
         max-width: 100%;
-        margin: 16px 0 24px;
+        margin: 0;
         padding: 4px 0;
         font-size: calc(22px + 1pt);
         font-weight: 700;
@@ -912,6 +1012,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       .save-actions {
         gap: 8px;
         display: flex;
+        flex-wrap: wrap;
         justify-content: flex-end;
         margin-top: 24px;
       }

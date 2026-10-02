@@ -96,27 +96,11 @@ export class WiserScheduleCard extends LitElement {
 
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('config')) {
-      this.style.removeProperty('--wiser-view-min-height');
       this._returnView = EViews.Overview;
       this._homeView = this.config?.home_screen || 'schedules';
       this.processConfigSchedule();
-    } else if (changedProps.has('_view')) {
-      // Views fetch their data after mounting. Preserve the outgoing content's
-      // space only until the incoming view has rendered its loaded content.
-      // This avoids a loading collapse without retaining a taller view's height.
-      const content = this.renderRoot.querySelector<HTMLElement>('.card-content');
-      if (content) {
-        this.style.setProperty('--wiser-view-min-height', `${content.getBoundingClientRect().height}px`);
-      }
     }
     this.component_loaded = this._hass?.config.components.includes('wiser') ?? false;
-  }
-
-  private _viewReady(event: Event): void {
-    const content = this.renderRoot.querySelector('.card-content');
-    if (event.target === content?.firstElementChild) {
-      this.style.removeProperty('--wiser-view-min-height');
-    }
   }
 
   static styles = css`
@@ -134,7 +118,6 @@ export class WiserScheduleCard extends LitElement {
     }
     .card-content {
       box-sizing: border-box;
-      min-height: var(--wiser-view-min-height, 0px);
       padding: 22px 20px 20px;
     }
     .status {
@@ -160,7 +143,6 @@ export class WiserScheduleCard extends LitElement {
       return html`<ha-card style=${cardStyle}>
         <div
           class="card-content"
-          @wiser-view-ready=${this._viewReady}
           @home-view-changed=${(event: CustomEvent) => {
             if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
           }}
@@ -182,7 +164,6 @@ export class WiserScheduleCard extends LitElement {
       return html` <ha-card style=${cardStyle}>
         <div
           class="card-content"
-          @wiser-view-ready=${this._viewReady}
           @home-view-changed=${(event: CustomEvent) => {
             if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
           }}
@@ -220,7 +201,6 @@ export class WiserScheduleCard extends LitElement {
         <ha-card style=${cardStyle}>
           <div
             class="card-content"
-            @wiser-view-ready=${this._viewReady}
             @home-view-changed=${(event: CustomEvent) => {
               if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
             }}
@@ -243,7 +223,6 @@ export class WiserScheduleCard extends LitElement {
         <ha-card style=${cardStyle}>
           <div
             class="card-content"
-            @wiser-view-ready=${this._viewReady}
             @home-view-changed=${(event: CustomEvent) => {
               if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
             }}
@@ -264,7 +243,6 @@ export class WiserScheduleCard extends LitElement {
         <ha-card style=${cardStyle}>
           <div
             class="card-content"
-            @wiser-view-ready=${this._viewReady}
             @home-view-changed=${(event: CustomEvent) => {
               if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
             }}

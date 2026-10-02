@@ -1,5 +1,4 @@
 import { customElement } from '../components/register-element';
-import '../components/card-header';
 import './schedule-edit';
 import { allow_edit } from '../helpers';
 import { notifyViewReady } from '../components/view-ready';
@@ -61,7 +60,6 @@ export class ScheduleCopyCard extends LitElement {
     if (!this.component_loaded || !this.schedule)
       return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
-      <wiser-card-header .config=${this.config}></wiser-card-header>
       <div>
         <div>${this.localize('wiser.headings.copy_schedule')}</div>
         <div class="schedule-info">

@@ -25,6 +25,7 @@ const assert = require('node:assert/strict');
     const checkCreateType = async (type) => {
       await button('Add Schedule').click();
       await page.getByText('Enter a name for the new schedule', { exact: true }).waitFor();
+      assert.equal(await page.locator('wiser-schedule-add-card wiser-card-header').count(), 0);
       for (const other of ['Heating', 'OnOff', 'Lighting', 'Shutters'])
         assert.equal(await button(other).count(), 0, 'single compatible type needs no picker');
       assert.equal(await button('save').isDisabled(), true);
@@ -49,11 +50,6 @@ const assert = require('node:assert/strict');
       assert.equal(await button('save').isDisabled(), true);
     };
 
-    const settleHeight = () =>
-      page.waitForFunction(
-        () => !document.querySelector('wiser-schedule-card').style.getPropertyValue('--wiser-view-min-height'),
-      );
-
     await fresh();
     await page.evaluate(() => mountCard());
     await roomsReady();
@@ -76,7 +72,6 @@ const assert = require('node:assert/strict');
     );
     await page.getByRole('button', { name: 'Movie night Open controls' }).click();
     assert.equal(await page.evaluate(() => window.openedMoment), 'button.wiser_movie');
-    const homeHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
     await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).focus();
     await page.keyboard.press('Enter');
     await page.getByLabel('Choose a schedule').waitFor();
@@ -118,8 +113,25 @@ const assert = require('node:assert/strict');
     );
     await button('edit').click();
     assert.equal(await page.getByLabel('Choose a schedule').isDisabled(), true);
+    assert.equal(await page.locator('wiser-room-schedules wiser-card-header').count(), 1);
+    const undoButton = page.getByRole('button', { name: /^undo$/i });
+    const redoButton = page.getByRole('button', { name: /^redo$/i });
+    assert.equal(await undoButton.count(), 1, 'Undo remains visible in the edit toolbar');
+    assert.equal(await redoButton.count(), 1, 'Redo remains visible in the edit toolbar');
+    assert.equal(await undoButton.isDisabled(), true);
+    assert.equal(await redoButton.isDisabled(), true);
+    await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
+    await page.getByRole('slider', { name: 'Temperature' }).fill('21');
+    assert.equal(await undoButton.isEnabled(), true);
     await button('cancel').click();
+    assert.deepEqual(
+      await page.locator('wiser-schedule-edit-card').evaluate((el) => [el._undoHistory.length, el._redoHistory.length]),
+      [0, 0],
+      'Cancel clears edit history',
+    );
     await button('edit').click();
+    assert.equal(await undoButton.isDisabled(), true);
+    assert.equal(await redoButton.isDisabled(), true);
     await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
     assert.equal(await page.locator('.time-handle').count(), 2, 'selected slot has both movable boundaries');
     const endHandle = page.locator('.end-handle .time-handle');
@@ -133,6 +145,24 @@ const assert = require('node:assert/strict');
       .evaluate((el) => el.schedule.ScheduleData[0].slots.map((slot) => slot.Time));
     assert.equal(draggedTimes[0], '06:00', 'end handle preserves selected start');
     assert.notEqual(draggedTimes[1], '22:00', 'end handle moves next boundary');
+    await undoButton.click();
+    assert.deepEqual(
+      await page
+        .locator('wiser-schedule-slot-editor')
+        .evaluate((el) => el.schedule.ScheduleData[0].slots.map((slot) => slot.Time)),
+      ['06:00', '22:00'],
+      'Undo restores the previous schedule state',
+    );
+    assert.equal(await redoButton.isEnabled(), true);
+    await redoButton.click();
+    assert.deepEqual(
+      await page
+        .locator('wiser-schedule-slot-editor')
+        .evaluate((el) => el.schedule.ScheduleData[0].slots.map((slot) => slot.Time)),
+      draggedTimes,
+      'Redo reapplies the schedule state',
+    );
+    await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
     const startHandle = page.locator('.handle:not(.end-handle) .time-handle').first();
     const startBox = await startHandle.boundingBox();
     await page.mouse.move(startBox.x + startBox.width / 2, startBox.y + startBox.height / 2);
@@ -175,13 +205,27 @@ const assert = require('node:assert/strict');
       end: el.schedule.ScheduleData[0].slots[1].Time,
       setpoint: el.schedule.ScheduleData[0].slots[0].Setpoint,
     }));
+    // Home Assistant can place the card inside a transformed view. A fixed
+    // descendant then uses that view as its containing block instead of the
+    // viewport, which used to offset the drag preview below the hovered row.
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => (el.style.transform = 'translateZ(0)'));
     const blockForCopy = await selectedBlock.boundingBox();
     const tuesdayRow = await page.locator('wiser-schedule-slot-editor .outer#Tuesday').boundingBox();
-    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, blockForCopy.y + blockForCopy.height / 2);
+    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, blockForCopy.y + blockForCopy.height * 0.25);
     await page.mouse.down();
-    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, tuesdayRow.y + tuesdayRow.height / 2);
+    await page.mouse.move(blockForCopy.x + blockForCopy.width / 2, tuesdayRow.y + tuesdayRow.height * 0.75);
     assert.equal(await page.locator('wiser-schedule-slot-editor .outer#Tuesday.drop-target').count(), 1);
+    const dragGhost = page.locator('wiser-schedule-slot-editor .period-drag-ghost.valid');
+    assert.equal(await dragGhost.count(), 1, 'cross-day drag displays a copy of the selected period');
+    const dragGhostBox = await dragGhost.boundingBox();
+    assert.ok(
+      Math.abs(dragGhostBox.x + dragGhostBox.width / 2 - (blockForCopy.x + blockForCopy.width / 2)) < 2 &&
+        Math.abs(dragGhostBox.y + dragGhostBox.height / 2 - (tuesdayRow.y + tuesdayRow.height / 2)) < 2,
+      'dragged period copy aligns with the destination row',
+    );
     await page.mouse.up();
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => (el.style.transform = ''));
+    assert.equal(await page.locator('wiser-schedule-slot-editor .period-drag-ghost').count(), 0);
     const afterDayCopy = await page.locator('wiser-schedule-slot-editor').evaluate((el) => ({
       source: el.schedule.ScheduleData[0].slots,
       target: el.schedule.ScheduleData[1].slots,
@@ -202,6 +246,11 @@ const assert = require('node:assert/strict');
     await temperature.press('ArrowRight');
     await button('save').click();
     await button('edit').waitFor();
+    assert.deepEqual(
+      await page.locator('wiser-schedule-edit-card').evaluate((el) => [el._undoHistory.length, el._redoHistory.length]),
+      [0, 0],
+      'Save clears edit history',
+    );
     const savedSchedule = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/schedule/save'));
     assert.equal(savedSchedule.schedule_id, 2);
     assert.equal(Number(savedSchedule.schedule.ScheduleData[0].slots[0].Setpoint), 21);
@@ -275,8 +324,11 @@ const assert = require('node:assert/strict');
     await page.getByLabel('Choose a schedule').waitFor();
     await button('back').click();
     await roomsReady();
-    await settleHeight();
-    assert.ok(Math.abs((await page.locator('wiser-schedule-card').boundingBox()).height - homeHeight) < 1);
+    assert.equal(
+      await page.locator('wiser-schedule-card').evaluate((el) => el.style.getPropertyValue('--wiser-view-min-height')),
+      '',
+      'view changes do not retain the outgoing screen height',
+    );
     assert.match(await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).textContent(), /Bedrooms/);
     if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-desktop.png` });
     await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).click();
@@ -532,17 +584,24 @@ const assert = require('node:assert/strict');
         mount.append(card);
       }, nested);
       await roomsReady();
-      const before = await page.evaluate(() => {
+      const beforeHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
+      await page.evaluate(() => {
         fixture.delay = 250;
         testScroller.scrollTop = 650;
-        return testScroller.scrollTop;
       });
       await page.locator('button.overview-device').first().click();
       await page.waitForTimeout(100);
-      assert.equal(await page.evaluate(() => testScroller.scrollTop), before, 'no loading collapse in dashboard');
+      const loadingHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
+      assert.ok(loadingHeight < beforeHeight, 'loading view releases the previous screen height');
+      assert.equal(
+        await page
+          .locator('wiser-schedule-card')
+          .evaluate((el) => el.style.getPropertyValue('--wiser-view-min-height')),
+        '',
+      );
       await page.getByLabel('Choose a schedule').waitFor();
     }
-    console.log('PASS document and shadow dashboard scroll during room loading');
+    console.log('PASS document and shadow dashboards use content-based view heights');
 
     await fresh();
     await page.setViewportSize({ width: 360, height: 800 });
@@ -627,10 +686,15 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('wiser-schedule-edit-card .actions-wrapper').count(), 0);
     assert.equal(await page.getByRole('toolbar').getByRole('button', { name: 'edit', exact: true }).count(), 1);
     const headerBox = await page.locator('wiser-card-header').boundingBox();
+    const titleBox = await page.getByRole('heading', { name: 'Living room', exact: true }).boundingBox();
     const toolbarBox = await page.getByRole('toolbar').boundingBox();
     assert.ok(
       toolbarBox.y >= headerBox.y && toolbarBox.y + toolbarBox.height <= headerBox.y + headerBox.height + 1,
       'toolbar sits in the top card header',
+    );
+    assert.ok(
+      titleBox.y >= headerBox.y && titleBox.y + titleBox.height <= headerBox.y + headerBox.height + 1,
+      'schedule title shares the top card header with its toolbar',
     );
     await page.getByLabel('Assigned rooms / devices').selectOption(['10', '11', '13']);
     assert.equal(await page.evaluate(() => fixture.assignments[11]), 2, 'selection is not applied early');
@@ -657,14 +721,16 @@ const assert = require('node:assert/strict');
     await page.waitForSelector('wiser-schedule-slot-editor');
     assert.equal(await button('save').count(), 0);
     assert.equal(await button('edit').count(), 0);
-    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 1);
+    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 3);
+    assert.equal(await page.getByRole('button', { name: /^undo$/i }).isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: /^redo$/i }).isDisabled(), true);
     await page.evaluate(() => {
       const card = mountCard({ home_screen: 'schedules', admin_only: true });
       card.hass = { ...makeHass(), user: { is_admin: false } };
     });
     await page.locator('button.schedule-tile').filter({ hasText: 'Living room' }).click();
     await page.waitForSelector('wiser-schedule-slot-editor');
-    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 1);
+    assert.equal(await page.getByRole('toolbar').getByRole('button').count(), 3);
     assert.equal(await button('back').count(), 1);
     await fresh();
     await page.evaluate(() => {
@@ -906,6 +972,7 @@ const assert = require('node:assert/strict');
     await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).click();
     await button('Copy').click();
     await page.locator('wiser-schedule-copy-card wiser-schedule-slot-editor').waitFor();
+    assert.equal(await page.locator('wiser-schedule-copy-card wiser-card-header').count(), 0);
     await page.getByLabel('New schedule name', { exact: true }).fill('Winter duplicate');
     await page.evaluate(() => (fixture.failCopy = true));
     await button('Duplicate to new schedule').click();
@@ -1085,7 +1152,54 @@ const assert = require('node:assert/strict');
           assert.equal(await editor.locator('.special-times ha-button.selected').getAttribute('id'), 'fixed');
           await editor.locator('.special-times ha-button#sunrise').click();
           assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].SpecialTime), 'Sunrise');
+          assert.equal(await editor.locator('ha-icon-button.time-handle').count(), 0);
+          assert.equal(await editor.locator('.tooltip ha-icon[icon="hass:weather-sunny"]').count(), 1);
+          await editor.evaluate((el) => {
+            el.editMode = false;
+          });
+          assert.equal(await editor.locator('.special-time-marker[aria-label="Sunrise"]').count(), 1);
+          assert.equal(await editor.locator('.special-time-marker ha-icon[icon="hass:weather-sunny"]').count(), 1);
+          assert.match(await editor.locator('.slot').first().textContent(), /100%/);
+          assert.equal(
+            await editor.locator('.special-time-marker').evaluate((el) => getComputedStyle(el).borderRadius),
+            '0px',
+          );
+          const markerBox = await editor.locator('.special-time-marker').boundingBox();
+          const markerIconBox = await editor.locator('.special-time-marker ha-icon').boundingBox();
+          const specialSlotBox = await editor.locator('.special-time-marker').locator('..').boundingBox();
+          assert.equal(
+            await editor.locator('.special-time-marker ha-icon').evaluate((el) => getComputedStyle(el).color),
+            'rgb(32, 48, 68)',
+          );
+          assert.ok(
+            Math.abs(markerBox.x + markerBox.width / 2 - specialSlotBox.x) < 1,
+            'special-time icon is centred on the slot boundary',
+          );
+          assert.ok(
+            Math.abs(markerIconBox.x + markerIconBox.width / 2 - (markerBox.x + markerBox.width / 2)) < 1 &&
+              Math.abs(markerIconBox.y + markerIconBox.height / 2 - (markerBox.y + markerBox.height / 2)) < 1,
+            'special-time icon is centred on its boundary marker',
+          );
+          await editor.evaluate((el) => {
+            el.editMode = true;
+            el._activeDay = 'Monday';
+            el._activeSlot = 0;
+          });
+          assert.equal(await editor.locator('.special-time-marker').count(), 0);
           await editor.locator('.add-period-row ha-button').click();
+          await editor.evaluate((el) => {
+            el._activeSlot = -99;
+            el._activeDay = '';
+          });
+          assert.equal(
+            await editor.locator('.special-time-marker[aria-label="Sunrise"]').count(),
+            1,
+            'special-time markers remain visible in the editor without a selection',
+          );
+          await editor.evaluate((el) => {
+            el._activeDay = 'Monday';
+            el._activeSlot = 0;
+          });
           const addedBeforeSunrise = await editor.evaluate((el) => ({
             activeSlot: el._activeSlot,
             slots: structuredClone(el.schedule.ScheduleData[0].slots),
@@ -1095,16 +1209,50 @@ const assert = require('node:assert/strict');
           assert.equal(addedBeforeSunrise.slots[0].SpecialTime, '');
           assert.equal(addedBeforeSunrise.slots[1].SpecialTime, 'Sunrise');
           assert.ok(minutes(addedBeforeSunrise.slots[0].Time) < minutes(addedBeforeSunrise.slots[1].Time));
+          await editor.evaluate((el) => {
+            el._activeSlot = 1;
+          });
           await editor.locator('.special-times ha-button#sunset').click();
-          const changedToSunset = await editor.evaluate((el) => ({
+          const lastPeriodSunset = await editor.evaluate((el) => ({
+            activeSlot: el._activeSlot,
+            slots: structuredClone(el.schedule.ScheduleData[0].slots),
+          }));
+          assert.equal(lastPeriodSunset.slots.at(-1).SpecialTime, 'Sunset');
+          assert.equal(lastPeriodSunset.slots[lastPeriodSunset.activeSlot].SpecialTime, 'Sunset');
+
+          await editor.evaluate((el) => {
+            el.schedule.ScheduleData[0].slots = [
+              { Time: '00:00', Setpoint: '100', SpecialTime: '' },
+              { Time: '12:00', Setpoint: '0', SpecialTime: '' },
+            ];
+            el._activeSlot = 0;
+            el.requestUpdate();
+          });
+          await editor.locator('.special-times ha-button#sunrise').click();
+          await editor.locator('.special-times ha-button#sunset').click();
+          const sunriseToSunset = await editor.evaluate((el) => ({
             activeSlot: el._activeSlot,
             slots: structuredClone(el.schedule.ScheduleData[0].slots),
           }));
           assert.deepEqual(
-            changedToSunset.slots.map((slot) => slot.SpecialTime),
+            sunriseToSunset.slots.map((slot) => slot.SpecialTime),
             ['Sunrise', 'Sunset'],
           );
-          assert.equal(changedToSunset.slots[changedToSunset.activeSlot].SpecialTime, 'Sunset');
+          assert.equal(sunriseToSunset.activeSlot, 0, 'setting the end keeps the same period selected');
+          assert.deepEqual(
+            await editor.locator('.special-times ha-button.selected').evaluateAll((buttons) =>
+              buttons.map((button) => button.id),
+            ),
+            ['sunrise', 'sunset'],
+          );
+          await editor.locator('.special-times ha-button#sunrise').click();
+          assert.equal(
+            await editor.evaluate(
+              (el) => el.schedule.ScheduleData[0].slots.filter((slot) => slot.SpecialTime === 'Sunrise').length,
+            ),
+            1,
+            'a day has only one Sunrise boundary',
+          );
         }
         await editor.evaluate((el) => {
           el._activeSlot = -99;
@@ -1113,6 +1261,34 @@ const assert = require('node:assert/strict');
           assert.equal(await input.isDisabled(), true);
       }
     }
+    const normalizedSpecialTimes = await page.evaluate(() => {
+      const card = document.createElement('wiser-schedule-edit-card');
+      card.suntimes = {
+        Sunrises: [
+          { day: 'Tuesday', time: '07:04' },
+          { day: 'Monday', time: '06:58' },
+        ],
+        Sunsets: [
+          { day: 'Tuesday', time: '18:45' },
+          { day: 'Monday', time: '18:47' },
+        ],
+      };
+      return card.convertLoadedScheduleDay({
+        day: 'Tuesday',
+        slots: [
+          { Time: '13:20', Setpoint: '58', SpecialTime: '' },
+          { Time: 'Sunrise', Setpoint: '0', SpecialTime: '' },
+        ],
+      }).slots;
+    });
+    assert.deepEqual(
+      normalizedSpecialTimes.map((slot) => [slot.Time, slot.SpecialTime]),
+      [
+        ['07:04', 'Sunrise'],
+        ['13:20', ''],
+      ],
+      'loaded special times resolve by day name and sort chronologically',
+    );
     assert.deepEqual(errors, [], 'no uncaught browser errors');
     console.log('PASS integration readiness and configuration editor');
   } finally {

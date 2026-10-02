@@ -1,5 +1,4 @@
 import { customElement } from '../components/register-element';
-import '../components/card-header';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { LitElement, html, css, TemplateResult, CSSResultGroup } from 'lit';
@@ -59,7 +58,6 @@ export class ScheduleAddCard extends LitElement {
         ><button type="button" @click=${this.cancelClick}>${this.hass.localize('ui.common.back')}</button>`;
     if (!this.component_loaded) return html`<div role="status">${this.localize('common.loading')}</div>`;
     return html`
-      <wiser-card-header .config=${this.config}> </wiser-card-header>
       <div>
         <div>${this.localize('wiser.actions.add_schedule')}</div>
         <div class="wrapper" style="white-space: normal">

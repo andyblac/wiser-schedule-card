@@ -252,15 +252,15 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           </button>`
         : '';
     if (this.loading && !this.loaded)
-      return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
+      return html`${back}
         <div class="status" role="status">${this.localize('common.loading')}</div>`;
     if (this.error)
-      return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
+      return html`${back}
         <div class="status" role="alert">${this.error}</div>
         <button @click=${() => this.loadData()}>${this.localize('common.retry')}</button>`;
     if (this.room_id !== undefined) {
       if (!room)
-        return html`<wiser-card-header .config=${this.config}></wiser-card-header>${back}
+        return html`${back}
           <div class="status">${this.localize('wiser.rooms.missing')}</div>`;
       const current = this.currentSchedule(room);
       const choices = this.compatible(this.target_type);
@@ -284,43 +284,41 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
             if (file) void this.editor?.importSchedule(file);
           }}
         />
-        <wiser-card-header .config=${this.config}>
-          <div class="tools">
-            ${
-              this.editing
-                ? html``
-                : html`
-                    ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
-                    ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
-                    ${editable && viewed ? this.tool('wiser.actions.import', 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || !this.editorReady) : ''}
-                    ${
-                      editable && viewed
-                        ? html`
-                            ${this.tool('wiser.rooms.edit', 'mdi:pencil', () => this.editor?.editClick(), blocked || !this.editorReady)}
-                            ${this.tool('wiser.actions.copy', 'mdi:content-copy', () => this.scheduleAction(viewed, 'copy'), blocked || fixed)}
-                            ${this.tool(
-                              'wiser.rooms.delete',
-                              'mdi:delete-outline',
-                              () => {
-                                void this.editor?.deleteClick();
-                              },
-                              blocked || !this.editorReady || fixed,
-                            )}
-                          `
-                        : ''
-                    }
-                    ${
-                      editable && !fixed
-                        ? html`
-                            ${this.tool('wiser.actions.add_schedule', 'mdi:plus', () => this.dispatchEvent(new CustomEvent('addScheduleClick')), blocked)}
-                          `
-                        : ''
-                    }
-                  `
-            }
-          </div>
-        </wiser-card-header>
-        <h3>${room.Name}</h3>
+        ${
+          this.editing
+            ? ''
+            : html`<wiser-card-header .config=${this.config}>
+                <h3 slot="heading">${room.Name}</h3>
+                <div class="tools">
+                  ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
+                  ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
+                  ${editable && viewed ? this.tool('wiser.actions.import', 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || !this.editorReady) : ''}
+                  ${
+                    editable && viewed
+                      ? html`
+                          ${this.tool('wiser.rooms.edit', 'mdi:pencil', () => this.editor?.editClick(), blocked || !this.editorReady)}
+                          ${this.tool('wiser.actions.copy', 'mdi:content-copy', () => this.scheduleAction(viewed, 'copy'), blocked || fixed)}
+                          ${this.tool(
+                            'wiser.rooms.delete',
+                            'mdi:delete-outline',
+                            () => {
+                              void this.editor?.deleteClick();
+                            },
+                            blocked || !this.editorReady || fixed,
+                          )}
+                        `
+                      : ''
+                  }
+                  ${
+                    editable && !fixed
+                      ? html`
+                          ${this.tool('wiser.actions.add_schedule', 'mdi:plus', () => this.dispatchEvent(new CustomEvent('addScheduleClick')), blocked)}
+                        `
+                      : ''
+                  }
+                </div>
+              </wiser-card-header>`
+        }
         <p class="secondary">
           ${this.localize('wiser.rooms.current')}:
           <strong>${current?.Name ?? this.localize('wiser.rooms.unassigned')}</strong>
