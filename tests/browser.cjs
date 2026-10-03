@@ -118,6 +118,15 @@ const assert = require('node:assert/strict');
     const redoButton = page.getByRole('button', { name: /^redo$/i });
     assert.equal(await undoButton.count(), 1, 'Undo remains visible in the edit toolbar');
     assert.equal(await redoButton.count(), 1, 'Redo remains visible in the edit toolbar');
+    const editToolbarBox = await page.getByRole('toolbar').boundingBox();
+    const undoBox = await undoButton.boundingBox();
+    const redoBox = await redoButton.boundingBox();
+    assert.ok(Math.abs(undoBox.y - redoBox.y) < 2, 'Undo and Redo share one row');
+    assert.ok(redoBox.x > undoBox.x && redoBox.x - (undoBox.x + undoBox.width) <= 8, 'Undo and Redo stay together');
+    assert.ok(
+      Math.abs(editToolbarBox.x + editToolbarBox.width - (redoBox.x + redoBox.width)) < 2,
+      'Undo and Redo stay at the right of the toolbar',
+    );
     assert.equal(await undoButton.isDisabled(), true);
     assert.equal(await redoButton.isDisabled(), true);
     await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
@@ -613,6 +622,10 @@ const assert = require('node:assert/strict');
     await page.locator('button.overview-device').first().click();
     await page.getByLabel('Choose a schedule').waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'toolbar fits mobile');
+    const mobileToolTops = await page
+      .locator('.tools button')
+      .evaluateAll((buttons) => buttons.map((button) => Math.round(button.getBoundingClientRect().top)));
+    assert.equal(new Set(mobileToolTops).size, 1, 'all mobile toolbar buttons stay on one row');
     await page.waitForSelector('wiser-schedule-slot-editor');
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-room-mobile.png`, fullPage: true });
@@ -1063,12 +1076,22 @@ const assert = require('node:assert/strict');
           document.querySelector('#mount').replaceChildren(editor);
         }, kind);
         const editor = page.locator('wiser-schedule-slot-editor');
+        const editorBox = await editor.boundingBox();
         const timelineBox = await editor.locator('.outer').first().boundingBox();
         const panelBox = await editor.locator('.selected-period').boundingBox();
         const addBox = await editor.locator('.add-period-row ha-button').boundingBox();
         const timelineCenter = timelineBox.x + timelineBox.width / 2;
-        assert.ok(Math.abs(panelBox.x + panelBox.width / 2 - timelineCenter) < 2);
-        assert.ok(Math.abs(addBox.x + addBox.width / 2 - timelineCenter) < 2);
+        const editorCenter = editorBox.x + editorBox.width / 2;
+        const controlsCenter = width <= 600 ? editorCenter : timelineCenter;
+        assert.ok(Math.abs(panelBox.x + panelBox.width / 2 - controlsCenter) < 2);
+        if (width <= 600) {
+          assert.ok(Math.abs(panelBox.x - editorBox.x) < 2, 'mobile period editor uses the full available width');
+          assert.ok(
+            Math.abs(panelBox.width - editorBox.width) < 2,
+            'mobile period editor uses the full available width',
+          );
+        }
+        assert.ok(Math.abs(addBox.x + addBox.width / 2 - controlsCenter) < 2);
         const rowBoxes = await editor.locator('.editor-control-row').evaluateAll((rows) =>
           rows.map((row) => {
             const box = row.getBoundingClientRect();
@@ -1077,9 +1100,34 @@ const assert = require('node:assert/strict');
         );
         assert.ok(rowBoxes.length >= 1);
         for (const box of rowBoxes) {
-          assert.ok(Math.abs(box.x + box.width / 2 - timelineCenter) < 2);
+          assert.ok(Math.abs(box.x + box.width / 2 - controlsCenter) < 2);
           assert.ok(Math.abs(box.x - rowBoxes[0].x) < 2);
           assert.ok(Math.abs(box.width - rowBoxes[0].width) < 2);
+        }
+        if (width <= 600 && ['Lighting', 'Shutters'].includes(kind)) {
+          const specialRow = editor.locator('.editor-control-row').first();
+          const timeHeadingBox = await specialRow.locator('.section-header').boundingBox();
+          const specialTimesBox = await specialRow.locator('.special-times').boundingBox();
+          assert.ok(timeHeadingBox.y + timeHeadingBox.height <= specialTimesBox.y + 1, 'Time sits above its selector');
+          const specialButtonTops = await specialRow
+            .locator('.special-times ha-button')
+            .evaluateAll((buttons) => buttons.map((button) => Math.round(button.getBoundingClientRect().top)));
+          assert.equal(new Set(specialButtonTops).size, 1, 'special-time choices stay on one row');
+          assert.equal(
+            await editor.locator('.level-control-row > .section-header').isVisible(),
+            false,
+            'mobile level editor hides its redundant label',
+          );
+        }
+        if (width <= 600 && kind === 'OnOff') {
+          const stateHeadingBox = await editor.locator('.editor-control-row > .section-header').boundingBox();
+          const stateControlsBox = await editor.locator('.state-controls').boundingBox();
+          assert.ok(
+            Math.abs(
+              stateHeadingBox.y + stateHeadingBox.height / 2 - stateControlsBox.y - stateControlsBox.height / 2,
+            ) < 2,
+            'State shares one compact row with the On/Off choices',
+          );
         }
         assert.equal(await editor.locator('.add-period-row ha-button').count(), 1);
         assert.equal(await editor.locator('.delete-period-row ha-button').count(), 1);
@@ -1095,12 +1143,17 @@ const assert = require('node:assert/strict');
         } else {
           const range = editor.getByRole('slider');
           await range.waitFor();
-          const heading = await editor.locator('.editor-control-row > .section-header').last().boundingBox();
           const rangeBox = await range.boundingBox();
-          assert.ok(
-            Math.abs(heading.y + heading.height / 2 - rangeBox.y - rangeBox.height / 2) < 2,
-            JSON.stringify({ width, kind, heading, rangeBox }),
-          );
+          const heading = editor.locator('.editor-control-row > .section-header').last();
+          if (width <= 600 && ['Heating', 'Lighting', 'Shutters'].includes(kind)) {
+            assert.equal(await heading.isVisible(), false, `mobile ${kind} editor hides its redundant label`);
+          } else {
+            const headingBox = await heading.boundingBox();
+            assert.ok(
+              Math.abs(headingBox.y + headingBox.height / 2 - rangeBox.y - rangeBox.height / 2) < 2,
+              JSON.stringify({ width, kind, headingBox, rangeBox }),
+            );
+          }
           if (['Lighting', 'Shutters'].includes(kind)) {
             assert.equal(
               await editor

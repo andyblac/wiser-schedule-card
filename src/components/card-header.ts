@@ -48,5 +48,11 @@ export class WiserCardHeader extends LitElement {
       min-width: 0;
       max-width: 100%;
     }
+    @media (max-width: 600px) {
+      .actions {
+        width: 100%;
+        margin-inline-start: 0;
+      }
+    }
   `;
 }

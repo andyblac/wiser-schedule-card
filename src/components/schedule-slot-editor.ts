@@ -470,7 +470,7 @@ export class ScheduleSlotEditor extends LitElement {
         `;
       } else if (this.schedule_type == 'OnOff') {
         return html`
-          <div class="editor-control-row">
+          <div class="editor-control-row state-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
               ${this.localize('wiser.labels.state')}
             </div>
@@ -1322,28 +1322,51 @@ export class ScheduleSlotEditor extends LitElement {
         border-radius: 10px;
       }
       @media (max-width: 600px) {
+        .schedule-editor-area,
+        .schedule-editor-area.short {
+          width: 100%;
+          margin-inline-start: 0;
+        }
         .selected-period {
           width: 100%;
           padding: 14px 12px;
         }
         .editor-control-row {
-          grid-template-columns: minmax(72px, 88px) minmax(0, 1fr);
-          gap: 8px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 4px;
+        }
+        .editor-control-row > .section-header {
+          justify-content: flex-start;
+          min-height: 28px;
+          text-align: start;
         }
         .special-times {
-          flex-wrap: wrap;
-          gap: 6px;
+          width: 100%;
+          flex-wrap: nowrap;
+          gap: 0;
         }
         .special-times ha-button,
         .special-times ha-button:first-child,
         .special-times ha-button:last-child {
-          flex: 1 1 100%;
+          flex: 1 1 0;
           border: 0;
-          border-radius: 0;
         }
         .special-times ha-button + ha-button {
-          border-top: 1px solid var(--divider-color);
-          border-left: 0;
+          border-top: 0;
+          border-left: 1px solid var(--divider-color);
+        }
+        .heating-control-row > .section-header,
+        .level-control-row > .section-header {
+          display: none;
+        }
+        .state-control-row {
+          grid-template-columns: minmax(72px, 88px) minmax(0, 1fr);
+          gap: 8px;
+        }
+        .state-control-row > .section-header {
+          justify-content: flex-end;
+          min-height: 44px;
+          text-align: end;
         }
       }
       .slot {

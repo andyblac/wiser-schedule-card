@@ -631,6 +631,23 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     .tool:not(:disabled):hover {
       color: var(--primary-color);
     }
+    @media (max-width: 600px) {
+      .tools {
+        width: 100%;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 2px;
+        margin-inline-start: 0;
+      }
+      .tool {
+        flex: 1 1 0;
+        width: auto;
+        min-width: 0;
+        max-width: 44px;
+        min-height: 40px;
+        padding: 0;
+      }
+    }
 
     h3 {
       margin: 16px 0 8px;

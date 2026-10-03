@@ -750,6 +750,27 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       .tool:not(:disabled):hover {
         color: var(--primary-color);
       }
+      .tools > .tool:nth-last-child(2) {
+        margin-inline-start: auto;
+      }
+      @media (max-width: 600px) {
+        .tools {
+          width: 100%;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          gap: 2px;
+          margin-inline-start: 0;
+        }
+        .tool {
+          flex: 1 1 0;
+          width: auto;
+          min-width: 0;
+          max-width: 44px;
+          height: 40px;
+          min-height: 40px;
+          padding: 0;
+        }
+      }
 
       .device-assignment {
         max-width: 420px;
