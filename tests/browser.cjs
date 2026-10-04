@@ -130,6 +130,7 @@ const readStoredZip = (buffer) => {
       'unused schedule list is not bundled',
     );
     const roomToolbar = page.locator('wiser-room-schedules .tools[role="toolbar"]');
+    await roomToolbar.scrollIntoViewIfNeeded();
     const roomToolbarBeforeEdit = await roomToolbar.boundingBox();
     const undoButton = page.getByRole('button', { name: /^undo$/i });
     const redoButton = page.getByRole('button', { name: /^redo$/i });
@@ -158,7 +159,17 @@ const readStoredZip = (buffer) => {
     assert.equal(await page.getByRole('button', { name: 'Delete period', exact: true }).count(), 1);
     assert.equal(await addPeriodButton.isDisabled(), true, 'toolbar Add waits for a selected period');
     assert.equal(await deletePeriodButton.isDisabled(), true, 'toolbar Trash waits for a selected period');
+    const selectedPeriodPanel = page.locator('wiser-schedule-slot-editor .selected-period');
+    await selectedPeriodPanel.waitFor();
+    assert.equal(await selectedPeriodPanel.getAttribute('aria-disabled'), 'true');
+    const editorHeightWithoutSelection = (await page.locator('wiser-schedule-slot-editor').boundingBox()).height;
     await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
+    assert.equal(await selectedPeriodPanel.getAttribute('aria-disabled'), 'false');
+    const editorHeightWithSelection = (await page.locator('wiser-schedule-slot-editor').boundingBox()).height;
+    assert.ok(
+      Math.abs(editorHeightWithSelection - editorHeightWithoutSelection) < 2,
+      'selecting a period does not change the editor height',
+    );
     assert.equal(await addPeriodButton.isEnabled(), true, 'toolbar Add controls periods while editing');
     assert.equal(await deletePeriodButton.isEnabled(), true, 'toolbar Trash controls periods while editing');
     const initialPeriodCount = await page
@@ -377,11 +388,6 @@ const readStoredZip = (buffer) => {
     await page.getByLabel('Choose a schedule').waitFor();
     await button('back').click();
     await roomsReady();
-    assert.equal(
-      await page.locator('wiser-schedule-card').evaluate((el) => el.style.getPropertyValue('--wiser-view-min-height')),
-      '',
-      'view changes do not retain the outgoing screen height',
-    );
     assert.match(await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).textContent(), /Bedrooms/);
     if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-desktop.png` });
     await page.locator('button.overview-device').filter({ hasText: 'Lounge' }).click();
@@ -637,24 +643,53 @@ const readStoredZip = (buffer) => {
         mount.append(card);
       }, nested);
       await roomsReady();
-      const beforeHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
-      await page.evaluate(() => {
+      const bottomScroll = await page.evaluate(() => {
         fixture.delay = 250;
-        testScroller.scrollTop = 650;
+        testScroller.scrollTop = testScroller.scrollHeight;
+        return testScroller.scrollTop;
       });
-      await page.locator('button.overview-device').first().click();
+      await page
+        .locator('button.overview-device')
+        .first()
+        .evaluate((button) => button.click());
       await page.waitForTimeout(100);
-      const loadingHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
-      assert.ok(loadingHeight < beforeHeight, 'loading view releases the previous screen height');
       assert.equal(
+        await page.locator('wiser-room-schedules wiser-card-header').count(),
+        1,
+        'room navigation keeps the card visible while its timeline loads',
+      );
+      assert.notEqual(
         await page
           .locator('wiser-schedule-card')
-          .evaluate((el) => el.style.getPropertyValue('--wiser-view-min-height')),
+          .evaluate((el) => el.style.getPropertyValue('--wiser-navigation-min-height')),
         '',
+        'navigation preserves the outgoing card height',
+      );
+      assert.equal(
+        await page.evaluate(() => testScroller.scrollTop),
+        bottomScroll,
+        'loading does not move the dashboard',
       );
       await page.getByLabel('Choose a schedule').waitFor();
+      assert.equal(
+        await page.evaluate(() => testScroller.scrollTop),
+        bottomScroll,
+        'loaded view does not move the dashboard',
+      );
+      const detailHeight = (await page.locator('wiser-schedule-card').boundingBox()).height;
+      await button('back').evaluate((backButton) => backButton.click());
+      await roomsReady();
+      assert.ok(
+        (await page.locator('wiser-schedule-card').boundingBox()).height >= detailHeight,
+        'returning to the main card retains the expanded navigation height',
+      );
+      assert.equal(
+        await page.evaluate(() => testScroller.scrollTop),
+        bottomScroll,
+        'returning to the main card does not move the dashboard',
+      );
     }
-    console.log('PASS document and shadow dashboards use content-based view heights');
+    console.log('PASS document and shadow dashboards preserve card height and scroll through navigation');
 
     await fresh();
     await page.setViewportSize({ width: 360, height: 800 });
@@ -855,6 +890,17 @@ const readStoredZip = (buffer) => {
     const editingTimelineBox = await page.locator('wiser-schedule-slot-editor').boundingBox();
     assert.ok(Math.abs(editingAssignmentBox.y - directAssignmentBox.y) < 2, 'assignment section keeps its position');
     assert.ok(Math.abs(editingTimelineBox.y - directTimelineBox.y) < 2, 'timeline does not jump when editing starts');
+    const directSelectedPeriod = page.locator('wiser-schedule-slot-editor .selected-period');
+    await directSelectedPeriod.waitFor();
+    assert.equal(await directSelectedPeriod.getAttribute('aria-disabled'), 'true');
+    const directHeightWithoutSelection = (await page.locator('wiser-schedule-slot-editor').boundingBox()).height;
+    await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
+    assert.equal(await directSelectedPeriod.getAttribute('aria-disabled'), 'false');
+    const directHeightWithSelection = (await page.locator('wiser-schedule-slot-editor').boundingBox()).height;
+    assert.ok(
+      Math.abs(directHeightWithSelection - directHeightWithoutSelection) < 2,
+      'standalone period selection does not change the editor height',
+    );
     await page.getByRole('toolbar').getByRole('button', { name: 'back', exact: true }).click();
     await button('back').click();
     await page.waitForSelector('button.schedule-tile');

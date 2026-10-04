@@ -93,16 +93,37 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
-    if (
-      changed.has('config') ||
-      changed.has('room_id') ||
-      changed.has('target_type') ||
-      (changed.has('hass') && !changed.get('hass'))
-    ) {
+    if (changed.has('config') || (changed.has('hass') && !changed.get('hass'))) {
       this.loaded = false;
       this.selected = '';
       this.saved = false;
       void this.loadData();
+    } else if (changed.has('room_id') || changed.has('target_type')) {
+      this.selected = '';
+      this.saved = false;
+      this.selectTargetSchedule();
+    }
+  }
+
+  private selectTargetSchedule(): void {
+    const room = this.target;
+    if (!room) return;
+    const choices = this.compatible(this.target_type);
+    if (
+      this.created_schedule &&
+      choices.some(
+        (schedule) => schedule.Id === this.created_schedule!.Id && schedule.Type === this.created_schedule!.Type,
+      )
+    ) {
+      this.selected = String(this.created_schedule.Id);
+      this.openCreatedEditor = true;
+      this.dispatchEvent(new CustomEvent('createdScheduleOpened'));
+    } else if (this.selected === 'none') {
+      // Keep an explicit unassignment selection through refreshes.
+    } else if (choices.length <= 1) {
+      this.selected = String(choices[0]?.Id ?? '');
+    } else if (!choices.some((schedule) => String(schedule.Id) === this.selected)) {
+      this.selected = String(this.currentSchedule(room)?.Id ?? 'none');
     }
   }
 
@@ -163,24 +184,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       if (details.some((schedule) => schedule.Id === 1000))
         this.devices.unshift({ Id: 1000, Name: this.localize('wiser.home.hotwater'), kind: 'hotwater' });
       this.loaded = true;
-      const room = this.target;
-      if (room) {
-        const choices = this.compatible(this.target_type);
-        if (
-          this.created_schedule &&
-          choices.some(
-            (schedule) => schedule.Id === this.created_schedule!.Id && schedule.Type === this.created_schedule!.Type,
-          )
-        ) {
-          this.selected = String(this.created_schedule.Id);
-          this.openCreatedEditor = true;
-          this.dispatchEvent(new CustomEvent('createdScheduleOpened'));
-        } else if (this.selected === 'none') {
-          // Keep an explicit unassignment selection through refreshes.
-        } else if (choices.length <= 1) this.selected = String(choices[0]?.Id ?? '');
-        else if (!choices.some((schedule) => String(schedule.Id) === this.selected))
-          this.selected = String(this.currentSchedule(room)?.Id ?? 'none');
-      }
+      this.selectTargetSchedule();
     } catch (error: unknown) {
       if (request === this.requestId) this.error = (error as Error)?.message || this.localize('common.load_failed');
     } finally {

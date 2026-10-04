@@ -151,7 +151,7 @@ export class ScheduleSlotEditor extends LitElement {
               this.editMode
                 ? html`
                     <div class="schedule-editor-area ${this._show_short_days ? 'short' : ''}">
-                      ${this._activeSlot >= 0 ? this.renderSelectedPeriod() : null}
+                      ${this.renderSelectedPeriod()}
                     </div>
                   `
                 : null
@@ -367,12 +367,17 @@ export class ScheduleSlotEditor extends LitElement {
   }
 
   renderSelectedPeriod(): TemplateResult {
+    const selected = this._activeSlot >= 0;
     return html`
-      <section class="selected-period" aria-label=${this.localize('wiser.labels.selected_period')}>
+      <section
+        class="selected-period ${selected ? '' : 'disabled'}"
+        aria-label=${this.localize('wiser.labels.selected_period')}
+        aria-disabled=${!selected}
+      >
         <div class="selected-period-header">
           <div>
             <h3>${this.localize('wiser.labels.selected_period')}</h3>
-            <span>${this.activePeriodLabel()}</span>
+            <span>${this.activePeriodLabel() || '\u00a0'}</span>
           </div>
         </div>
         <div class="selected-period-controls">
@@ -1166,6 +1171,9 @@ export class ScheduleSlotEditor extends LitElement {
         border-radius: 14px;
         background: var(--ha-card-background, var(--card-background-color));
         box-shadow: var(--ha-card-box-shadow, none);
+      }
+      .selected-period.disabled {
+        opacity: 0.45;
       }
       .selected-period-header {
         display: flex;

@@ -96,12 +96,23 @@ export class WiserScheduleCard extends LitElement {
 
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('config')) {
+      this.style.removeProperty('--wiser-navigation-min-height');
       this._returnView = EViews.Overview;
       this._homeView = this.config?.home_screen || 'schedules';
       this.processConfigSchedule();
+    } else if (changedProps.has('_view') || changedProps.has('_homeView')) {
+      this._preserveNavigationHeight();
     }
     this.component_loaded = this._hass?.config.components.includes('wiser') ?? false;
   }
+
+  private _preserveNavigationHeight = (): void => {
+    const height = Math.ceil(this.getBoundingClientRect().height);
+    const preservedHeight = Number.parseFloat(this.style.getPropertyValue('--wiser-navigation-min-height')) || 0;
+    if (height > preservedHeight) {
+      this.style.setProperty('--wiser-navigation-min-height', `${height}px`);
+    }
+  };
 
   static styles = css`
     :host {
@@ -110,6 +121,7 @@ export class WiserScheduleCard extends LitElement {
       --mdc-typography-subtitle1-font-size: calc(16px + 1pt);
       --ha-font-size-m: calc(14px + 1pt);
       display: block;
+      min-height: var(--wiser-navigation-min-height, 0px);
       color: var(--primary-text-color);
     }
     ha-card {
