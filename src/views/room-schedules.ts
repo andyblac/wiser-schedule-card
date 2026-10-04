@@ -70,6 +70,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   @state() private editorCanRedo = false;
   @state() private editorCanAddPeriod = false;
   @state() private editorCanDeletePeriod = false;
+  @state() private editorName = '';
   private requestId = 0;
 
   public hassSubscribe() {
@@ -289,7 +290,25 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           }}
         />
         <wiser-card-header .config=${this.config}>
-          <h3 slot="heading">${room.Name}</h3>
+          ${
+            this.editing
+              ? html`<input
+                  slot="heading"
+                  class="editable-title"
+                  type="text"
+                  required
+                  aria-label=${this.localize('wiser.headings.schedule_name')}
+                  .value=${this.editorName}
+                  ?disabled=${this.editorSaving}
+                  @focus=${() => this.editor?.beginNameEdit()}
+                  @input=${(event: Event) => {
+                    this.editorName = (event.target as HTMLInputElement).value;
+                    this.editor?.updateName(this.editorName);
+                  }}
+                  @change=${() => this.editor?.commitNameEdit()}
+                />`
+              : html`<h3 slot="heading">${room.Name}</h3>`
+          }
           <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
             ${this.tool(
               'wiser.rooms.back',
@@ -406,6 +425,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                     this.editorCanRedo = event.detail.canRedo;
                     this.editorCanAddPeriod = event.detail.canAddPeriod;
                     this.editorCanDeletePeriod = event.detail.canDeletePeriod;
+                    this.editorName = event.detail.name;
                     if (this.openCreatedEditor && event.detail.ready && !event.detail.editing) {
                       this.openCreatedEditor = false;
                       this.editor?.editClick();
@@ -689,6 +709,34 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     }
     h3[slot='heading'] {
       margin: 0;
+    }
+    input.editable-title {
+      display: block;
+      width: 420px;
+      max-width: 100%;
+      height: 28px;
+      min-height: 28px;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      color: var(--primary-text-color);
+      font-size: calc(22px + 1pt);
+      font-weight: 700;
+      line-height: normal;
+      border: 0;
+      border-bottom: 1px solid var(--divider-color);
+      border-radius: 0;
+      background: transparent;
+    }
+    @media (min-width: 601px) and (max-width: 900px) {
+      input.editable-title {
+        width: 80px;
+      }
+    }
+    @media (max-width: 600px) {
+      input.editable-title {
+        width: 100%;
+      }
     }
     .section-heading {
       font-size: calc(15px + 1pt);

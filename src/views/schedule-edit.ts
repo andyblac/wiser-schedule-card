@@ -245,6 +245,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
             canRedo: this.editMode && !this._save_in_progress && this._redoHistory.length > 0,
             canAddPeriod: this.editMode && !this._save_in_progress && this._canAddPeriod,
             canDeletePeriod: this.editMode && !this._save_in_progress && this._canDeletePeriod,
+            name: this.editMode ? this._tempSchedule?.Name || '' : this.schedule?.Name || '',
           },
         }),
       );
@@ -434,7 +435,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       ?disabled=${this._save_in_progress}
       @focus=${() => this.beginNameEdit()}
       @input=${(event: Event) => {
-        this._tempSchedule = { ...this._tempSchedule!, Name: (event.target as HTMLInputElement).value };
+        this.updateName((event.target as HTMLInputElement).value);
       }}
       @change=${() => this.commitNameEdit()}
     />`;
@@ -661,11 +662,15 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     this._tempSchedule = next;
   }
 
-  private beginNameEdit(): void {
+  beginNameEdit(): void {
     if (this._tempSchedule && !this._nameEditSnapshot) this._nameEditSnapshot = this.cloneSchedule(this._tempSchedule);
   }
 
-  private commitNameEdit(): void {
+  updateName(name: string): void {
+    if (this._tempSchedule) this._tempSchedule = { ...this._tempSchedule, Name: name };
+  }
+
+  commitNameEdit(): void {
     if (!this._nameEditSnapshot || !this._tempSchedule) return;
     const before = this._nameEditSnapshot;
     this._nameEditSnapshot = undefined;
@@ -1053,14 +1058,28 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         display: block;
         width: 420px;
         max-width: 100%;
+        height: 28px;
+        min-height: 28px;
+        box-sizing: border-box;
         margin: 0;
-        padding: 4px 0;
+        padding: 0;
         font-size: calc(22px + 1pt);
         font-weight: 700;
+        line-height: normal;
         border: 0;
         border-bottom: 1px solid var(--divider-color);
         border-radius: 0;
         background: transparent;
+      }
+      @media (min-width: 601px) and (max-width: 900px) {
+        input.editable-title {
+          width: 80px;
+        }
+      }
+      @media (max-width: 600px) {
+        input.editable-title {
+          width: 100%;
+        }
       }
       .save-actions {
         gap: 8px;

@@ -1221,7 +1221,6 @@ const readStoredZip = (buffer) => {
         const editorBox = await editor.boundingBox();
         const timelineBox = await editor.locator('.outer').first().boundingBox();
         const panelBox = await editor.locator('.selected-period').boundingBox();
-        const addBox = await editor.locator('.add-period-row ha-button').boundingBox();
         const timelineCenter = timelineBox.x + timelineBox.width / 2;
         const editorCenter = editorBox.x + editorBox.width / 2;
         const controlsCenter = width <= 600 ? editorCenter : timelineCenter;
@@ -1233,7 +1232,6 @@ const readStoredZip = (buffer) => {
             'mobile period editor uses the full available width',
           );
         }
-        assert.ok(Math.abs(addBox.x + addBox.width / 2 - controlsCenter) < 2);
         const rowBoxes = await editor.locator('.editor-control-row').evaluateAll((rows) =>
           rows.map((row) => {
             const box = row.getBoundingClientRect();
@@ -1271,8 +1269,7 @@ const readStoredZip = (buffer) => {
             'State shares one compact row with the On/Off choices',
           );
         }
-        assert.equal(await editor.locator('.add-period-row ha-button').count(), 1);
-        assert.equal(await editor.locator('.delete-period-row ha-button').count(), 1);
+        assert.equal(await editor.locator('.add-period-row, .delete-period-row').count(), 0);
         assert.equal(await editor.locator('.selected-period').count(), 1);
         assert.equal(await editor.locator('ha-button#Tuesday').count(), 1);
         assert.equal(await editor.locator('ha-button#Monday').count(), 0);
@@ -1377,7 +1374,7 @@ const readStoredZip = (buffer) => {
             el._activeSlot = 0;
           });
           assert.equal(await editor.locator('.special-time-marker').count(), 0);
-          await editor.locator('.add-period-row ha-button').click();
+          await editor.evaluate((el) => el.addPeriod());
           await editor.evaluate((el) => {
             el._activeSlot = -99;
             el._activeDay = '';
