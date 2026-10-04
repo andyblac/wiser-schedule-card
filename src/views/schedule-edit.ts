@@ -73,6 +73,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   @state() private _saveError = '';
   @state() private _undoHistory: Schedule[] = [];
   @state() private _redoHistory: Schedule[] = [];
+  @state() private _canAddPeriod = false;
+  @state() private _canDeletePeriod = false;
   private _historySnapshot?: Schedule;
   private _nameEditSnapshot?: Schedule;
   stepSize = 5;
@@ -219,6 +221,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       changedProps.has('_tempSchedule') ||
       changedProps.has('_undoHistory') ||
       changedProps.has('_redoHistory') ||
+      changedProps.has('_canAddPeriod') ||
+      changedProps.has('_canDeletePeriod') ||
       changedProps.has('assignmentSelection') ||
       changedProps.has('assigningDevices') ||
       (changedProps.has('error') && isDefined(this.error))
@@ -237,6 +241,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
             editing: this.editMode,
             saving: this._save_in_progress,
             ready: Boolean(this.schedule && this.schedule.Id === this.schedule_id && this.suntimes && !this.error),
+            canUndo: this.editMode && !this._save_in_progress && this._undoHistory.length > 0,
+            canRedo: this.editMode && !this._save_in_progress && this._redoHistory.length > 0,
+            canAddPeriod: this.editMode && !this._save_in_progress && this._canAddPeriod,
+            canDeletePeriod: this.editMode && !this._save_in_progress && this._canDeletePeriod,
           },
         }),
       );
@@ -251,7 +259,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     if (this.schedule && this.entities && this.suntimes) {
       return html`
         <div>
-          ${this.embedded && !this.editMode ? '' : this.renderToolbar()}
+          ${this.embedded ? '' : this.renderToolbar()}
           ${this.embedded || this.schedule.Id === 1000 ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
           ${this.editMode && this._saveError ? html`<p role="alert">${this._saveError}</p>` : ''}
           <div class="wrapper">
@@ -265,6 +273,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                   .suntimes=${this.suntimes}
                   .editMode=${this.editMode}
                   @scheduleChanged=${this.scheduleChanged}
+                  @period-state=${(event: CustomEvent<{ canAdd: boolean; canDelete: boolean }>) => {
+                    this._canAddPeriod = event.detail.canAdd;
+                    this._canDeletePeriod = event.detail.canDelete;
+                  }}
                 ></wiser-schedule-slot-editor>
               </div>
             </div>
@@ -311,7 +323,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   renderScheduleAssignment(entities: Entities[], _assignments: unknown): TemplateResult | void {
-    if (!this.schedule || this.editMode || this.schedule.Id === 1000) return;
+    if (!this.schedule || this.schedule.Id === 1000) return;
     if (!allow_edit(this.hass!, this.config))
       return html`<p>
         ${
@@ -321,17 +333,17 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
             .join(', ') || this.localize('wiser.headings.not_assigned')
         }
       </p>`;
-    return html`<div class="device-assignment">
+    return html`<div class="device-assignment ${this.editMode ? 'disabled' : ''}" aria-disabled=${this.editMode}>
       <ha-selector
         .hass=${this.hass}
         .label=${this.localize('wiser.home.assign_devices')}
         .selector=${{ select: { multiple: true, mode: 'dropdown', options: entities.map((entity) => ({ value: String(entity.Id), label: entity.Name })) } }}
         .value=${this.assignmentSelection}
         .required=${false}
-        .disabled=${this.assigningDevices || !entities.length}
+        .disabled=${this.assigningDevices || this.editMode || !entities.length}
         @value-changed=${(event: CustomEvent) => {
           event.stopPropagation();
-          if (this.assigningDevices) return;
+          if (this.assigningDevices || this.editMode) return;
           const selected = event.detail.value ?? [];
           if (
             Array.isArray(selected) &&
@@ -452,23 +464,17 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         }
         <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
           ${
-            this.editMode
-              ? ''
-              : html`
-                  ${!this.config.selected_schedule ? this.tool(this.hass!.localize('ui.common.back'), 'mdi:arrow-left', () => this.backClick(), blocked) : ''}
-                  ${editable ? this.tool(this.localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked) : ''}
-                  ${
-                    editable
-                      ? html`
-                          ${this.tool(this.localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked)}
-                          ${this.tool(this.hass!.localize('ui.common.edit'), 'mdi:pencil', () => this.editClick(), blocked)}
-                          ${this.tool(this.localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || fixed)}
-                          ${this.tool(this.hass!.localize('ui.common.delete'), 'mdi:delete-outline', () => this.deleteClick(), blocked || fixed)}
-                        `
-                      : ''
-                  }
-                `
+            !this.config.selected_schedule
+              ? this.tool(
+                  this.hass!.localize('ui.common.back'),
+                  'mdi:arrow-left',
+                  () => (this.editMode ? this.cancelClick() : this.backClick()),
+                  blocked,
+                )
+              : ''
           }
+          ${editable ? this.tool(this.localize('wiser.actions.export'), 'mdi:download', () => this.exportSchedule(), blocked || this.editMode) : ''}
+          ${editable ? this.tool(this.localize('wiser.actions.import'), 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || this.editMode) : ''}
           ${this.tool(
             this.hass!.localize('ui.common.undo'),
             'mdi:undo',
@@ -481,6 +487,30 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
             () => this.redoClick(),
             !this.editMode || this._save_in_progress || !this._redoHistory.length,
           )}
+          ${
+            editable
+              ? html`
+                  ${this.tool(this.hass!.localize('ui.common.edit'), 'mdi:pencil', () => this.editClick(), blocked || this.editMode)}
+                  ${this.tool(this.localize('wiser.actions.copy'), 'mdi:content-copy', () => this.copyClick(), blocked || this.editMode || fixed)}
+                  ${
+                    this.editMode
+                      ? this.tool(
+                          this.localize('wiser.actions.delete_period'),
+                          'mdi:delete-outline',
+                          () => this.deletePeriod(),
+                          blocked || !this._canDeletePeriod,
+                        )
+                      : this.tool(
+                          this.hass!.localize('ui.common.delete'),
+                          'mdi:delete-outline',
+                          () => this.deleteClick(),
+                          blocked || fixed,
+                        )
+                  }
+                  ${this.tool(this.localize('wiser.actions.add_period'), 'mdi:plus', () => this.addPeriod(), blocked || !this.editMode || !this._canAddPeriod)}
+                `
+              : ''
+          }
         </div>
       </wiser-card-header>`;
   }
@@ -588,6 +618,18 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     this.editMode = false;
     this._saveError = '';
     this.resetHistory();
+  }
+
+  addPeriod(): void {
+    this.renderRoot
+      .querySelector<HTMLElement & { addPeriod?: () => void }>('wiser-schedule-slot-editor')
+      ?.addPeriod?.();
+  }
+
+  deletePeriod(): void {
+    this.renderRoot
+      .querySelector<HTMLElement & { deletePeriod?: () => void }>('wiser-schedule-slot-editor')
+      ?.deletePeriod?.();
   }
 
   private cloneSchedule(schedule: Schedule): Schedule {
@@ -739,9 +781,6 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       .tool:not(:disabled):hover {
         color: var(--primary-color);
       }
-      .tools > .tool:nth-last-child(2) {
-        margin-inline-start: auto;
-      }
       @media (max-width: 600px) {
         .tools {
           width: 100%;
@@ -766,6 +805,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         margin: 20px 0;
         display: grid;
         gap: 8px;
+      }
+      .device-assignment.disabled {
+        opacity: 0.45;
+        pointer-events: none;
       }
       .device-assignment button {
         justify-self: start;

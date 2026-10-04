@@ -45,6 +45,8 @@ const nativeKeys: Record<string, string> = {
   'wiser.actions.rename': 'ui.common.rename',
   'wiser.actions.copy': 'ui.common.copy',
   'wiser.actions.add': 'ui.common.add',
+  'wiser.actions.undo': 'ui.common.undo',
+  'wiser.actions.redo': 'ui.common.redo',
   'wiser.panel.cancel': 'ui.common.cancel',
   'wiser.panel.save': 'ui.common.save',
   'wiser.panel.retry': 'ui.common.retry',

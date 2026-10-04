@@ -129,28 +129,57 @@ const readStoredZip = (buffer) => {
       true,
       'unused schedule list is not bundled',
     );
+    const roomToolbar = page.locator('wiser-room-schedules .tools[role="toolbar"]');
+    const roomToolbarBeforeEdit = await roomToolbar.boundingBox();
+    const undoButton = page.getByRole('button', { name: /^undo$/i });
+    const redoButton = page.getByRole('button', { name: /^redo$/i });
+    assert.equal(await undoButton.count(), 1, 'Undo is always present in the room toolbar');
+    assert.equal(await redoButton.count(), 1, 'Redo is always present in the room toolbar');
+    assert.equal(await undoButton.isDisabled(), true);
+    assert.equal(await redoButton.isDisabled(), true);
     await button('edit').click();
     assert.equal(await page.getByLabel('Choose a schedule').isDisabled(), true);
     assert.equal(await page.locator('wiser-room-schedules wiser-card-header').count(), 1);
-    const undoButton = page.getByRole('button', { name: /^undo$/i });
-    const redoButton = page.getByRole('button', { name: /^redo$/i });
-    assert.equal(await undoButton.count(), 1, 'Undo remains visible in the edit toolbar');
-    assert.equal(await redoButton.count(), 1, 'Redo remains visible in the edit toolbar');
-    const editToolbarBox = await page.getByRole('toolbar').boundingBox();
+    const editToolbarBox = await roomToolbar.boundingBox();
+    assert.ok(Math.abs(editToolbarBox.x - roomToolbarBeforeEdit.x) < 2, 'toolbar keeps its horizontal position');
+    assert.ok(Math.abs(editToolbarBox.y - roomToolbarBeforeEdit.y) < 2, 'toolbar keeps its vertical position');
+    assert.ok(Math.abs(editToolbarBox.width - roomToolbarBeforeEdit.width) < 2, 'toolbar keeps its width');
     const undoBox = await undoButton.boundingBox();
     const redoBox = await redoButton.boundingBox();
     assert.ok(Math.abs(undoBox.y - redoBox.y) < 2, 'Undo and Redo share one row');
     assert.ok(redoBox.x > undoBox.x && redoBox.x - (undoBox.x + undoBox.width) <= 8, 'Undo and Redo stay together');
-    assert.ok(
-      Math.abs(editToolbarBox.x + editToolbarBox.width - (redoBox.x + redoBox.width)) < 2,
-      'Undo and Redo stay at the right of the toolbar',
-    );
+    const editBox = await button('edit').boundingBox();
+    assert.ok(editBox.x > redoBox.x, 'Undo and Redo remain immediately before Edit');
     assert.equal(await undoButton.isDisabled(), true);
     assert.equal(await redoButton.isDisabled(), true);
+    const addPeriodButton = roomToolbar.getByRole('button', { name: 'Add period', exact: true });
+    const deletePeriodButton = roomToolbar.getByRole('button', { name: 'Delete period', exact: true });
+    assert.equal(await page.getByRole('button', { name: 'Add period', exact: true }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'Delete period', exact: true }).count(), 1);
+    assert.equal(await addPeriodButton.isDisabled(), true, 'toolbar Add waits for a selected period');
+    assert.equal(await deletePeriodButton.isDisabled(), true, 'toolbar Trash waits for a selected period');
     await page.locator('wiser-schedule-slot-editor [slot="0"] .slotoverlay span').first().click();
+    assert.equal(await addPeriodButton.isEnabled(), true, 'toolbar Add controls periods while editing');
+    assert.equal(await deletePeriodButton.isEnabled(), true, 'toolbar Trash controls periods while editing');
+    const initialPeriodCount = await page
+      .locator('wiser-schedule-slot-editor')
+      .evaluate((el) => el.schedule.ScheduleData[0].slots.length);
+    await addPeriodButton.click();
+    assert.equal(
+      await page.locator('wiser-schedule-slot-editor').evaluate((el) => el.schedule.ScheduleData[0].slots.length),
+      initialPeriodCount + 1,
+      'toolbar Add inserts a period',
+    );
+    await deletePeriodButton.click();
+    assert.equal(
+      await page.locator('wiser-schedule-slot-editor').evaluate((el) => el.schedule.ScheduleData[0].slots.length),
+      initialPeriodCount,
+      'toolbar Trash deletes the selected period',
+    );
     await page.getByRole('slider', { name: 'Temperature' }).fill('21');
     assert.equal(await undoButton.isEnabled(), true);
-    await button('cancel').click();
+    await roomToolbar.getByRole('button', { name: 'back', exact: true }).click();
+    assert.equal(await page.getByLabel('Choose a schedule').isEnabled(), true, 'toolbar Back cancels editing');
     assert.deepEqual(
       await page.locator('wiser-schedule-edit-card').evaluate((el) => [el._undoHistory.length, el._redoHistory.length]),
       [0, 0],
@@ -771,6 +800,12 @@ const readStoredZip = (buffer) => {
     await page.getByLabel('Assigned rooms / devices').waitFor();
     assert.equal(await page.locator('wiser-schedule-edit-card .actions-wrapper').count(), 0);
     assert.equal(await page.getByRole('toolbar').getByRole('button', { name: 'edit', exact: true }).count(), 1);
+    const toolbarLabels = await page
+      .getByRole('toolbar')
+      .getByRole('button')
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')?.toLowerCase()));
+    assert.ok(toolbarLabels.indexOf('undo') < toolbarLabels.indexOf('edit'));
+    assert.equal(toolbarLabels.indexOf('redo'), toolbarLabels.indexOf('undo') + 1);
     const headerBox = await page.locator('wiser-card-header').boundingBox();
     const titleBox = await page.getByRole('heading', { name: 'Living room', exact: true }).boundingBox();
     const toolbarBox = await page.getByRole('toolbar').boundingBox();
@@ -789,8 +824,38 @@ const readStoredZip = (buffer) => {
       () => fixture.assignments[11] === 1 && fixture.assignments[13] === 1 && fixture.assignments[12] === undefined,
     );
     await button('save').isDisabled();
+    const directAssignmentBox = await page.locator('.device-assignment').boundingBox();
+    const directTimelineBox = await page.locator('wiser-schedule-slot-editor').boundingBox();
     await button('edit').click();
-    await button('cancel').click();
+    const directEditToolbarBox = await page.getByRole('toolbar').boundingBox();
+    assert.ok(Math.abs(directEditToolbarBox.x - toolbarBox.x) < 2, 'standalone toolbar keeps its horizontal position');
+    assert.ok(Math.abs(directEditToolbarBox.y - toolbarBox.y) < 2, 'standalone toolbar keeps its vertical position');
+    assert.ok(Math.abs(directEditToolbarBox.width - toolbarBox.width) < 2, 'standalone toolbar keeps its width');
+    assert.equal(
+      await page.getByRole('toolbar').getByRole('button', { name: 'Add period', exact: true }).count(),
+      1,
+      'standalone editor uses toolbar Add period',
+    );
+    assert.equal(
+      await page.getByRole('button', { name: 'Delete period', exact: true }).count(),
+      1,
+      'standalone editor uses only the toolbar Delete period action',
+    );
+    assert.equal(
+      await page.locator('.device-assignment').count(),
+      1,
+      'assignment controls remain visible while editing',
+    );
+    assert.equal(
+      await page.getByLabel('Assigned rooms / devices').isDisabled(),
+      true,
+      'assignment controls are dimmed and disabled while editing',
+    );
+    const editingAssignmentBox = await page.locator('.device-assignment').boundingBox();
+    const editingTimelineBox = await page.locator('wiser-schedule-slot-editor').boundingBox();
+    assert.ok(Math.abs(editingAssignmentBox.y - directAssignmentBox.y) < 2, 'assignment section keeps its position');
+    assert.ok(Math.abs(editingTimelineBox.y - directTimelineBox.y) < 2, 'timeline does not jump when editing starts');
+    await page.getByRole('toolbar').getByRole('button', { name: 'back', exact: true }).click();
     await button('back').click();
     await page.waitForSelector('button.schedule-tile');
     await page.evaluate(() => {

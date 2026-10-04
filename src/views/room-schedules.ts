@@ -66,6 +66,10 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   @state() private editing = false;
   @state() private editorSaving = false;
   @state() private editorReady = false;
+  @state() private editorCanUndo = false;
+  @state() private editorCanRedo = false;
+  @state() private editorCanAddPeriod = false;
+  @state() private editorCanDeletePeriod = false;
   private requestId = 0;
 
   public hassSubscribe() {
@@ -284,41 +288,67 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
             if (file) void this.editor?.importSchedule(file);
           }}
         />
-        ${
-          this.editing
-            ? ''
-            : html`<wiser-card-header .config=${this.config}>
-                <h3 slot="heading">${room.Name}</h3>
-                <div class="tools">
-                  ${this.tool('wiser.rooms.back', 'mdi:arrow-left', () => this.dispatchEvent(new CustomEvent('roomsBack')), blocked)}
-                  ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
-                  ${editable && viewed ? this.tool('wiser.actions.import', 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || !this.editorReady) : ''}
-                  ${
-                    editable && viewed
-                      ? html`
-                          ${this.tool('wiser.rooms.edit', 'mdi:pencil', () => this.editor?.editClick(), blocked || !this.editorReady)}
-                          ${this.tool('wiser.actions.copy', 'mdi:content-copy', () => this.scheduleAction(viewed, 'copy'), blocked || fixed)}
-                          ${this.tool(
+        <wiser-card-header .config=${this.config}>
+          <h3 slot="heading">${room.Name}</h3>
+          <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
+            ${this.tool(
+              'wiser.rooms.back',
+              'mdi:arrow-left',
+              () => (this.editing ? this.editor?.cancelClick() : this.dispatchEvent(new CustomEvent('roomsBack'))),
+              this.saving || this.editorSaving,
+            )}
+            ${editable && viewed ? this.tool('wiser.actions.export', 'mdi:download', () => this.editor?.exportSchedule(), blocked || !this.editorReady) : ''}
+            ${editable && viewed ? this.tool('wiser.actions.import', 'mdi:upload', () => this.renderRoot.querySelector<HTMLInputElement>('.import-file')?.click(), blocked || !this.editorReady) : ''}
+            ${
+              editable && viewed
+                ? html`
+                    ${this.tool('wiser.actions.undo', 'mdi:undo', () => this.editor?.undoClick(), !this.editorCanUndo || this.editorSaving)}
+                    ${this.tool('wiser.actions.redo', 'mdi:redo', () => this.editor?.redoClick(), !this.editorCanRedo || this.editorSaving)}
+                    ${this.tool('wiser.rooms.edit', 'mdi:pencil', () => this.editor?.editClick(), blocked || !this.editorReady)}
+                    ${this.tool('wiser.actions.copy', 'mdi:content-copy', () => this.scheduleAction(viewed, 'copy'), blocked || fixed)}
+                    ${
+                      this.editing
+                        ? this.tool(
+                            'wiser.actions.delete_period',
+                            'mdi:delete-outline',
+                            () => this.editor?.deletePeriod(),
+                            !this.editorCanDeletePeriod || this.editorSaving,
+                          )
+                        : this.tool(
                             'wiser.rooms.delete',
                             'mdi:delete-outline',
                             () => {
                               void this.editor?.deleteClick();
                             },
                             blocked || !this.editorReady || fixed,
-                          )}
-                        `
-                      : ''
-                  }
-                  ${
-                    editable && !fixed
-                      ? html`
-                          ${this.tool('wiser.actions.add_schedule', 'mdi:plus', () => this.dispatchEvent(new CustomEvent('addScheduleClick')), blocked)}
-                        `
-                      : ''
-                  }
-                </div>
-              </wiser-card-header>`
-        }
+                          )
+                    }
+                  `
+                : ''
+            }
+            ${
+              editable
+                ? html`
+                    ${
+                      this.editing
+                        ? this.tool(
+                            'wiser.actions.add_period',
+                            'mdi:plus',
+                            () => this.editor?.addPeriod(),
+                            !this.editorCanAddPeriod || this.editorSaving,
+                          )
+                        : this.tool(
+                            'wiser.actions.add_schedule',
+                            'mdi:plus',
+                            () => this.dispatchEvent(new CustomEvent('addScheduleClick')),
+                            blocked || fixed,
+                          )
+                    }
+                  `
+                : ''
+            }
+          </div>
+        </wiser-card-header>
         <p class="secondary">
           ${this.localize('wiser.rooms.current')}:
           <strong>${current?.Name ?? this.localize('wiser.rooms.unassigned')}</strong>
@@ -372,6 +402,10 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
                     this.editing = event.detail.editing;
                     this.editorSaving = event.detail.saving;
                     this.editorReady = event.detail.ready;
+                    this.editorCanUndo = event.detail.canUndo;
+                    this.editorCanRedo = event.detail.canRedo;
+                    this.editorCanAddPeriod = event.detail.canAddPeriod;
+                    this.editorCanDeletePeriod = event.detail.canDeletePeriod;
                     if (this.openCreatedEditor && event.detail.ready && !event.detail.editing) {
                       this.openCreatedEditor = false;
                       this.editor?.editClick();

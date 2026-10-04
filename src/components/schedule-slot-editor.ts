@@ -100,6 +100,32 @@ export class ScheduleSlotEditor extends LitElement {
     this.isDragging = false;
   }
 
+  public get canAddPeriod(): boolean {
+    if (!this.editMode || !this._activeDay || this._activeSlot < -1) return false;
+    const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
+    return Boolean(day && day.slots.length < 24);
+  }
+
+  public get canDeletePeriod(): boolean {
+    return Boolean(this.editMode && this._activeDay && this._activeSlot >= 0);
+  }
+
+  public addPeriod(): void {
+    if (this.canAddPeriod) this._addSlot();
+  }
+
+  public deletePeriod(): void {
+    if (this.canDeletePeriod) this._removeSlot();
+  }
+
+  protected updated(): void {
+    this.dispatchEvent(
+      new CustomEvent('period-state', {
+        detail: { canAdd: this.canAddPeriod, canDelete: this.canDeletePeriod },
+      }),
+    );
+  }
+
   render(): TemplateResult {
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     this._show_short_days = fullWidth < day_short_width;
@@ -125,7 +151,7 @@ export class ScheduleSlotEditor extends LitElement {
               this.editMode
                 ? html`
                     <div class="schedule-editor-area ${this._show_short_days ? 'short' : ''}">
-                      ${this.renderAddButton()} ${this._activeSlot >= 0 ? this.renderSelectedPeriod() : null}
+                      ${this._activeSlot >= 0 ? this.renderSelectedPeriod() : null}
                     </div>
                   `
                 : null
@@ -353,12 +379,6 @@ export class ScheduleSlotEditor extends LitElement {
           ${SUPPORT_SPECIAL_TIMES.includes(this.schedule_type!) ? this.renderSpecialTimeButtons() : null}
           ${this.renderSetPointControl()}
         </div>
-        <div class="delete-period-row">
-          <ha-button variant="danger" @click=${this._removeSlot}>
-            <ha-icon slot="start" icon="hass:delete-outline" class="padded-right"></ha-icon>
-            ${this.localize('wiser.actions.delete_period')}
-          </ha-button>
-        </div>
       </section>
     `;
   }
@@ -406,23 +426,6 @@ export class ScheduleSlotEditor extends LitElement {
             ${this.localize('wiser.labels.sunset')}
           </ha-button>
         </div>
-      </div>
-    `;
-  }
-
-  renderAddButton(): TemplateResult {
-    let slotCount = 0;
-    if (this.schedule!.ScheduleData.filter((day) => day.day == this._activeDay).length > 0) {
-      slotCount = this._activeDay
-        ? this.schedule!.ScheduleData.filter((day) => day.day == this._activeDay)[0].slots.length
-        : 0;
-    }
-    return html`
-      <div class="add-period-row">
-        <ha-button @click=${this._addSlot} .disabled=${this._activeSlot < -1 || slotCount >= 24}>
-          <ha-icon slot="start" icon="hass:plus-circle-outline" class="padded-right"></ha-icon>
-          ${this.localize('wiser.actions.add_period')}
-        </ha-button>
       </div>
     `;
   }
@@ -1154,11 +1157,6 @@ export class ScheduleSlotEditor extends LitElement {
         width: calc(100% - min(20%, 50px));
         margin-inline-start: min(20%, 50px);
       }
-      .add-period-row {
-        display: flex;
-        justify-content: center;
-        margin: 14px 0 8px;
-      }
       .selected-period {
         box-sizing: border-box;
         width: min(100% - 24px, 660px);
@@ -1185,7 +1183,8 @@ export class ScheduleSlotEditor extends LitElement {
       }
       .selected-period-header span {
         color: var(--secondary-text-color);
-        font-size: var(--ha-font-size-s, 14px);
+        font-size: var(--ha-font-size-m, 16px);
+        line-height: 1.4;
       }
       .selected-period-controls {
         padding-top: 4px;
@@ -1294,14 +1293,6 @@ export class ScheduleSlotEditor extends LitElement {
         font-weight: 500;
         font-size: calc(var(--material-small-font-size, 12px) + 1pt);
         padding: 5px 10px;
-      }
-      .delete-period-row {
-        display: flex;
-        justify-content: flex-end;
-        padding-top: 12px;
-      }
-      .delete-period-row ha-button {
-        --mdc-theme-primary: var(--error-color);
       }
       .copy-section {
         box-sizing: border-box;
