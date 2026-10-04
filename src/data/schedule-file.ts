@@ -1,6 +1,44 @@
 import { days, SPECIAL_TIMES } from '../const';
 import type { Schedule, ScheduleDay } from '../types';
 
+export function scheduleExportName(name: string, type = ''): string {
+  const safeName = name.replace(/[^a-z0-9_-]/gi, '_') || 'schedule';
+  const safeType = type.replace(/[^a-z0-9_-]/gi, '_');
+  return `${safeType ? `${safeType}-` : ''}${safeName}.json`;
+}
+
+export function scheduleExportJson(schedule: Schedule): string {
+  const scheduleData = schedule.ScheduleData.map((day) => ({
+    day: day.day,
+    slots: day.slots.map((slot) => {
+      const specialTime = SPECIAL_TIMES.includes(slot.SpecialTime)
+        ? slot.SpecialTime
+        : SPECIAL_TIMES.includes(slot.Time)
+          ? slot.Time
+          : '';
+      return {
+        Time: specialTime || slot.Time,
+        Setpoint: slot.Setpoint,
+        SpecialTime: specialTime,
+      };
+    }),
+  }));
+  return JSON.stringify(
+    {
+      format: 'wiser-schedule',
+      version: 1,
+      schedule: {
+        Name: schedule.Name,
+        Type: schedule.Type,
+        SubType: schedule.SubType,
+        ScheduleData: scheduleData,
+      },
+    },
+    null,
+    2,
+  );
+}
+
 export function importScheduleFile(text: string, target: Schedule): Schedule {
   const file = JSON.parse(text);
   if (file.format !== 'wiser-schedule' || file.version !== 1) throw new Error('Unsupported schedule file.');
@@ -20,14 +58,20 @@ export function importScheduleFile(text: string, target: Schedule): Schedule {
     return {
       day: day.day,
       slots: day.slots.map((slot) => {
-        const special = SPECIAL_TIMES.includes(slot.Time);
+        const timeSpecial = SPECIAL_TIMES.includes(slot.Time) ? slot.Time : '';
+        const fieldSpecial = SPECIAL_TIMES.includes(slot.SpecialTime) ? slot.SpecialTime : '';
+        if ((slot.SpecialTime && !fieldSpecial) || (timeSpecial && fieldSpecial && timeSpecial !== fieldSpecial))
+          throw new Error('Invalid special time.');
+        const specialTime = fieldSpecial || timeSpecial;
+        const special = Boolean(specialTime);
+        const time = specialTime || slot.Time;
         if (
           (!special && !/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.Time)) ||
           (special && !['lighting', 'shutters'].includes(kind)) ||
-          times.has(slot.Time)
+          times.has(time)
         )
           throw new Error('Invalid or duplicate slot time.');
-        times.add(slot.Time);
+        times.add(time);
         const value = String(slot.Setpoint);
         const number = Number(value);
         const valid =
@@ -38,7 +82,7 @@ export function importScheduleFile(text: string, target: Schedule): Schedule {
               : ['On', 'Off'].includes(value);
         if (!valid) throw new Error('Invalid schedule setting.');
         count++;
-        return { Time: slot.Time, Setpoint: value, SpecialTime: special ? slot.Time : '' };
+        return { Time: time, Setpoint: value, SpecialTime: specialTime };
       }),
     };
   });

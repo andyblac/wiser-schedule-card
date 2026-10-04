@@ -5,7 +5,9 @@ import { LitElement, html, css, PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { SubscribeMixin } from '../components/subscribe-mixin';
 import { notifyViewReady } from '../components/view-ready';
-import { fetchSchedules } from '../data/websockets';
+import { fetchScheduleById, fetchSchedules, showErrorDialog } from '../data/websockets';
+import { scheduleExportJson, scheduleExportName } from '../data/schedule-file';
+import { createZip } from '../data/zip';
 import { allow_edit } from '../helpers';
 import { localizeForHass } from '../localize/localize';
 import type { ScheduleListItem, WiserScheduleCardConfig, WiserEventData } from '../types';
@@ -18,6 +20,7 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) config!: WiserScheduleCardConfig;
   @state() private schedules: ScheduleListItem[] = [];
   @state() private loading = true;
+  @state() private exporting = false;
   @state() private error = '';
   private request = 0;
   public hassSubscribe() {
@@ -67,6 +70,34 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     );
   }
 
+  private async exportAllSchedules(): Promise<void> {
+    if (!this.hass || this.exporting || !allow_edit(this.hass, this.config) || !this.schedules.length) return;
+    this.exporting = true;
+    try {
+      const schedules = await Promise.all(
+        this.schedules.map((schedule) => fetchScheduleById(this.hass!, this.config.hub, schedule.Type, schedule.Id)),
+      );
+      const usedNames = new Map<string, number>();
+      const files = schedules.map((schedule) => {
+        const original = scheduleExportName(schedule.Name, schedule.SubType || schedule.Type);
+        const count = (usedNames.get(original.toLowerCase()) || 0) + 1;
+        usedNames.set(original.toLowerCase(), count);
+        const name = count === 1 ? original : original.replace(/\.json$/, `-${count}.json`);
+        return { name, contents: scheduleExportJson(schedule) };
+      });
+      const url = URL.createObjectURL(createZip(files));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(this.config.hub || 'wiser').replace(/[^a-z0-9_-]/gi, '_') || 'wiser'}-schedules.zip`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      showErrorDialog(this, this.localize('wiser.actions.export_all'), (error as Error).message);
+    } finally {
+      this.exporting = false;
+    }
+  }
+
   protected render() {
     if (!this.hass) return html``;
     return html`
@@ -77,6 +108,8 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
             .hass=${this.hass}
             active="schedules"
             .canAdd=${allow_edit(this.hass, this.config) && !this.loading && !this.error}
+            .canExport=${allow_edit(this.hass, this.config) && !this.loading && !this.error && !this.exporting && this.schedules.length > 0}
+            @exportAllSchedulesClick=${this.exportAllSchedules}
           ></wiser-home-navigation></div
       ></wiser-card-header>
       ${

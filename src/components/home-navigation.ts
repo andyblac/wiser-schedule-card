@@ -13,6 +13,7 @@ export class HomeNavigation extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property() active = 'schedules';
   @property({ type: Boolean }) canAdd = false;
+  @property({ type: Boolean }) canExport = false;
   render() {
     return html`${['schedules', 'overview'].map(
         (view) =>
@@ -26,7 +27,23 @@ export class HomeNavigation extends LitElement {
           >
             <ha-icon .icon=${view === 'schedules' ? 'mdi:calendar-clock' : 'mdi:view-dashboard-outline'}></ha-icon>
           </button>`,
-      )}<button
+      )}${
+        this.active === 'schedules'
+          ? html`<button
+              class="tool"
+              type="button"
+              title=${this.localize('wiser.actions.export_all')}
+              aria-label=${this.localize('wiser.actions.export_all')}
+              ?disabled=${!this.canExport}
+              @click=${() => {
+                if (this.canExport)
+                  this.dispatchEvent(new CustomEvent('exportAllSchedulesClick', { bubbles: true, composed: true }));
+              }}
+            >
+              <ha-icon .icon=${'mdi:archive-arrow-down-outline'}></ha-icon>
+            </button>`
+          : ''
+      }<button
         class="tool"
         type="button"
         title=${this.localize('wiser.actions.add_schedule')}

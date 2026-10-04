@@ -15,6 +15,7 @@
       "view": "Anzeigen",
       "add_schedule": "Zeitplan hinzufügen",
       "export": "Zeitplan exportieren",
+      "export_all": "Alle Zeitpläne exportieren",
       "import": "Zeitplan importieren",
       "duplicate_new": "Als neuen Zeitplan duplizieren",
       "add_period": "Zeitraum hinzufügen",

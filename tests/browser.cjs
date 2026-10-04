@@ -3,6 +3,24 @@ const { createServer } = require('node:http');
 const { readFile } = require('node:fs/promises');
 const assert = require('node:assert/strict');
 
+const readStoredZip = (buffer) => {
+  const files = new Map();
+  let offset = 0;
+  while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const size = buffer.readUInt32LE(offset + 18);
+    const nameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const contentsStart = nameStart + nameLength + extraLength;
+    files.set(
+      buffer.subarray(nameStart, nameStart + nameLength).toString('utf8'),
+      buffer.subarray(contentsStart, contentsStart + size).toString('utf8'),
+    );
+    offset = contentsStart + size;
+  }
+  return files;
+};
+
 (async () => {
   const server = createServer(async (req, res) => {
     const script = req.url.split('?')[0] === '/card.js';
@@ -263,6 +281,7 @@ const assert = require('node:assert/strict');
     const downloadPromise = page.waitForEvent('download');
     await button('Export schedule').click();
     const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), 'Heating-Bedrooms.json');
     const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
     assert.equal(exported.format, 'wiser-schedule');
     assert.equal(exported.schedule.Type, 'Heating');
@@ -687,6 +706,64 @@ const assert = require('node:assert/strict');
     console.log('PASS HA dialog footer, cancel, delete and dismissal callbacks');
     await fresh();
     await page.evaluate(() => mountCard({ home_screen: undefined }));
+    await page.waitForSelector('button.schedule-tile');
+    const exportAllButton = button('Export all schedules');
+    const addScheduleButton = button('Add Schedule');
+    const exportAllBox = await exportAllButton.boundingBox();
+    const addScheduleBox = await addScheduleButton.boundingBox();
+    assert.ok(exportAllBox.x < addScheduleBox.x, 'Export all sits immediately before Add');
+    await page.evaluate(() => (fixture.specialExport = true));
+    const allSchedulesDownload = page.waitForEvent('download');
+    await exportAllButton.click();
+    const schedulesZip = await allSchedulesDownload;
+    assert.equal(schedulesZip.suggestedFilename(), 'hub-one-schedules.zip');
+    const zippedSchedules = readStoredZip(await readFile(await schedulesZip.path()));
+    assert.equal(zippedSchedules.size, 4);
+    assert.deepEqual(
+      [...zippedSchedules.keys()],
+      ['Heating-Bedrooms.json', 'Lighting-Evening_lights.json', 'Heating-Home_office.json', 'Heating-Living_room.json'],
+    );
+    for (const contents of zippedSchedules.values()) {
+      const exported = JSON.parse(contents);
+      assert.equal(exported.format, 'wiser-schedule');
+      assert.equal(exported.version, 1);
+      assert.equal(exported.schedule.Assignments, undefined);
+      assert.equal(exported.schedule.ScheduleData.length, 7);
+    }
+    const specialSchedule = JSON.parse(zippedSchedules.get('Lighting-Evening_lights.json'));
+    assert.deepEqual(specialSchedule.schedule.ScheduleData[0].slots[0], {
+      Time: 'Sunrise',
+      Setpoint: '20',
+      SpecialTime: 'Sunrise',
+    });
+    assert.deepEqual(specialSchedule.schedule.ScheduleData[0].slots[1], {
+      Time: 'Sunset',
+      Setpoint: '16',
+      SpecialTime: 'Sunset',
+    });
+    await page.evaluate(() => (fixture.specialExport = false));
+    specialSchedule.schedule.ScheduleData[0].slots[0].Time = '06:00';
+    await page.locator('button.schedule-tile').filter({ hasText: 'Evening lights' }).click();
+    await page.getByLabel('Assigned rooms / devices').waitFor();
+    await page.locator('input.import-file').setInputFiles({
+      name: 'special-time.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(specialSchedule)),
+    });
+    await page.waitForFunction(
+      () =>
+        document.querySelector('wiser-schedule-card').shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode,
+    );
+    assert.deepEqual(
+      await page.locator('wiser-schedule-edit-card').evaluate((el) => {
+        const slot = el._tempSchedule.ScheduleData[0].slots[0];
+        return { Time: slot.Time, SpecialTime: slot.SpecialTime };
+      }),
+      { Time: '06:00', SpecialTime: 'Sunrise' },
+      'import accepts SpecialTime when Time contains its resolved clock time',
+    );
+    await button('cancel').click();
+    await button('back').click();
     await page.waitForSelector('button.schedule-tile');
     assert.equal(await page.locator('button.schedule-tile').count(), 4);
     assert.equal(await page.locator('button.overview-device').count(), 0);

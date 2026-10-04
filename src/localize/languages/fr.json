@@ -15,6 +15,7 @@
       "view": "Voir",
       "add_schedule": "Ajouter un Programme",
       "export": "Exporter le programme",
+      "export_all": "Exporter tous les programmes",
       "import": "Importer un programme",
       "duplicate_new": "Dupliquer dans un nouveau programme",
       "add_period": "Ajouter une période",

@@ -15,6 +15,7 @@
       "view": "View",
       "add_schedule": "Add Schedule",
       "export": "Export schedule",
+      "export_all": "Export all schedules",
       "import": "Import schedule",
       "duplicate_new": "Duplicate to new schedule",
       "add_period": "Add period",

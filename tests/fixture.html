@@ -362,8 +362,16 @@
               ScheduleData: days.map((day) => ({
                 day,
                 slots: [
-                  { Time: '06:00', Setpoint: '20', SpecialTime: '' },
-                  { Time: '22:00', Setpoint: '16', SpecialTime: '' },
+                  {
+                    Time: fixture.specialExport && request.schedule_id === 4 ? 'Sunrise' : '06:00',
+                    Setpoint: '20',
+                    SpecialTime: '',
+                  },
+                  {
+                    Time: fixture.specialExport && request.schedule_id === 4 ? 'Sunset' : '22:00',
+                    Setpoint: '16',
+                    SpecialTime: '',
+                  },
                 ],
               })),
             };

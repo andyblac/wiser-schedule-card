@@ -2,7 +2,7 @@ import { toolbarColors } from '../components/toolbar-colors';
 import { customElement } from '../components/register-element';
 import '../components/card-header';
 import { loadHaControls } from '../components/ha-controls';
-import { importScheduleFile } from '../data/schedule-file';
+import { importScheduleFile, scheduleExportJson, scheduleExportName } from '../data/schedule-file';
 import { stringToTime } from '../data/date-time/time';
 import { notifyViewReady } from '../components/view-ready';
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -531,21 +531,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   exportSchedule(): void {
     if (!this.schedule) return;
-    const schedule = this.convertScheduleForSaving(JSON.parse(JSON.stringify(this.schedule)));
-    const contents = {
-      format: 'wiser-schedule',
-      version: 1,
-      schedule: {
-        Name: schedule.Name,
-        Type: schedule.Type,
-        SubType: schedule.SubType,
-        ScheduleData: schedule.ScheduleData,
-      },
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(contents, null, 2)], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([scheduleExportJson(this.schedule)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${schedule.Name.replace(/[^a-z0-9_-]/gi, '_') || 'schedule'}.json`;
+    link.download = scheduleExportName(this.schedule.Name, this.schedule.SubType || this.schedule.Type);
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
