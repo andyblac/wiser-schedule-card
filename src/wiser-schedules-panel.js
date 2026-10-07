@@ -21,9 +21,7 @@ class WiserSchedulesPanel extends HTMLElement {
         #settings[disabled] ha-icon { color: var(--disabled-text-color); }
         ha-dialog { --ha-dialog-width-md: 600px;
           --ha-dialog-surface-background: var(--primary-background-color, var(--ha-color-surface-default, #fff)); }
-        .dialog-description { margin: 0 0 20px; color: var(--secondary-text-color); font-size: 14px; line-height: 20px; }
         .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-        #editors h3 { font-size: 16px; font-weight: 500; margin: 0 0 16px; }
         #editor-error:empty { display: none; }
         #editor-error { color: var(--error-color, #db4437); }
         main { display: flex; flex-direction: column; flex: 1 0 auto;
@@ -54,9 +52,8 @@ class WiserSchedulesPanel extends HTMLElement {
         <nav id="hub-tabs" role="tablist" aria-label="Wiser hubs" hidden></nav>
         <ha-button id="settings" appearance="plain" aria-label="Edit schedule card settings" title="Edit schedule card settings" disabled>
           <ha-icon icon="mdi:cog"></ha-icon>
-        </ha-button></header>
+      </ha-button></header>
       <ha-dialog id="editor-dialog" header-title="Panel settings" width="medium">
-        <p id="editor-description" class="dialog-description">Customize this panel. Dashboard cards keep their own settings.</p>
         <div id="editors"></div><p id="editor-error" role="alert"></p>
         <div class="dialog-actions" id="editor-actions" slot="footer">
           <ha-button id="cancel" appearance="plain">Cancel</ha-button>
@@ -82,8 +79,26 @@ class WiserSchedulesPanel extends HTMLElement {
     this._generation = 0;
   }
 
-  _t(key) {
-    return localizeForHass(this._hass, key);
+  _t(key, search = '', replace = '') {
+    return localizeForHass(this._hass, key, search, replace);
+  }
+
+  _editorHeading() {
+    const hubs = this._config?.hubs || [];
+    const hub = hubs.includes(this._activeHub) ? this._activeHub : hubs[0];
+    return hub ? this._t('wiser.panel.settings_for_hub', '{hub}', hub) : this._t('wiser.panel.settings');
+  }
+
+  _updateEditorHeading() {
+    const dialog = this.shadowRoot.getElementById('editor-dialog');
+    const heading = this._editorHeading();
+    dialog.setAttribute('header-title', heading);
+    try {
+      dialog.headerTitle = heading;
+    } catch {
+      // Older HA dialogs expose headerTitle as a read-only reflection of the attribute.
+    }
+    dialog.heading = heading;
   }
 
   _localizeControls() {
@@ -98,14 +113,11 @@ class WiserSchedulesPanel extends HTMLElement {
       element.setAttribute('aria-label', this._t(key));
       element.title = this._t(key);
     }
-    root.getElementById('editor-description').textContent = this._t('wiser.panel.description');
     const loading = root.getElementById('loading');
     if (loading) loading.textContent = this._t('wiser.panel.loading');
     root.getElementById('cancel').textContent = this._t('wiser.panel.cancel');
     root.getElementById('save').textContent = this._t('wiser.panel.save');
-    const dialog = root.getElementById('editor-dialog');
-    dialog.setAttribute('header-title', this._t('wiser.panel.settings'));
-    dialog.heading = this._t('wiser.panel.settings');
+    this._updateEditorHeading();
   }
 
   set hass(hass) {
@@ -219,12 +231,13 @@ class WiserSchedulesPanel extends HTMLElement {
     const container = this.shadowRoot.getElementById('editors');
     const error = this.shadowRoot.getElementById('editor-error');
     const save = this.shadowRoot.getElementById('save');
+    const hub = this._config.hubs.includes(this._activeHub) ? this._activeHub : this._config.hubs[0];
     this._drafts = Object.fromEntries(this._config.hubs.map((hub) => [hub, this._storedCardConfig(hub)]));
     this._editors = [];
     error.textContent = '';
     container.replaceChildren();
     save.disabled = true;
-    dialog.heading = this._t('wiser.panel.settings');
+    this._updateEditorHeading();
     if (!('headerTitle' in (customElements.get('ha-dialog')?.prototype || {}))) {
       this.shadowRoot.getElementById('editor-actions').removeAttribute('slot');
     }
@@ -240,7 +253,6 @@ class WiserSchedulesPanel extends HTMLElement {
         await routes?.routes?.lovelace?.load?.();
       }
       const Card = customElements.get('wiser-schedule-card');
-      const hub = this._config.hubs.includes(this._activeHub) ? this._activeHub : this._config.hubs[0];
       const editor = await Card.getConfigElement();
       if (!dialog.open) return;
       const config = this._drafts[hub];
@@ -257,11 +269,7 @@ class WiserSchedulesPanel extends HTMLElement {
           hub,
         };
       });
-      const section = document.createElement('section');
-      const title = document.createElement('h3');
-      title.textContent = hub;
-      section.replaceChildren(...(this._config.hubs.length > 1 ? [title, editor] : [editor]));
-      container.append(section);
+      container.append(editor);
       this._editors.push(editor);
       save.disabled = false;
     } catch (err) {

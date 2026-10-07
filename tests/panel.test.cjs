@@ -10,8 +10,8 @@ function setup(storage = new Map()) {
     'wiser.panel.menu': 'Toggle sidebar',
     'wiser.panel.hubs': 'Wiser hubs',
     'wiser.panel.settings': 'Panel settings',
+    'wiser.panel.settings_for_hub': '{hub} - Panel settings',
     'wiser.panel.edit_settings': 'Edit schedule card settings',
-    'wiser.panel.description': 'Customize this panel. Dashboard cards keep their own settings.',
     'wiser.panel.loading': 'Loading Wiser schedules…',
     'wiser.panel.cancel': 'Cancel',
     'wiser.panel.save': 'Save',
@@ -82,7 +82,10 @@ function setup(storage = new Map()) {
     },
     customElements: { get: (key) => registry.get(key), define: (key, value) => registry.set(key, value) },
     document: { createElement: () => new Element() },
-    localizeForHass: (_hass, key) => translations[key] || key,
+    localizeForHass: (_hass, key, search = '', replace = '') => {
+      const text = translations[key] || key;
+      return search && replace ? text.replace(search, replace) : text;
+    },
     console: { error() {} },
   });
   const source = readFileSync(resolve(__dirname, '../src/wiser-schedules-panel.js'), 'utf8').replace(
@@ -128,6 +131,8 @@ test('panel settings edit the active hub and preserve the other hub configuratio
 
   await panel._openEditor();
 
+  assert.equal(panel.shadowRoot.getElementById('editor-dialog').heading, 'second - Panel settings');
+  assert.equal(panel.shadowRoot.getElementById('editor-dialog').headerTitle, 'second - Panel settings');
   assert.equal(panel._editors.length, 1);
   assert.equal(panel._editors[0].config.hub, 'second');
   assert.equal(panel._editors[0].config.name, undefined);

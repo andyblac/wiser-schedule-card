@@ -49,6 +49,8 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(
       () => document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open,
     );
+    assert.equal(await page.locator('ha-dialog').getAttribute('header-title'), 'hub-one - Panel settings');
+    assert.equal(await page.locator('ha-dialog').evaluate((dialog) => dialog.headerTitle), 'hub-one - Panel settings');
     await page.locator('wiser-schedule-card-editor').waitFor();
     assert.equal(await page.locator('wiser-schedule-card-editor .hub-picker').count(), 0);
     assert.equal(await page.locator('ha-button#save').count(), 1);
