@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const vm = require('node:vm');
 
-function setup() {
+function setup(storage = new Map()) {
   const translations = {
     'wiser.panel.title': 'Wiser Schedules',
     'wiser.panel.menu': 'Toggle sidebar',
@@ -68,7 +68,13 @@ function setup() {
   const registry = new Map([['wiser-schedule-card', Element]]);
   const context = vm.createContext({
     HTMLElement: Element,
-    window: { loadCardHelpers: async () => ({}) },
+    window: {
+      loadCardHelpers: async () => ({}),
+      sessionStorage: {
+        getItem: (key) => storage.get(key),
+        setItem: (key, value) => storage.set(key, value),
+      },
+    },
     CustomEvent: class {
       constructor(type, options) {
         Object.assign(this, { type }, options);
@@ -87,7 +93,7 @@ function setup() {
   return new (registry.get('wiser-schedules-panel'))();
 }
 
-test('panel creates a schedule editor per enabled hub and forwards hass updates', () => {
+test('panel creates a schedule card per enabled hub and forwards hass updates', () => {
   const panel = setup();
   const hass = { states: {} };
   panel.hass = hass;
@@ -102,6 +108,56 @@ test('panel creates a schedule editor per enabled hub and forwards hass updates'
   assert.equal(cards[1].hass, updated);
   panel.panel = { config: { panel_id: 'registry-panel', hubs: ['first', 'second'] } };
   assert.equal(panel.shadowRoot.querySelector('main').children[0], cards[0]);
+});
+
+test('panel settings edit the active hub and preserve the other hub configuration', async () => {
+  const panel = setup();
+  const calls = [];
+  panel.hass = { user: { is_admin: true }, callWS: async (msg) => calls.push(msg) };
+  panel.panel = {
+    config: {
+      panel_id: 'registry-panel',
+      hubs: ['first', 'second'],
+      card_configs: {
+        first: { name: 'First card', home_screen: 'schedules', overview_details: false },
+        second: { name: 'Second card', home_screen: 'overview', overview_details: true },
+      },
+    },
+  };
+  panel._selectHub('second');
+
+  await panel._openEditor();
+
+  assert.equal(panel._editors.length, 1);
+  assert.equal(panel._editors[0].config.hub, 'second');
+  assert.equal(panel._editors[0].config.name, undefined);
+  assert.equal(panel._editors[0].config.home_screen, 'overview');
+  panel._editors[0].listeners['config-changed']({
+    stopPropagation() {},
+    detail: { config: { home_screen: 'overview', overview_details: false } },
+  });
+  await panel._saveEditor();
+
+  assert.equal(calls[0].configs.first.name, undefined);
+  assert.equal(calls[0].configs.first.home_screen, 'schedules');
+  assert.equal(calls[0].configs.first.overview_details, false);
+  assert.equal(calls[0].configs.second.name, undefined);
+  assert.equal(panel._cards[0].config.panel_mode, true);
+  assert.equal(panel._cards[1].config.panel_mode, true);
+});
+
+test('panel restores the active hub when Home Assistant recreates it after saving', () => {
+  const storage = new Map();
+  const firstPanel = setup(storage);
+  firstPanel.panel = { config: { panel_id: 'registry-panel', hubs: ['first', 'second'] } };
+  firstPanel._selectHub('second');
+
+  const replacementPanel = setup(storage);
+  replacementPanel.panel = { config: { panel_id: 'registry-panel', hubs: ['first', 'second'] } };
+
+  assert.equal(replacementPanel._activeHub, 'second');
+  assert.equal(replacementPanel._cards[0].hidden, true);
+  assert.equal(replacementPanel._cards[1].hidden, false);
 });
 
 test('panel accepts hass after configuration and replaces cards when hubs change', () => {
@@ -155,7 +211,7 @@ test('cog saves shared integration config over websocket', async () => {
   assert.equal(panel._cards[0].config.hide_hw_schedule, true);
   const reloaded = setup();
   reloaded.panel = { config: { panel_id: 'registry-panel', hubs: ['hub'], card_configs: calls[0].configs } };
-  assert.equal(reloaded._cards[0].config.name, 'My heating');
+  assert.equal(reloaded._cards[0].config.name, undefined);
 });
 
 test('failed save keeps editor open and offers retry', async () => {
@@ -184,7 +240,7 @@ test('Cancel leaves the card unchanged', async () => {
     detail: { config: { name: 'Discard me' } },
   });
   panel.shadowRoot.getElementById('cancel').listeners.click();
-  assert.equal(panel._cards[0].config.name, 'Wiser Schedules');
+  assert.equal(panel._cards[0].config.name, undefined);
   await panel._openEditor();
-  assert.equal(panel._editors[0].config.name, 'Wiser Schedules');
+  assert.equal(panel._editors[0].config.name, undefined);
 });

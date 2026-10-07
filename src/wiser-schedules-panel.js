@@ -23,7 +23,6 @@ class WiserSchedulesPanel extends HTMLElement {
           --ha-dialog-surface-background: var(--primary-background-color, var(--ha-color-surface-default, #fff)); }
         .dialog-description { margin: 0 0 20px; color: var(--secondary-text-color); font-size: 14px; line-height: 20px; }
         .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-        #editors section + section { border-top: 1px solid var(--divider-color); margin-top: 24px; padding-top: 16px; }
         #editors h3 { font-size: 16px; font-weight: 500; margin: 0 0 16px; }
         #editor-error:empty { display: none; }
         #editor-error { color: var(--error-color, #db4437); }
@@ -126,15 +125,44 @@ class WiserSchedulesPanel extends HTMLElement {
 
   _cardConfig(hub) {
     return {
-      name: this._config.hubs.length > 1 ? hub : this._t('wiser.panel.title'),
-      ...this._config.card_configs?.[hub],
+      ...this._storedCardConfig(hub),
+      panel_mode: true,
+    };
+  }
+
+  _storedCardConfig(hub) {
+    const { name: _name, panel_mode: _panelMode, ...savedConfig } = this._config.card_configs?.[hub] || {};
+    return {
+      ...savedConfig,
       type: 'custom:wiser-schedule-card',
       hub,
     };
   }
 
+  _activeHubStorageKey() {
+    return `wiser-schedules-panel:${this._config.panel_id}:active-hub`;
+  }
+
+  _rememberActiveHub(hub) {
+    try {
+      window.sessionStorage?.setItem(this._activeHubStorageKey(), hub);
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
+  }
+
+  _restoredActiveHub() {
+    if (this._activeHub) return this._activeHub;
+    try {
+      return window.sessionStorage?.getItem(this._activeHubStorageKey());
+    } catch {
+      return undefined;
+    }
+  }
+
   _selectHub(hub) {
     this._activeHub = hub;
+    this._rememberActiveHub(hub);
     this._cards.forEach((card, index) => {
       const selected = this._config.hubs[index] === hub;
       card.hidden = !selected;
@@ -176,7 +204,8 @@ class WiserSchedulesPanel extends HTMLElement {
       return tab;
     });
     container.replaceChildren(...this._tabs);
-    this._selectHub(hubs.includes(this._activeHub) ? this._activeHub : hubs[0]);
+    const activeHub = this._restoredActiveHub();
+    this._selectHub(hubs.includes(activeHub) ? activeHub : hubs[0]);
   }
 
   _closeEditor() {
@@ -190,7 +219,7 @@ class WiserSchedulesPanel extends HTMLElement {
     const container = this.shadowRoot.getElementById('editors');
     const error = this.shadowRoot.getElementById('editor-error');
     const save = this.shadowRoot.getElementById('save');
-    this._drafts = {};
+    this._drafts = Object.fromEntries(this._config.hubs.map((hub) => [hub, this._storedCardConfig(hub)]));
     this._editors = [];
     error.textContent = '';
     container.replaceChildren();
@@ -211,26 +240,29 @@ class WiserSchedulesPanel extends HTMLElement {
         await routes?.routes?.lovelace?.load?.();
       }
       const Card = customElements.get('wiser-schedule-card');
-      for (const hub of this._config.hubs) {
-        const editor = await Card.getConfigElement();
-        if (!dialog.open) return;
-        const config = this._cardConfig(hub);
-        this._drafts[hub] = config;
-        editor.hass = this._hass;
-        editor.hideHubSelector = true;
-        editor.hideCardAppearance = true;
-        editor.setConfig({ ...config });
-        editor.addEventListener('config-changed', (event) => {
-          event.stopPropagation();
-          this._drafts[hub] = { ...event.detail.config };
-        });
-        const section = document.createElement('section');
-        const title = document.createElement('h3');
-        title.textContent = hub;
-        section.replaceChildren(...(this._config.hubs.length > 1 ? [title, editor] : [editor]));
-        container.append(section);
-        this._editors.push(editor);
-      }
+      const hub = this._config.hubs.includes(this._activeHub) ? this._activeHub : this._config.hubs[0];
+      const editor = await Card.getConfigElement();
+      if (!dialog.open) return;
+      const config = this._drafts[hub];
+      editor.hass = this._hass;
+      editor.hideHubSelector = true;
+      editor.hideCardAppearance = true;
+      editor.setConfig({ ...config });
+      editor.addEventListener('config-changed', (event) => {
+        event.stopPropagation();
+        const { name: _name, panel_mode: _panelMode, ...config } = event.detail.config;
+        this._drafts[hub] = {
+          ...config,
+          type: 'custom:wiser-schedule-card',
+          hub,
+        };
+      });
+      const section = document.createElement('section');
+      const title = document.createElement('h3');
+      title.textContent = hub;
+      section.replaceChildren(...(this._config.hubs.length > 1 ? [title, editor] : [editor]));
+      container.append(section);
+      this._editors.push(editor);
       save.disabled = false;
     } catch (err) {
       error.textContent = this._t('wiser.panel.editor_error');

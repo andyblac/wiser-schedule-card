@@ -9,7 +9,8 @@ export class WiserCardHeader extends LitElement {
 
   render() {
     const name = this.config?.name;
-    const title = name && !['Wiser Schedule', 'Wiser Schedules'].includes(name) ? name : undefined;
+    const title =
+      !this.config?.panel_mode && name && !['Wiser Schedule', 'Wiser Schedules'].includes(name) ? name : undefined;
     return html`<header>
       ${title ? html`<h2>${title}</h2>` : ''}
       <slot name="heading"></slot>
