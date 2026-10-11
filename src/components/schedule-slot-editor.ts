@@ -100,6 +100,11 @@ export class ScheduleSlotEditor extends LitElement {
     this.isDragging = false;
   }
 
+  private get scheduleTypeKey(): string {
+    const type = this.schedule_type?.toLowerCase();
+    return HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type) || HEATING_TYPES[0];
+  }
+
   public get canAddPeriod(): boolean {
     if (!this.editMode || !this._activeDay || this._activeSlot < -1) return false;
     const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
@@ -200,7 +205,7 @@ export class ScheduleSlotEditor extends LitElement {
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
-        : 'rgba(' + color_map(this, this.schedule_type!, setpoint) + ')';
+        : 'rgba(' + color_map(this, this.schedule_type!, String(this.setpointTemperature(setpoint))) + ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
     const width = ((stringTimeToSeconds(end_time) - stringTimeToSeconds(start_time)) / SEC_PER_DAY) * 100;
@@ -246,7 +251,7 @@ export class ScheduleSlotEditor extends LitElement {
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
-        : 'rgba(' + color_map(this, this.schedule_type!, setpoint) + ')';
+        : 'rgba(' + color_map(this, this.schedule_type!, String(this.setpointTemperature(setpoint))) + ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
     const selected = this._activeSlot == index && this._activeDay == day.day;
@@ -354,6 +359,15 @@ export class ScheduleSlotEditor extends LitElement {
     return this.schedule?.ScheduleData.find((day) => day.day === this._activeDay)?.slots[this._activeSlot];
   }
 
+  private presetOption(setpoint: string | number) {
+    const name = String(setpoint).toLocaleLowerCase();
+    return this.schedule?.PresetOptions?.find((preset) => preset.name.toLocaleLowerCase() === name);
+  }
+
+  private setpointTemperature(setpoint: string | number): number {
+    return this.presetOption(setpoint)?.temperature ?? Number(setpoint);
+  }
+
   private activePeriodLabel(): string {
     const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
     const slot = this.activeSlot();
@@ -443,27 +457,79 @@ export class ScheduleSlotEditor extends LitElement {
           ? this.schedule!.ScheduleData.filter((rday) => rday.day == this._activeDay)[0].slots
           : {};
       }
-      if (this.schedule_type == 'Heating') {
+      const scheduleType = this.scheduleTypeKey;
+      if (['Heating', 'HotWater'].includes(scheduleType)) {
+        const hotWater = scheduleType === 'HotWater';
+        const setpoint = this._activeSlot >= 0 ? slots![this._activeSlot!].Setpoint : 0;
+        const selectedPreset = hotWater ? this.presetOption(setpoint) : undefined;
+        const presetOptions = hotWater ? (this.schedule?.PresetOptions ?? []) : [];
         return html`
+          ${
+            presetOptions.length
+              ? html`
+                  <div class="editor-control-row preset-control-row">
+                    <div class="section-header" aria-disabled=${this._activeSlot < 0}>
+                      ${this.localize('wiser.labels.preset')}
+                    </div>
+                    <div
+                      class="control-content preset-controls"
+                      role="radiogroup"
+                      aria-label=${this.localize('wiser.labels.preset')}
+                    >
+                      <label class="preset-choice">
+                        <span>${this.localize('wiser.labels.custom_temperature')}</span>
+                        <input
+                          type="radio"
+                          name="scheduled-hot-water-preset"
+                          .checked=${this._activeSlot >= 0 && !selectedPreset}
+                          .disabled=${this._activeSlot < 0}
+                          @change=${() => this._updateSetPoint(this.setpointTemperature(setpoint))}
+                        />
+                      </label>
+                      ${presetOptions.map(
+                        (preset) => html`
+                          <label class="preset-choice">
+                            <ha-icon icon=${preset.icon}></ha-icon>
+                            <span>${preset.name}</span>
+                            <input
+                              type="radio"
+                              name="scheduled-hot-water-preset"
+                              value=${preset.name}
+                              .checked=${selectedPreset?.name === preset.name}
+                              .disabled=${this._activeSlot < 0}
+                              @change=${() => this._updateSetPoint(preset.name)}
+                            />
+                          </label>
+                        `,
+                      )}
+                    </div>
+                  </div>
+                `
+              : ''
+          }
           <div class="editor-control-row heating-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
               ${this.localize('wiser.labels.temperature')}
             </div>
             <div class="control-content temperature-input">
-              <button
-                type="button"
-                aria-label=${this.localize('wiser.heating.off')}
-                class="set-off-button"
-                .disabled=${this._activeSlot < 0}
-                @click=${() => this._updateSetPoint('-20')}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${mdiRadiatorOff}></path></svg>
-              </button>
+              ${
+                hotWater
+                  ? ''
+                  : html`<button
+                      type="button"
+                      aria-label=${this.localize('wiser.heating.off')}
+                      class="set-off-button"
+                      .disabled=${this._activeSlot < 0}
+                      @click=${() => this._updateSetPoint('-20')}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${mdiRadiatorOff}></path></svg>
+                    </button>`
+              }
               <wiser-variable-slider
-                min="5"
-                max="30"
+                min=${hotWater ? (this.schedule?.MinSetpoint ?? 35) : 5}
+                max=${hotWater ? (this.schedule?.MaxSetpoint ?? 55) : 30}
                 step="0.5"
-                value=${this._activeSlot >= 0 ? parseFloat(slots![this._activeSlot!].Setpoint) : 0}
+                value=${this._activeSlot >= 0 ? this.setpointTemperature(setpoint) : 0}
                 unit="°C"
                 .label=${this.localize('wiser.labels.temperature')}
                 .optional=${false}
@@ -476,7 +542,7 @@ export class ScheduleSlotEditor extends LitElement {
             </div>
           </div>
         `;
-      } else if (this.schedule_type == 'OnOff') {
+      } else if (scheduleType === 'OnOff') {
         return html`
           <div class="editor-control-row state-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
@@ -505,7 +571,7 @@ export class ScheduleSlotEditor extends LitElement {
             </div>
           </div>
         `;
-      } else if (['Lighting', 'Shutters'].includes(this.schedule_type!)) {
+      } else if (['Lighting', 'Shutters'].includes(scheduleType)) {
         return html`
           <div class="editor-control-row level-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
@@ -519,8 +585,8 @@ export class ScheduleSlotEditor extends LitElement {
                 value=${this._activeSlot >= 0 ? parseFloat(slots![this._activeSlot!].Setpoint) : 0}
                 unit="%"
                 .label=${this.localize('wiser.labels.level')}
-                .minLabel=${this.schedule_type === 'Shutters' ? this.localize('wiser.labels.closed') : ''}
-                .maxLabel=${this.schedule_type === 'Shutters' ? this.localize('wiser.labels.open') : ''}
+                .minLabel=${scheduleType === 'Shutters' ? this.localize('wiser.labels.closed') : ''}
+                .maxLabel=${scheduleType === 'Shutters' ? this.localize('wiser.labels.open') : ''}
                 .optional=${false}
                 .disabled=${this._activeSlot < 0}
                 @value-changed=${(ev: CustomEvent) => this._updateSetPoint(Number(ev.detail.value))}
@@ -750,7 +816,7 @@ export class ScheduleSlotEditor extends LitElement {
       this.schedule!.ScheduleData[activeDayIndex].slots = [
         {
           Time: timeToStringShort(stringToTime('06:00')),
-          Setpoint: DefaultSetpoint[this.schedule_type!],
+          Setpoint: DefaultSetpoint[this.scheduleTypeKey],
           SpecialTime: '',
         },
       ];
@@ -1095,10 +1161,14 @@ export class ScheduleSlotEditor extends LitElement {
 
   computeSetpointLabel(setPoint) {
     if (setPoint == 'Unknown') return setPoint;
-    if (this.schedule_type == 'Heating' && setPoint == -20) {
+    const scheduleType = this.scheduleTypeKey;
+    if (scheduleType === 'Heating' && setPoint == -20) {
       return 'Off';
     }
-    return setPoint + SetpointUnits[this.schedule_type!];
+    if (scheduleType === 'HotWater' && this.presetOption(setPoint)) {
+      return setPoint;
+    }
+    return setPoint + (SetpointUnits[scheduleType] ?? '');
   }
 
   static get styles(): CSSResultGroup {
@@ -1282,6 +1352,27 @@ export class ScheduleSlotEditor extends LitElement {
         cursor: pointer;
       }
       .state-choice:has(input:disabled) {
+        opacity: 0.38;
+        cursor: default;
+      }
+      .preset-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        min-height: 44px;
+      }
+      .preset-choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 38px;
+        cursor: pointer;
+      }
+      .preset-choice ha-icon {
+        color: var(--primary-color);
+      }
+      .preset-choice:has(input:disabled) {
         opacity: 0.38;
         cursor: default;
       }

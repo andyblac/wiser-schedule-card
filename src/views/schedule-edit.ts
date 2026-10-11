@@ -47,6 +47,11 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   private localize(key: string, search = '', replace = ''): string {
     return localizeForHass(this.hass, key, search, replace);
   }
+
+  private isFixedSchedule(schedule = this.schedule): boolean {
+    return Boolean(schedule && (Math.abs(Number(schedule.Id)) === 1000 || schedule.Type.toLowerCase() === 'hotwater'));
+  }
+
   @property({ attribute: false }) public config!: WiserScheduleCardConfig;
   @property({ attribute: false }) public schedule_id?: number = 0;
   @property({ attribute: false }) public schedule_type?: string;
@@ -194,7 +199,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   private async get_entity_list(hass, hub): Promise<Entities[]> {
-    if (this.schedule!.Id === 1000) return [];
+    if (this.isFixedSchedule()) return [];
     if (this.schedule!.Type.toLowerCase() == 'heating') {
       return await fetchRoomsList(hass, hub);
     }
@@ -261,7 +266,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       return html`
         <div>
           ${this.embedded ? '' : this.renderToolbar()}
-          ${this.embedded || this.schedule.Id === 1000 ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
+          ${this.embedded || this.isFixedSchedule() ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
           ${this.editMode && this._saveError ? html`<p role="alert">${this._saveError}</p>` : ''}
           <div class="wrapper">
             <div class="schedules">
@@ -297,7 +302,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
               : ''
           }
           ${
-            !this.embedded && !this.editMode && this.schedule.Id !== 1000 && allow_edit(this.hass, this.config)
+            !this.embedded && !this.editMode && !this.isFixedSchedule() && allow_edit(this.hass, this.config)
               ? html`<div class="save-actions">
                   <ha-button
                     .disabled=${this.assigningDevices || this._save_in_progress || !this.entities.some((entity) => this.isAssigned(entity) !== this.assignmentSelection.includes(String(entity.Id)))}
@@ -324,7 +329,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   renderScheduleAssignment(entities: Entities[], _assignments: unknown): TemplateResult | void {
-    if (!this.schedule || this.schedule.Id === 1000) return;
+    if (!this.schedule || this.isFixedSchedule()) return;
     if (!allow_edit(this.hass!, this.config))
       return html`<p>
         ${
@@ -362,7 +367,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       !this.schedule ||
       this.assigningDevices ||
       this.editMode ||
-      this.schedule.Id === 1000 ||
+      this.isFixedSchedule() ||
       !allow_edit(this.hass!, this.config)
     )
       return;
@@ -444,7 +449,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   private renderToolbar(): TemplateResult {
     const editable = allow_edit(this.hass!, this.config);
     const blocked = this.assigningDevices || this._save_in_progress;
-    const fixed = this.schedule!.Id === 1000;
+    const fixed = this.isFixedSchedule();
     return html` <input
         class="import-file"
         type="file"
@@ -518,12 +523,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   async entityAssignmentClick(ev: Event): Promise<void> {
     const e = ev.currentTarget as HTMLElement;
-    if (
-      this._assigning_in_progress ||
-      this.editMode ||
-      this.schedule?.Id === 1000 ||
-      !allow_edit(this.hass!, this.config)
-    )
+    if (this._assigning_in_progress || this.editMode || this.isFixedSchedule() || !allow_edit(this.hass!, this.config))
       return;
     this._assigning_in_progress = parseInt(e.id);
     try {

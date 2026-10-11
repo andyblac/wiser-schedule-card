@@ -51,6 +51,15 @@ export interface Schedule {
   SubType: string;
   Assignments: ScheduleAssignments[];
   ScheduleData: ScheduleDay[];
+  MinSetpoint?: number;
+  MaxSetpoint?: number;
+  PresetOptions?: SchedulePresetOption[];
+}
+
+export interface SchedulePresetOption {
+  name: string;
+  icon: string;
+  temperature: number;
 }
 
 export interface ScheduleAssignments {

@@ -29,7 +29,9 @@
       "special_time": "Set special time",
       "selected_period": "Selected period",
       "time": "Time",
-      "fixed": "Fixed"
+      "fixed": "Fixed",
+      "preset": "Preset",
+      "custom_temperature": "Temperature"
     },
     "days": {
       "weekdays": "Weekdays",

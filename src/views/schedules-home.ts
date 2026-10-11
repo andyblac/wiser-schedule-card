@@ -54,7 +54,7 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     }
   }
   private category(schedule: ScheduleListItem): string {
-    if (schedule.Id === 1000) return 'hotwater';
+    if (schedule.Id === 1000 || schedule.Type.toLowerCase() === 'hotwater') return 'hotwater';
     const type = (schedule.SubType || schedule.Type).toLowerCase();
     return (
       (
@@ -133,7 +133,11 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
                                 @click=${() => this.dispatchEvent(new CustomEvent('scheduleClick', { detail: schedule }))}
                               >
                                 <ha-icon
-                                  .icon=${schedule.Id === 1000 ? 'mdi:water-boiler' : 'mdi:calendar-clock'}
+                                  .icon=${
+                                    schedule.Id === 1000 || schedule.Type.toLowerCase() === 'hotwater'
+                                      ? 'mdi:water-boiler'
+                                      : 'mdi:calendar-clock'
+                                  }
                                 ></ha-icon>
                                 <span
                                   ><strong>${schedule.Name}</strong

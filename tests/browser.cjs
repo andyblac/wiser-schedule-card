@@ -480,6 +480,34 @@ const readStoredZip = (buffer) => {
     await button('back').click();
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/wiser-home-sections.png` });
+
+    await fresh();
+    await page.evaluate(() => {
+      fixture.schedules.push(
+        { Id: 1000, Type: 'OnOff', SubType: 'HotWater', Name: 'Wiser Hot Water', Assignments: 0 },
+        { Id: -1000, Type: 'HotWater', Name: 'OpenTherm Hot Water', Assignments: 1 },
+      );
+      mountCard();
+    });
+    await roomsReady();
+    await page.getByRole('heading', { name: 'Hot water', exact: true }).waitFor();
+    assert.equal(
+      await page.locator('button.overview-device').filter({ hasText: 'Hot Water' }).count(),
+      2,
+      'native and OpenTherm hot-water controls both remain available',
+    );
+    assert.equal(
+      await page.locator('button.overview-device').filter({ hasText: 'OpenTherm Hot Water' }).count(),
+      1,
+      'OpenTherm hot-water control has a distinct Overview label',
+    );
+    await page.locator('button.overview-device').filter({ hasText: 'OpenTherm Hot Water' }).click();
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    assert.equal(await page.locator('select').count(), 0);
+    assert.equal(await button('delete').isDisabled(), true);
+    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el.schedule.Id), -1000);
+    console.log('PASS OpenTherm hot-water Overview appears only when its fixed schedule is exposed');
+
     await fresh();
     await page.evaluate(() => mountCard());
     await roomsReady();
@@ -1507,6 +1535,45 @@ const readStoredZip = (buffer) => {
           assert.equal(await input.isDisabled(), true);
       }
     }
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one' };
+      editor.editMode = true;
+      editor.schedule_type = 'HotWater';
+      editor.schedule = {
+        Type: 'HotWater',
+        MinSetpoint: 35,
+        MaxSetpoint: 55,
+        PresetOptions: [
+          { name: 'Hand wash', icon: 'mdi:hand-wash', temperature: 42 },
+          { name: 'Shower', icon: 'mdi:shower', temperature: 48 },
+        ],
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+          day,
+          slots: [{ Time: '00:00', Setpoint: '45', SpecialTime: '' }],
+        })),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      editor._activeDay = 'Monday';
+      editor._activeSlot = 0;
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const hotWaterEditor = page.locator('wiser-schedule-slot-editor');
+    await hotWaterEditor.getByRole('radio', { name: 'Temperature', exact: true }).waitFor();
+    assert.equal(
+      await hotWaterEditor.locator('input[name="scheduled-hot-water-preset"]').count(),
+      3,
+      'the card renders custom temperature plus the schedule-safe presets supplied by the integration',
+    );
+    await hotWaterEditor.getByRole('radio', { name: 'Hand wash', exact: true }).check();
+    assert.equal(await hotWaterEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 'Hand wash');
+    assert.match(await hotWaterEditor.locator('.slot').first().textContent(), /Hand wash/);
+    assert.doesNotMatch(await hotWaterEditor.locator('.slot').first().textContent(), /Hand wash°C/);
+    assert.equal(await hotWaterEditor.getByRole('slider').inputValue(), '42');
+    await hotWaterEditor.getByRole('slider').fill('44');
+    assert.equal(await hotWaterEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 44);
+    assert.equal(await hotWaterEditor.getByRole('radio', { name: 'Temperature', exact: true }).isChecked(), true);
     const normalizedSpecialTimes = await page.evaluate(() => {
       const card = document.createElement('wiser-schedule-edit-card');
       card.suntimes = {

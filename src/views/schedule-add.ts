@@ -45,7 +45,8 @@ export class ScheduleAddCard extends LitElement {
     const types = await fetchScheduleTypes(this.hass!, this.config!.hub);
     this._schedule_types = types.filter(
       (type) =>
-        !this.allowed_types || this.allowed_types.some((allowed) => allowed.toLowerCase() === type.toLowerCase()),
+        type.toLowerCase() !== 'hotwater' &&
+        (!this.allowed_types || this.allowed_types.some((allowed) => allowed.toLowerCase() === type.toLowerCase())),
     );
     this._schedule_info = { Name: '', Type: this._schedule_types[0] || '' };
     if (!this._schedule_types.length) throw new Error(this.localize('wiser.helpers.no_supported_types'));

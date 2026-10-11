@@ -130,7 +130,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   private compatible(kind: string): Schedule[] {
     return this.schedules.filter((schedule) =>
       kind === 'hotwater'
-        ? schedule.Id === 1000
+        ? schedule.Id === 1000 || schedule.Type.toLowerCase() === 'hotwater'
         : schedule.Id !== 1000 &&
           (kind === 'heating' ? schedule.Type : schedule.SubType || schedule.Type).toLowerCase() === kind,
     );
@@ -143,7 +143,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   }
 
   private currentSchedule(room: Room, kind = this.target_type): Schedule | undefined {
-    if (kind === 'hotwater') return this.schedules.find((schedule) => schedule.Id === 1000);
+    if (kind === 'hotwater') return this.compatible(kind).find((schedule) => schedule.Id === room.Id);
     return this.compatible(kind).find((schedule) =>
       schedule.Assignments.some((assignment) => {
         // API schedule assignments use lowercase keys; accept capitalised keys too.
@@ -181,8 +181,22 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
           all.concat(items.map((item) => ({ ...item, kind: ['lighting', 'onoff', 'shutters'][index] }))),
         [],
       );
-      if (details.some((schedule) => schedule.Id === 1000))
-        this.devices.unshift({ Id: 1000, Name: this.localize('wiser.home.hotwater'), kind: 'hotwater' });
+      // Both Wiser's native hot-water schedule (1000) and the integration-owned
+      // OpenTherm schedule are fixed controls. The latter is returned only when
+      // OpenTherm hot-water control is enabled for this hub.
+      const hotWaterSchedules = details.filter(
+        (schedule) => schedule.Id === 1000 || schedule.Type.toLowerCase() === 'hotwater',
+      );
+      this.devices.unshift(
+        ...hotWaterSchedules.map((schedule) => ({
+          Id: schedule.Id,
+          // Keep the normal short label when there is one hot-water control.
+          // If a dual-channel Wiser schedule and OpenTherm control coexist,
+          // retain their schedule names so the two tiles are distinguishable.
+          Name: hotWaterSchedules.length > 1 ? schedule.Name : this.localize('wiser.home.hotwater'),
+          kind: 'hotwater',
+        })),
+      );
       this.loaded = true;
       this.selectTargetSchedule();
     } catch (error: unknown) {
@@ -513,7 +527,13 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       ? nextScheduleChange(schedule, this.now, this.hass!.config.time_zone || 'UTC', this.sun)
       : undefined;
     const setting = next
-      ? `${next.setpoint}${item.kind === 'heating' ? '°C' : ['lighting', 'shutters'].includes(item.kind) ? '%' : ''}`
+      ? `${next.setpoint}${
+          ['heating', 'hotwater'].includes(item.kind) && Number.isFinite(Number(next.setpoint))
+            ? '°C'
+            : ['lighting', 'shutters'].includes(item.kind)
+              ? '%'
+              : ''
+        }`
       : '';
     const key = `${item.kind}-${item.Id}`;
     const expanded =

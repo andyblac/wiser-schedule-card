@@ -17,6 +17,7 @@ export enum EViews {
 
 export enum DefaultSetpoint {
   Heating = '19',
+  HotWater = '45',
   OnOff = 'Off',
   Lighting = '0',
   Shutters = '100',
@@ -24,13 +25,14 @@ export enum DefaultSetpoint {
 
 export enum SetpointUnits {
   Heating = '°C',
+  HotWater = '°C',
   OnOff = '',
   Lighting = '%',
   Shutters = '%',
 }
 
 export const WebsocketEvent = 'scheduler_updated';
-export const HEATING_TYPES = ['Heating', 'OnOff', 'Lighting', 'Shutters'];
+export const HEATING_TYPES = ['Heating', 'HotWater', 'OnOff', 'Lighting', 'Shutters'];
 export const SUPPORT_SPECIAL_TIMES = ['Lighting', 'Shutters'];
 export const SPECIAL_DAYS: string[] = ['Weekdays', 'Weekend'];
 export const weekdays: string[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
