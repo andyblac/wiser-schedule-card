@@ -51,20 +51,23 @@ export function getGreyToYellow(percent: number): string {
 
 export function color_map(element: LitElement, schedule_type: string, setPoint: string): string {
   if (setPoint == 'Unknown') return '100,100,100';
-  if (schedule_type.toLowerCase() === 'onoff') {
+  const type = schedule_type.toLowerCase();
+  if (type === 'onoff') {
     if (setPoint == 'On') {
       return hexToRgbString(getCSSVariable(element, '--green-color'));
     }
     return hexToRgbString(getCSSVariable(element, '--red-color'));
-  } else if (['lighting', 'shutters'].includes(schedule_type.toLowerCase())) {
+  } else if (['lighting', 'shutters'].includes(type)) {
     return getGreyToYellow(parseInt(setPoint)) + ',1';
   } else {
     if (parseFloat(setPoint) == -20) {
       return '138, 138, 138';
     }
-    const maxc = 45;
-    const minc = -10;
-    const f = (parseFloat(setPoint) - minc) / (maxc - minc);
+    // Hot water uses the same warm palette as heating, but across an
+    // appropriate absolute range so 35°C does not appear fully hot.
+    const maxc = type === 'hotwater' ? 65 : 45;
+    const minc = type === 'hotwater' ? 20 : -10;
+    const f = Math.max(0, Math.min(1, (parseFloat(setPoint) - minc) / (maxc - minc)));
     const Y = Math.floor(255 * (1 - f));
     const r = 235;
     const g = Y;

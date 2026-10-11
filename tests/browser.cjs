@@ -1549,10 +1549,12 @@ const readStoredZip = (buffer) => {
           { name: 'Hand wash', icon: 'mdi:hand-wash', temperature: 42 },
           { name: 'Shower', icon: 'mdi:shower', temperature: 48 },
         ],
-        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
-          day,
-          slots: [{ Time: '00:00', Setpoint: '45', SpecialTime: '' }],
-        })),
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: String([35, 45, 55, 65, 35, 45, 55][index]), SpecialTime: '' }],
+          }),
+        ),
       };
       editor.suntimes = { Sunrises: [], Sunsets: [] };
       editor._activeDay = 'Monday';
@@ -1561,6 +1563,13 @@ const readStoredZip = (buffer) => {
     });
     const hotWaterEditor = page.locator('wiser-schedule-slot-editor');
     await hotWaterEditor.getByRole('radio', { name: 'Temperature', exact: true }).waitFor();
+    assert.deepEqual(
+      await hotWaterEditor
+        .locator('.slot')
+        .evaluateAll((slots) => slots.slice(0, 4).map((slot) => getComputedStyle(slot).backgroundColor)),
+      ['rgb(235, 170, 0)', 'rgb(235, 113, 0)', 'rgb(235, 56, 0)', 'rgb(235, 0, 0)'],
+      'hot water keeps the warm palette across its absolute temperature range',
+    );
     assert.equal(
       await hotWaterEditor.locator('input[name="scheduled-hot-water-preset"]').count(),
       3,
