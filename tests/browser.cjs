@@ -1044,6 +1044,18 @@ const readStoredZip = (buffer) => {
     await page.getByRole('radio', { name: 'HA Afficher', exact: true }).waitFor();
     await page.getByRole('radio', { name: 'HA Masquer', exact: true }).waitFor();
     await page.getByText('Autorisations', { exact: true }).waitFor();
+
+    await fresh();
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-card-editor');
+      const hass = makeHass();
+      hass.locale = { ...hass.locale, language: 'hu-HU' };
+      editor.hass = hass;
+      editor.setConfig({ type: 'custom:wiser-schedule-card', home_screen: 'overview' });
+      document.querySelector('#mount').append(editor);
+    });
+    await page.getByText('Jogosultságok', { exact: true }).waitFor();
+    await page.getByText('Téma színeinek használata', { exact: true }).waitFor();
     console.log('PASS native HA labels and regional-language selection for Wiser translations');
     await fresh();
     await page.evaluate(() => {

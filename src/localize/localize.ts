@@ -2,9 +2,10 @@ import type { HomeAssistant } from 'custom-card-helpers';
 import * as en from './languages/en.json';
 import * as fr from './languages/fr.json';
 import * as de from './languages/de.json';
+import * as hu from './languages/hu.json';
 import * as enGB from './languages/en-GB.json';
 
-const languages: Record<string, unknown> = { en, fr, de, 'en-gb': enGB };
+const languages: Record<string, unknown> = { en, fr, de, hu, 'en-gb': enGB };
 const nativeKeys: Record<string, string> = {
   'wiser.labels.state': 'ui.dialogs.more_info_control.state',
   'wiser.labels.sunrise': 'ui.panel.config.automation.editor.triggers.type.sun.sunrise',
