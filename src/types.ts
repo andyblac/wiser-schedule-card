@@ -54,8 +54,8 @@ export interface Schedule {
   ScheduleData: ScheduleDay[];
   MinSetpoint?: number;
   MaxSetpoint?: number;
-  ExternalPassiveRange?: boolean;
   PassiveRange?: boolean;
+  PassiveRangeType?: 'native' | 'external';
   MinUpperSetpoint?: number;
   MaxUpperSetpoint?: number;
   PresetOptions?: SchedulePresetOption[];

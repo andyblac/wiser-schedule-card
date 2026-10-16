@@ -107,7 +107,7 @@ export class ScheduleSlotEditor extends LitElement {
 
   private get passiveTemperatureRange(): boolean {
     return Boolean(
-      (this.schedule?.ExternalPassiveRange || this.schedule?.PassiveRange) &&
+      this.schedule?.PassiveRange &&
         this.scheduleTypeKey === 'Heating',
     );
   }

@@ -1543,7 +1543,8 @@ const readStoredZip = (buffer) => {
       editor.schedule_type = 'Heating';
       editor.schedule = {
         Type: 'Heating',
-        ExternalPassiveRange: true,
+        PassiveRange: true,
+        PassiveRangeType: 'external',
         MinUpperSetpoint: 5,
         MaxUpperSetpoint: 30,
         ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
@@ -1620,7 +1621,8 @@ const readStoredZip = (buffer) => {
       { lower: 23, upper: 23 },
     );
     await rangeEditor.evaluate((el) => {
-      delete el.schedule.ExternalPassiveRange;
+      delete el.schedule.PassiveRange;
+      delete el.schedule.PassiveRangeType;
       el.schedule.PassiveRange = true;
       el.requestUpdate();
     });
