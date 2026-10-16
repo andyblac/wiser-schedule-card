@@ -34,6 +34,9 @@ export class VariableSlider extends LitElement {
   @property({ type: Boolean })
   disabled = false;
 
+  @property({ type: Boolean })
+  deferChange = false;
+
   @property({ type: Number })
   _displayedValue = 0;
 
@@ -62,6 +65,7 @@ export class VariableSlider extends LitElement {
       .value=${String(this._displayedValue)}
       ?disabled=${this.disabled}
       @input=${this._updateValue}
+      @change=${this._commitValue}
     />`;
   }
 
@@ -83,7 +87,16 @@ export class VariableSlider extends LitElement {
     let value = Number((e.target as HTMLInputElement).value);
     this._displayedValue = value;
     value = this._scaledValue(this._displayedValue);
-    fireEvent(this, 'value-changed', { value: value });
+    if (this.deferChange) {
+      this.dispatchEvent(new CustomEvent('value-input', { detail: { value }, bubbles: true, composed: true }));
+    } else {
+      fireEvent(this, 'value-changed', { value });
+    }
+  }
+
+  private _commitValue() {
+    if (!this.deferChange) return;
+    fireEvent(this, 'value-changed', { value: this._scaledValue(this._displayedValue) });
   }
 
   private _roundedValue(value: number) {
@@ -124,6 +137,11 @@ export class VariableSlider extends LitElement {
     input[type='range']:disabled {
       opacity: 0.38;
       cursor: default;
+    }
+    div.checkbox-container div.value {
+      width: 6.5ch;
+      min-width: 6.5ch;
+      justify-content: flex-end;
     }
   `;
 }

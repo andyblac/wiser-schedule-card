@@ -105,6 +105,10 @@ export class ScheduleSlotEditor extends LitElement {
     return HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type) || HEATING_TYPES[0];
   }
 
+  private get externalPassiveRange(): boolean {
+    return Boolean(this.schedule?.ExternalPassiveRange && this.scheduleTypeKey === 'Heating');
+  }
+
   public get canAddPeriod(): boolean {
     if (!this.editMode || !this._activeDay || this._activeSlot < -1) return false;
     const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
@@ -264,6 +268,7 @@ export class ScheduleSlotEditor extends LitElement {
       !SPECIAL_TIMES.includes(day.slots[index + 1].SpecialTime);
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     const label_class = (width / 100) * fullWidth < 35 ? 'setpoint rotate' : 'setpoint';
+    const settingLabel = this.computeTemperatureRangeLabel(slot);
     const title =
       this.localize('wiser.labels.start') +
       ' - ' +
@@ -275,7 +280,7 @@ export class ScheduleSlotEditor extends LitElement {
       '\n' +
       this.localize('wiser.labels.setting') +
       ' - ' +
-      this.computeSetpointLabel(setpoint);
+      settingLabel;
 
     return html`
       ${index == 0 && start_time != '00:00' && start_time != '0:00' ? this.renderEmptySlot(slot, -1, day, false) : ''}
@@ -291,7 +296,7 @@ export class ScheduleSlotEditor extends LitElement {
         slot="${index}"
       >
         <div class="slotoverlay ${this.editMode ? 'selectable' : null}">
-          <span class="${label_class}">${this.computeSetpointLabel(setpoint)}</span>
+          <span class="${label_class}">${settingLabel}</span>
         </div>
         ${SPECIAL_TIMES.includes(slot.SpecialTime) && !selectedBoundary ? this.renderSpecialTimeMarker(slot.SpecialTime) : ''}
         ${
@@ -509,7 +514,11 @@ export class ScheduleSlotEditor extends LitElement {
           }
           <div class="editor-control-row heating-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
-              ${this.localize('wiser.labels.temperature')}
+              ${
+                this.externalPassiveRange
+                  ? this.localize('wiser.labels.lower_temperature')
+                  : this.localize('wiser.labels.temperature')
+              }
             </div>
             <div class="control-content temperature-input">
               ${
@@ -534,6 +543,10 @@ export class ScheduleSlotEditor extends LitElement {
                 .label=${this.localize('wiser.labels.temperature')}
                 .optional=${false}
                 .disabled=${this._activeSlot < 0}
+                .deferChange=${true}
+                @value-input=${(ev: CustomEvent) => {
+                  this._previewSetPoint(Number(ev.detail.value));
+                }}
                 @value-changed=${(ev: CustomEvent) => {
                   this._updateSetPoint(Number(ev.detail.value));
                 }}
@@ -541,6 +554,46 @@ export class ScheduleSlotEditor extends LitElement {
               </wiser-variable-slider>
             </div>
           </div>
+          ${
+            this.externalPassiveRange
+              ? html`
+                  <div class="editor-control-row heating-control-row">
+                    <div class="section-header" aria-disabled=${this._activeSlot < 0}>
+                      ${this.localize('wiser.labels.upper_temperature')}
+                    </div>
+                    <div class="control-content temperature-input">
+                      <button
+                        type="button"
+                        class="set-off-button slider-leading-spacer"
+                        disabled
+                        aria-hidden="true"
+                        tabindex="-1"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${mdiRadiatorOff}></path></svg>
+                      </button>
+                      <wiser-variable-slider
+                        min=${this.schedule?.MinUpperSetpoint ?? 5}
+                        max=${this.schedule?.MaxUpperSetpoint ?? 30}
+                        step="0.5"
+                        value=${this._activeSlot >= 0 ? Number(slots![this._activeSlot!].UpperSetpoint ?? 18) : 0}
+                        unit="°C"
+                        .label=${this.localize('wiser.labels.upper_temperature')}
+                        .optional=${false}
+                        .disabled=${this._activeSlot < 0}
+                        .deferChange=${true}
+                        @value-input=${(ev: CustomEvent) => {
+                          this._previewUpperSetPoint(Number(ev.detail.value));
+                        }}
+                        @value-changed=${(ev: CustomEvent) => {
+                          this._updateUpperSetPoint(Number(ev.detail.value));
+                        }}
+                      >
+                      </wiser-variable-slider>
+                    </div>
+                  </div>
+                `
+              : ''
+          }
         `;
       } else if (scheduleType === 'OnOff') {
         return html`
@@ -707,12 +760,18 @@ export class ScheduleSlotEditor extends LitElement {
   }
 
   _updateSetPoint(setpoint: string | number): void {
+    const slot = this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!];
+    const upper = Number(slot.UpperSetpoint);
     this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots = Object.assign(
       this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots,
       {
         [this._activeSlot!]: {
           ...this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!],
           Setpoint: setpoint,
+          UpperSetpoint:
+            this.externalPassiveRange && Number.isFinite(upper) && upper < Number(setpoint)
+              ? setpoint
+              : slot.UpperSetpoint,
         },
       },
     );
@@ -721,6 +780,28 @@ export class ScheduleSlotEditor extends LitElement {
     });
     this.dispatchEvent(myEvent);
     this.requestUpdate();
+  }
+
+  _previewSetPoint(setpoint: string | number): void {
+    this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!].Setpoint = String(setpoint);
+  }
+
+  _updateUpperSetPoint(setpoint: string | number): void {
+    this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots = Object.assign(
+      this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots,
+      {
+        [this._activeSlot!]: {
+          ...this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!],
+          UpperSetpoint: setpoint,
+        },
+      },
+    );
+    this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
+    this.requestUpdate();
+  }
+
+  _previewUpperSetPoint(setpoint: string | number): void {
+    this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!].UpperSetpoint = setpoint;
   }
 
   getSunTime(day: string, time: string): string {
@@ -737,8 +818,8 @@ export class ScheduleSlotEditor extends LitElement {
     const outputSlots: ScheduleSlot[] = slots
       .map((slot) => {
         return SPECIAL_TIMES.includes(slot.SpecialTime)
-          ? { Time: this.getSunTime(day.day, slot.SpecialTime), Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime }
-          : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime };
+          ? { ...slot, Time: this.getSunTime(day.day, slot.SpecialTime), SpecialTime: slot.SpecialTime }
+          : { ...slot, Time: slot.Time, SpecialTime: slot.SpecialTime };
       })
       .sort((a, b) => stringToTime(a.Time) - stringToTime(b.Time));
 
@@ -817,6 +898,9 @@ export class ScheduleSlotEditor extends LitElement {
         {
           Time: timeToStringShort(stringToTime('06:00')),
           Setpoint: DefaultSetpoint[this.scheduleTypeKey],
+          UpperSetpoint: this.externalPassiveRange
+            ? Math.max(18, Number(DefaultSetpoint[this.scheduleTypeKey]))
+            : undefined,
           SpecialTime: '',
         },
       ];
@@ -834,6 +918,7 @@ export class ScheduleSlotEditor extends LitElement {
           {
             Time: timeToStringShort(startTime),
             Setpoint: activeSlot.Setpoint,
+            UpperSetpoint: activeSlot.UpperSetpoint,
             SpecialTime: '',
           },
           {
@@ -850,6 +935,7 @@ export class ScheduleSlotEditor extends LitElement {
           {
             Time: timeToStringShort(startTime),
             Setpoint: activeSlot.Setpoint,
+            UpperSetpoint: activeSlot.UpperSetpoint,
             SpecialTime: '',
           },
           ...this.schedule!.ScheduleData[activeDayIndex].slots.slice(this._activeSlot),
@@ -1127,19 +1213,32 @@ export class ScheduleSlotEditor extends LitElement {
       (left, right) => stringToTime(left.Time) - stringToTime(right.Time),
     );
     let restoreSetpoint = get_setpoint(targetDay, -1, this.schedule!);
+    let restoreUpperSetpoint: string | number | undefined;
     for (const targetSlot of originalTargetSlots) {
-      if (stringToTime(targetSlot.Time) <= endTime) restoreSetpoint = targetSlot.Setpoint;
-      else break;
+      if (stringToTime(targetSlot.Time) <= endTime) {
+        restoreSetpoint = targetSlot.Setpoint;
+        restoreUpperSetpoint = targetSlot.UpperSetpoint;
+      } else break;
     }
 
     const copiedSlots = originalTargetSlots.filter((targetSlot) => {
       const time = stringToTime(targetSlot.Time);
       return time < startTime || time >= endTime;
     });
-    copiedSlots.push({ Time: timeToStringShort(startTime), Setpoint: source.Setpoint, SpecialTime: '' });
+    copiedSlots.push({
+      Time: timeToStringShort(startTime),
+      Setpoint: source.Setpoint,
+      UpperSetpoint: source.UpperSetpoint,
+      SpecialTime: '',
+    });
 
     if (endTime < SEC_PER_DAY && !copiedSlots.some((targetSlot) => stringToTime(targetSlot.Time) === endTime)) {
-      copiedSlots.push({ Time: timeToStringShort(endTime), Setpoint: restoreSetpoint, SpecialTime: '' });
+      copiedSlots.push({
+        Time: timeToStringShort(endTime),
+        Setpoint: restoreSetpoint,
+        UpperSetpoint: restoreUpperSetpoint,
+        SpecialTime: '',
+      });
     }
 
     targetDay.slots = copiedSlots.sort((left, right) => stringToTime(left.Time) - stringToTime(right.Time));
@@ -1169,6 +1268,12 @@ export class ScheduleSlotEditor extends LitElement {
       return setPoint;
     }
     return setPoint + (SetpointUnits[scheduleType] ?? '');
+  }
+
+  computeTemperatureRangeLabel(slot: ScheduleSlot): string {
+    const lower = this.computeSetpointLabel(slot.Setpoint);
+    if (!this.externalPassiveRange || slot.UpperSetpoint === undefined) return lower;
+    return `${lower}–${slot.UpperSetpoint}°C`;
   }
 
   static get styles(): CSSResultGroup {
@@ -1385,6 +1490,10 @@ export class ScheduleSlotEditor extends LitElement {
       .level-control wiser-variable-slider {
         display: block;
         min-width: 0;
+      }
+      .slider-leading-spacer {
+        visibility: hidden;
+        pointer-events: none;
       }
       .section-header {
         color: var(--primary-text-color);

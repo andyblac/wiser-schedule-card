@@ -131,8 +131,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     const outputSlots: ScheduleSlot[] = slots
       .map((slot) => {
         return SPECIAL_TIMES.includes(slot.Time)
-          ? { Time: this.getSunTime(day.day, slot.Time), Setpoint: slot.Setpoint, SpecialTime: slot.Time }
-          : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: '' };
+          ? { ...slot, Time: this.getSunTime(day.day, slot.Time), SpecialTime: slot.Time }
+          : { ...slot, Time: slot.Time, SpecialTime: '' };
       })
       .sort((a, b) => stringToTime(a.Time) - stringToTime(b.Time));
 
@@ -152,8 +152,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
     const slots = day.slots;
     const outputSlots: ScheduleSlot[] = slots.map((slot) => {
       return SPECIAL_TIMES.includes(slot.SpecialTime)
-        ? { Time: slot.SpecialTime, Setpoint: slot.Setpoint, SpecialTime: slot.SpecialTime }
-        : { Time: slot.Time, Setpoint: slot.Setpoint, SpecialTime: '' };
+        ? { ...slot, Time: slot.SpecialTime, SpecialTime: slot.SpecialTime }
+        : { ...slot, Time: slot.Time, SpecialTime: '' };
     });
     const outputSlotsSet = new Set(outputSlots.map((e) => JSON.stringify(e)));
     const res = Array.from(outputSlotsSet).map((e) => JSON.parse(e));

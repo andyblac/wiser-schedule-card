@@ -36,6 +36,7 @@ export interface SunTimes {
 export interface ScheduleSlot {
   Time: string;
   Setpoint: string;
+  UpperSetpoint?: string | number;
   SpecialTime: string;
 }
 
@@ -53,6 +54,9 @@ export interface Schedule {
   ScheduleData: ScheduleDay[];
   MinSetpoint?: number;
   MaxSetpoint?: number;
+  ExternalPassiveRange?: boolean;
+  MinUpperSetpoint?: number;
+  MaxUpperSetpoint?: number;
   PresetOptions?: SchedulePresetOption[];
 }
 

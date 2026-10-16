@@ -31,7 +31,9 @@
       "time": "Time",
       "fixed": "Fixed",
       "preset": "Preset",
-      "custom_temperature": "Temperature"
+      "custom_temperature": "Temperature",
+      "lower_temperature": "Lower temperature",
+      "upper_temperature": "Upper temperature"
     },
     "days": {
       "weekdays": "Weekdays",

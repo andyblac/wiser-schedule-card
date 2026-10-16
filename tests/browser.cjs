@@ -1540,6 +1540,78 @@ const readStoredZip = (buffer) => {
       editor.hass = makeHass();
       editor.config = { hub: 'hub-one' };
       editor.editMode = true;
+      editor.schedule_type = 'Heating';
+      editor.schedule = {
+        Type: 'Heating',
+        ExternalPassiveRange: true,
+        MinUpperSetpoint: 5,
+        MaxUpperSetpoint: 30,
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
+          day,
+          slots: [{ Time: '00:00', Setpoint: '14', UpperSetpoint: 20, SpecialTime: '' }],
+        })),
+      };
+      editor.suntimes = {
+        Sunrises: Array.from({ length: 7 }, () => ({ time: '06:30' })),
+        Sunsets: Array.from({ length: 7 }, () => ({ time: '19:30' })),
+      };
+      editor._activeDay = 'Monday';
+      editor._activeSlot = 0;
+      editor.scheduleChangeCount = 0;
+      editor.addEventListener('scheduleChanged', () => editor.scheduleChangeCount++);
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const rangeEditor = page.locator('wiser-schedule-slot-editor');
+    await rangeEditor.getByRole('slider').first().waitFor();
+    assert.equal(await rangeEditor.getByText('Lower temperature', { exact: true }).count(), 1);
+    assert.equal(await rangeEditor.getByText('Upper temperature', { exact: true }).count(), 1);
+    assert.match(await rangeEditor.locator('.slot').first().textContent(), /14°C–20°C/);
+    const temperatureSliders = rangeEditor.getByRole('slider');
+    assert.equal(await temperatureSliders.count(), 2);
+    const lowerSliderBox = await temperatureSliders.nth(0).boundingBox();
+    const upperSliderBox = await temperatureSliders.nth(1).boundingBox();
+    assert.ok(lowerSliderBox && upperSliderBox);
+    assert.ok(Math.abs(lowerSliderBox.x - upperSliderBox.x) < 1, 'temperature slider tracks start together');
+    assert.ok(Math.abs(lowerSliderBox.width - upperSliderBox.width) < 1, 'temperature slider tracks are equal length');
+    assert.equal(await temperatureSliders.nth(1).getAttribute('min'), '5');
+    await temperatureSliders.nth(1).evaluate((input) => {
+      input.value = '21.5';
+      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    });
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        upper: el.schedule.ScheduleData[0].slots[0].UpperSetpoint,
+        commits: el.scheduleChangeCount,
+      })),
+      { upper: 21.5, commits: 0 },
+      'slider movement previews locally without rebuilding schedule history',
+    );
+    await temperatureSliders
+      .nth(1)
+      .evaluate((input) => input.dispatchEvent(new Event('change', { bubbles: true, composed: true })));
+    assert.equal(await rangeEditor.evaluate((el) => el.scheduleChangeCount), 1);
+    await temperatureSliders.nth(1).fill('22');
+    assert.equal(await rangeEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].UpperSetpoint), 22);
+    await temperatureSliders.nth(0).fill('18');
+    assert.equal(
+      await rangeEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].UpperSetpoint),
+      22,
+      'changing the lower value within range does not move the upper value',
+    );
+    assert.equal(await temperatureSliders.nth(1).getAttribute('min'), '5');
+    await temperatureSliders.nth(0).fill('23');
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        lower: el.schedule.ScheduleData[0].slots[0].Setpoint,
+        upper: el.schedule.ScheduleData[0].slots[0].UpperSetpoint,
+      })),
+      { lower: 23, upper: 23 },
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one' };
+      editor.editMode = true;
       editor.schedule_type = 'HotWater';
       editor.schedule = {
         Type: 'HotWater',
