@@ -1,4 +1,4 @@
-import { Schedule, ScheduleDay, WiserScheduleCardConfig } from './types';
+import { Schedule, ScheduleDay, ScheduleSlot, WiserScheduleCardConfig } from './types';
 import { FrontendLocaleData, HomeAssistant, NumberFormat, TimeFormat } from 'custom-card-helpers';
 
 import hexRgb from 'hex-rgb';
@@ -96,15 +96,21 @@ export function get_end_time(day: ScheduleDay, index: number): string {
   return day.slots[index + 1].Time;
 }
 
-export function find_previous_setpoint(day: ScheduleDay, schedule: Schedule): string {
+export function find_previous_slot(day: ScheduleDay, schedule: Schedule): ScheduleSlot | undefined {
   const day_order = [...days.slice(days.indexOf(day.day)), ...days.slice(0, days.indexOf(day.day))].reverse();
   let search_day: string;
   for (search_day of day_order) {
     const d = schedule.ScheduleData.filter((rday) => rday.day == search_day)[0];
     if (d && d.slots.length > 0) {
-      return d.slots[d.slots.length - 1].Setpoint;
+      return d.slots[d.slots.length - 1];
     }
   }
+  return undefined;
+}
+
+export function find_previous_setpoint(day: ScheduleDay, schedule: Schedule): string {
+  const slot = find_previous_slot(day, schedule);
+  if (slot) return slot.Setpoint;
   return 'Unknown';
 }
 

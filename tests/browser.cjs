@@ -1574,6 +1574,18 @@ const readStoredZip = (buffer) => {
     assert.ok(Math.abs(lowerSliderBox.x - upperSliderBox.x) < 1, 'temperature slider tracks start together');
     assert.ok(Math.abs(lowerSliderBox.width - upperSliderBox.width) < 1, 'temperature slider tracks are equal length');
     assert.equal(await temperatureSliders.nth(1).getAttribute('min'), '5');
+    await rangeEditor.evaluate((el) => {
+      el.schedule.ScheduleData[0].slots[0].Time = '07:00';
+      el.schedule.ScheduleData[6].slots[0].Setpoint = '17';
+      el.schedule.ScheduleData[6].slots[0].UpperSetpoint = 22;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.match(
+      await rangeEditor.locator('.slot.previous').first().textContent(),
+      /17°C–22°C/,
+      'the shaded period before the first slot displays the inherited temperature range',
+    );
     await temperatureSliders.nth(1).evaluate((input) => {
       input.value = '21.5';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));

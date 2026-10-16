@@ -8,7 +8,7 @@ import { HomeAssistant } from 'custom-card-helpers';
 import { nativeControlStyle } from '../styles';
 import { mdiRadiatorOff, mdiUnfoldMoreVertical } from '@mdi/js';
 import type { WiserScheduleCardConfig, ScheduleSlot, Schedule, ScheduleDay, SunTimes } from '../types';
-import { color_map, getLocale, get_end_time, get_setpoint, stringTimeToSeconds } from '../helpers';
+import { color_map, find_previous_slot, getLocale, get_end_time, get_setpoint, stringTimeToSeconds } from '../helpers';
 import {
   HEATING_TYPES,
   SEC_PER_DAY,
@@ -202,6 +202,12 @@ export class ScheduleSlotEditor extends LitElement {
     const start_time = '00:00';
     const end_time = slot.Time;
     const setpoint = get_setpoint(day, index, this.schedule!);
+    const previousSlot = find_previous_slot(day, this.schedule!);
+    const settingLabel = this.computeTemperatureRangeLabel({
+      ...slot,
+      Setpoint: setpoint,
+      UpperSetpoint: previousSlot?.UpperSetpoint,
+    });
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     const inactiveLevel =
       !this.config!.theme_colors && ['Lighting', 'Shutters'].includes(this.schedule_type!) && Number(setpoint) === 0;
@@ -224,7 +230,7 @@ export class ScheduleSlotEditor extends LitElement {
       '\n' +
       this.localize('wiser.labels.setting') +
       ' - ' +
-      this.computeSetpointLabel(setpoint);
+      settingLabel;
     const label_class = (width / 100) * fullWidth < 35 ? 'setpoint rotate' : 'setpoint';
     return html`
       <div
@@ -238,7 +244,7 @@ export class ScheduleSlotEditor extends LitElement {
         slot="${-1}"
       >
         <div class="slotoverlay previous">
-          <span class="${label_class}">${this.computeSetpointLabel(setpoint)}</span>
+          <span class="${label_class}">${settingLabel}</span>
         </div>
       </div>
     `;
