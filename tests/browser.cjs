@@ -1619,6 +1619,17 @@ const readStoredZip = (buffer) => {
       })),
       { lower: 23, upper: 23 },
     );
+    await rangeEditor.evaluate((el) => {
+      delete el.schedule.ExternalPassiveRange;
+      el.schedule.PassiveRange = true;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(
+      await rangeEditor.getByRole('slider').count(),
+      2,
+      'native Passive Mode schedules use the same paired temperature editor',
+    );
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();

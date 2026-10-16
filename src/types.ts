@@ -55,6 +55,7 @@ export interface Schedule {
   MinSetpoint?: number;
   MaxSetpoint?: number;
   ExternalPassiveRange?: boolean;
+  PassiveRange?: boolean;
   MinUpperSetpoint?: number;
   MaxUpperSetpoint?: number;
   PresetOptions?: SchedulePresetOption[];

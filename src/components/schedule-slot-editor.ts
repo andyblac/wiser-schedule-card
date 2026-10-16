@@ -105,8 +105,11 @@ export class ScheduleSlotEditor extends LitElement {
     return HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type) || HEATING_TYPES[0];
   }
 
-  private get externalPassiveRange(): boolean {
-    return Boolean(this.schedule?.ExternalPassiveRange && this.scheduleTypeKey === 'Heating');
+  private get passiveTemperatureRange(): boolean {
+    return Boolean(
+      (this.schedule?.ExternalPassiveRange || this.schedule?.PassiveRange) &&
+        this.scheduleTypeKey === 'Heating',
+    );
   }
 
   public get canAddPeriod(): boolean {
@@ -521,7 +524,7 @@ export class ScheduleSlotEditor extends LitElement {
           <div class="editor-control-row heating-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
               ${
-                this.externalPassiveRange
+                this.passiveTemperatureRange
                   ? this.localize('wiser.labels.lower_temperature')
                   : this.localize('wiser.labels.temperature')
               }
@@ -561,7 +564,7 @@ export class ScheduleSlotEditor extends LitElement {
             </div>
           </div>
           ${
-            this.externalPassiveRange
+            this.passiveTemperatureRange
               ? html`
                   <div class="editor-control-row heating-control-row">
                     <div class="section-header" aria-disabled=${this._activeSlot < 0}>
@@ -775,7 +778,7 @@ export class ScheduleSlotEditor extends LitElement {
           ...this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!],
           Setpoint: setpoint,
           UpperSetpoint:
-            this.externalPassiveRange && Number.isFinite(upper) && upper < Number(setpoint)
+            this.passiveTemperatureRange && Number.isFinite(upper) && upper < Number(setpoint)
               ? setpoint
               : slot.UpperSetpoint,
         },
@@ -904,7 +907,7 @@ export class ScheduleSlotEditor extends LitElement {
         {
           Time: timeToStringShort(stringToTime('06:00')),
           Setpoint: DefaultSetpoint[this.scheduleTypeKey],
-          UpperSetpoint: this.externalPassiveRange
+          UpperSetpoint: this.passiveTemperatureRange
             ? Math.max(18, Number(DefaultSetpoint[this.scheduleTypeKey]))
             : undefined,
           SpecialTime: '',
@@ -1278,7 +1281,8 @@ export class ScheduleSlotEditor extends LitElement {
 
   computeTemperatureRangeLabel(slot: ScheduleSlot): string {
     const lower = this.computeSetpointLabel(slot.Setpoint);
-    if (!this.externalPassiveRange || slot.UpperSetpoint === undefined) return lower;
+    if (!this.passiveTemperatureRange || slot.UpperSetpoint === undefined) return lower;
+    if (Number(slot.UpperSetpoint) === -20) return lower;
     return `${lower}–${slot.UpperSetpoint}°C`;
   }
 
