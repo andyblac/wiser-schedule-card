@@ -40,7 +40,7 @@ import '../components/schedule-slot-editor';
 import '../components/dialog-error';
 import { commonStyle } from '../styles';
 import { localizeForHass } from '../localize/localize';
-import { days, SPECIAL_TIMES, SUPPORT_SPECIAL_TIMES } from '../const';
+import { days, MAX_SCHEDULE_SLOTS_PER_DAY, SPECIAL_TIMES, SUPPORT_SPECIAL_TIMES } from '../const';
 
 @customElement('wiser-schedule-edit-card')
 export class SchedulerEditCard extends SubscribeMixin(LitElement) {
@@ -72,6 +72,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   @state() _current_user?: CurrentUser = this.hass?.user;
   @state() _assigning_in_progress = 0;
   @state() _save_in_progress = false;
+  @state() private _delete_in_progress = false;
   @state() error?: WiserError;
 
   @state() _tempSchedule?: Schedule;
@@ -102,7 +103,12 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   private async handleUpdate(ev: WiserEventData): Promise<void> {
-    if (!this.assigningDevices && (!this.config!.hub || ev.hub == this.config!.hub) && ev.event == 'wiser_updated') {
+    if (
+      !this.assigningDevices &&
+      !this._save_in_progress &&
+      (!this.config!.hub || ev.hub == this.config!.hub) &&
+      ev.event == 'wiser_updated'
+    ) {
       await this.loadData();
     }
   }
@@ -223,6 +229,8 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       changedProps.has('editMode') ||
       changedProps.has('_assigning_in_progress') ||
       changedProps.has('_save_in_progress') ||
+      changedProps.has('_saveError') ||
+      changedProps.has('_delete_in_progress') ||
       changedProps.has('_tempSchedule') ||
       changedProps.has('_undoHistory') ||
       changedProps.has('_redoHistory') ||
@@ -268,6 +276,16 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
           ${this.embedded ? '' : this.renderToolbar()}
           ${this.embedded || this.isFixedSchedule() ? '' : this.renderScheduleAssignment(this.entities, this.schedule.Assignments)}
           ${this.editMode && this._saveError ? html`<p role="alert">${this._saveError}</p>` : ''}
+          ${
+            this._save_in_progress
+              ? html`<p class="operation-status" role="status" aria-live="polite">
+                  <span class="operation-spinner" aria-hidden="true"></span>
+                  ${this.localize(
+                    this._delete_in_progress ? 'wiser.actions.deleting_schedule' : 'wiser.actions.saving_schedule',
+                  )}
+                </p>`
+              : ''
+          }
           <div class="wrapper">
             <div class="schedules">
               <div class="slots-wrapper">
@@ -590,7 +608,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   async deleteClick(ev?: Event): Promise<void> {
-    if (!allow_edit(this.hass!, this.config)) return;
+    if (this._save_in_progress || !allow_edit(this.hass!, this.config)) return;
     const element = (ev?.target as HTMLElement) || this;
     const result = await new Promise((resolve) => {
       fireEvent(element, 'show-dialog', {
@@ -608,10 +626,22 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       });
     });
     if (result) {
-      this.schedule_id = 0;
-      await deleteSchedule(this.hass!, this.config!.hub, this.schedule!.Type, this.schedule!.Id);
-      const myEvent = new CustomEvent('scheduleDeleted');
-      this.dispatchEvent(myEvent);
+      this._delete_in_progress = true;
+      this._save_in_progress = true;
+      await this.updateComplete;
+      try {
+        await deleteSchedule(this.hass!, this.config!.hub, this.schedule!.Type, this.schedule!.Id);
+        this.dispatchEvent(new CustomEvent('scheduleDeleted'));
+      } catch (error: unknown) {
+        showErrorDialog(
+          this,
+          this.localize('wiser.headings.delete_schedule'),
+          this.operationError(error, 'wiser.helpers.delete_schedule_failed'),
+        );
+      } finally {
+        this._delete_in_progress = false;
+        this._save_in_progress = false;
+      }
     }
   }
 
@@ -709,20 +739,35 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   validateSchedule(schedule: Schedule): boolean {
-    const hasSlotsForDay = schedule.ScheduleData.map((day) => {
-      return day.slots;
-    });
-    const hasSlots = hasSlotsForDay.map((day) => {
-      return day.length > 0;
-    });
-    return hasSlots.includes(true);
+    return schedule.ScheduleData.some((day) => day.slots.length > 0);
+  }
+
+  private scheduleValidationError(schedule: Schedule): string {
+    const oversizedDay = schedule.ScheduleData.find((day) => day.slots.length > MAX_SCHEDULE_SLOTS_PER_DAY);
+    if (oversizedDay) {
+      return this.localize('wiser.helpers.too_many_periods')
+        .replace('{day}', this.localize(`wiser.days.${oversizedDay.day.toLowerCase()}`))
+        .replace('{max}', String(MAX_SCHEDULE_SLOTS_PER_DAY));
+    }
+    return '';
+  }
+
+  private operationError(error: unknown, fallbackKey: string): string {
+    const message = (error as Error)?.message;
+    return !message || /^unknown error\b/i.test(message) ? this.localize(fallbackKey) : message;
   }
 
   async saveClick(): Promise<void> {
     if (this._save_in_progress || !this._tempSchedule?.Name.trim() || !allow_edit(this.hass!, this.config)) return;
+    const validationError = this.scheduleValidationError(this._tempSchedule);
+    if (validationError) {
+      this._saveError = validationError;
+      return;
+    }
     this._save_in_progress = true;
     this._saveError = '';
     try {
+      await this.updateComplete;
       if (this.validateSchedule(this._tempSchedule)) {
         const draft = JSON.parse(JSON.stringify(this._tempSchedule)) as Schedule;
         const schedule = SUPPORT_SPECIAL_TIMES.includes(this.schedule_type!)
@@ -740,7 +785,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
         showErrorDialog(this, 'Error Saving Schedule', 'The schedule you are trying to save has no time slots.');
       }
     } catch (error: unknown) {
-      this._saveError = (error as Error)?.message || this.localize('common.load_failed');
+      this._saveError = this.operationError(error, 'wiser.helpers.save_schedule_failed');
     } finally {
       this._save_in_progress = false;
     }
@@ -785,6 +830,33 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       }
       .tool:not(:disabled):hover {
         color: var(--primary-color);
+      }
+      .operation-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 24px;
+        margin: 12px 0;
+        color: var(--secondary-text-color);
+      }
+      .operation-spinner {
+        width: 18px;
+        height: 18px;
+        box-sizing: border-box;
+        border: 2px solid currentColor;
+        border-inline-end-color: transparent;
+        border-radius: 50%;
+        animation: operation-spin 0.8s linear infinite;
+      }
+      @keyframes operation-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .operation-spinner {
+          animation: none;
+        }
       }
       @media (max-width: 600px) {
         .tools {

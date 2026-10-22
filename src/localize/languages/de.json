@@ -19,7 +19,9 @@
       "import": "Zeitplan importieren",
       "duplicate_new": "Als neuen Zeitplan duplizieren",
       "add_period": "Zeitraum hinzufügen",
-      "delete_period": "Zeitraum löschen"
+      "delete_period": "Zeitraum löschen",
+      "saving_schedule": "Zeitplan wird gespeichert…",
+      "deleting_schedule": "Zeitplan wird gelöscht…"
     },
     "labels": {
       "setting": "Einstellung",
@@ -52,6 +54,9 @@
       "enter_new_name": "Neuen Namen für den Zeitplan eingeben",
       "select_copy_schedule": "Zielzeitplan zum Kopieren auswählen",
       "delete_schedule_confirm": "Soll dieser Zeitplan wirklich gelöscht werden",
+      "delete_schedule_failed": "Der Zeitplan konnte nicht gelöscht werden.",
+      "save_schedule_failed": "Der Zeitplan konnte nicht gespeichert werden. Weitere Details stehen in den Home-Assistant-Protokollen.",
+      "too_many_periods": "{day} enthält zu viele Zeiträume. Wiser erlaubt maximal {max} pro Tag.",
       "select_a_schedule": "Zeitplan zum Anzeigen auswählen",
       "add_schedule": "Zeitplantyp auswählen und einen Namen für den neuen Zeitplan eingeben",
       "add_schedule_name": "Namen für den neuen Zeitplan eingeben",

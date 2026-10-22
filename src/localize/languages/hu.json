@@ -19,7 +19,9 @@
       "import": "Időprogram importálása",
       "duplicate_new": "Másolás új időprogramként",
       "add_period": "Időszak hozzáadása",
-      "delete_period": "Időszak törlése"
+      "delete_period": "Időszak törlése",
+      "saving_schedule": "Időprogram mentése…",
+      "deleting_schedule": "Időprogram törlése…"
     },
     "labels": {
       "setting": "Beállítás",
@@ -52,6 +54,9 @@
       "enter_new_name": "Adja meg az időprogram új nevét",
       "select_copy_schedule": "Válassza ki a célidőprogramot a másoláshoz",
       "delete_schedule_confirm": "Biztosan törölni szeretné az időprogramot",
+      "delete_schedule_failed": "Nem sikerült törölni az időprogramot.",
+      "save_schedule_failed": "Nem sikerült menteni az időprogramot. További részletekért tekintse meg a Home Assistant naplóit.",
+      "too_many_periods": "{day} túl sok időszakot tartalmaz. A Wiser naponta legfeljebb {max} időszakot engedélyez.",
       "select_a_schedule": "Válasszon egy időprogramot a megtekintéshez",
       "add_schedule": "Válassza ki az időprogram típusát, és adja meg az új időprogram nevét",
       "add_schedule_name": "Adja meg az új időprogram nevét",

@@ -11,6 +11,7 @@ import type { WiserScheduleCardConfig, ScheduleSlot, Schedule, ScheduleDay, SunT
 import { color_map, find_previous_slot, getLocale, get_end_time, get_setpoint, stringTimeToSeconds } from '../helpers';
 import {
   HEATING_TYPES,
+  MAX_SCHEDULE_SLOTS_PER_DAY,
   SEC_PER_DAY,
   day_short_width,
   days,
@@ -115,7 +116,7 @@ export class ScheduleSlotEditor extends LitElement {
   public get canAddPeriod(): boolean {
     if (!this.editMode || !this._activeDay || this._activeSlot < -1) return false;
     const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
-    return Boolean(day && day.slots.length < 24);
+    return Boolean(day && day.slots.length < MAX_SCHEDULE_SLOTS_PER_DAY);
   }
 
   public get canDeletePeriod(): boolean {

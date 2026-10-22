@@ -19,7 +19,9 @@
       "import": "Importer un programme",
       "duplicate_new": "Dupliquer dans un nouveau programme",
       "add_period": "Ajouter une période",
-      "delete_period": "Supprimer la période"
+      "delete_period": "Supprimer la période",
+      "saving_schedule": "Enregistrement du programme…",
+      "deleting_schedule": "Suppression du programme…"
     },
     "labels": {
       "setting": "Paramètre",
@@ -52,6 +54,9 @@
       "enter_new_name": "Entrez un nom pour le Programme",
       "select_copy_schedule": "Sélectionnez le calendrier ci-dessous pour le copier",
       "delete_schedule_confirm": "Êtes-vous sûr de vouloir effacer ce programme",
+      "delete_schedule_failed": "Impossible de supprimer le programme.",
+      "save_schedule_failed": "Impossible d’enregistrer le programme. Consultez les journaux de Home Assistant pour plus de détails.",
+      "too_many_periods": "{day} contient trop de périodes. Wiser autorise un maximum de {max} par jour.",
       "select_a_schedule": "Sélectionner un programme à afficher",
       "add_schedule": "Sélectionnez le type de programme et entrez un nom pour la programme à créer",
       "add_schedule_name": "Saisissez un nom pour le nouveau programme",

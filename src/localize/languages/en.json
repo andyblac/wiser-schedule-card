@@ -19,7 +19,9 @@
       "import": "Import schedule",
       "duplicate_new": "Duplicate to new schedule",
       "add_period": "Add period",
-      "delete_period": "Delete period"
+      "delete_period": "Delete period",
+      "saving_schedule": "Saving schedule…",
+      "deleting_schedule": "Deleting schedule…"
     },
     "labels": {
       "setting": "Setting",
@@ -56,6 +58,9 @@
       "enter_new_name": "Enter the new name for the Schedule",
       "select_copy_schedule": "Select the schedule to copy to",
       "delete_schedule_confirm": "Are you sure you wish to delete the schedule",
+      "delete_schedule_failed": "Unable to delete the schedule.",
+      "save_schedule_failed": "Unable to save the schedule. Check the Home Assistant logs for details.",
+      "too_many_periods": "{day} has too many periods. Wiser allows a maximum of {max} per day.",
       "select_a_schedule": "Select a schedule to view",
       "add_schedule": "Select the schedule type and enter a name for the schedule to create",
       "add_schedule_name": "Enter a name for the new schedule",

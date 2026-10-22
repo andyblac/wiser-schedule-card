@@ -645,6 +645,123 @@ const readStoredZip = (buffer) => {
     await page.getByRole('textbox', { name: 'Schedule Name', exact: true }).waitFor();
     console.log('PASS pinned schedules and rename navigation');
 
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => {
+      const slots = Array.from({ length: 9 }, (_, index) => ({
+        Time: `${String(index * 2).padStart(2, '0')}:00`,
+        Setpoint: String(18 + (index % 5) * 0.5),
+        SpecialTime: '',
+      }));
+      el._tempSchedule = {
+        ...el._tempSchedule,
+        ScheduleData: el._tempSchedule.ScheduleData.map((day) => ({
+          ...day,
+          slots: structuredClone(slots),
+        })),
+      };
+      el.requestUpdate();
+    });
+    const savesBeforeLimitCheck = await page.evaluate(
+      () => fixture.calls.filter((call) => call.type === 'wiser/schedule/save').length,
+    );
+    await button('save').click();
+    await page.getByRole('alert').filter({ hasText: 'has too many periods' }).waitFor();
+    assert.equal(
+      await page.evaluate(() => fixture.calls.filter((call) => call.type === 'wiser/schedule/save').length),
+      savesBeforeLimitCheck,
+      'a schedule over the Wiser daily limit is not sent to the hub',
+    );
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => {
+      el._tempSchedule = {
+        ...el._tempSchedule,
+        ScheduleData: el._tempSchedule.ScheduleData.map((day) => ({
+          ...day,
+          slots: day.slots.slice(0, 8),
+        })),
+      };
+      el.requestUpdate();
+    });
+    assert.equal(
+      await page.locator('wiser-schedule-slot-editor').evaluate((el) => {
+        el._activeDay = 'Monday';
+        el._activeSlot = 0;
+        return el.canAddPeriod;
+      }),
+      false,
+      'Add period is unavailable at the Wiser daily limit',
+    );
+    await page.evaluate(() => (fixture.delay = 700));
+    await button('save').click();
+    const savingStatus = page.getByRole('status').filter({ hasText: 'Saving schedule…' });
+    await savingStatus.waitFor();
+    assert.equal(await page.getByRole('textbox', { name: 'Schedule Name', exact: true }).count(), 1);
+    assert.equal(await page.locator('wiser-schedule-slot-editor').count(), 1);
+    assert.equal(
+      await page
+        .locator('wiser-schedule-edit-card .tools button')
+        .evaluateAll((buttons) => buttons.every((item) => item.disabled)),
+      true,
+      'schedule toolbar is disabled while saving is pending',
+    );
+    const largeSave = await page.evaluate(() =>
+      fixture.calls.filter((call) => call.type === 'wiser/schedule/save').at(-1),
+    );
+    assert.equal(
+      largeSave.schedule.ScheduleData.reduce((total, day) => total + day.slots.length, 0),
+      56,
+      'large schedule is sent with every slot',
+    );
+    await page.evaluate(() => (fixture.delay = 0));
+    await savingStatus.waitFor({ state: 'detached' });
+    console.log('PASS large schedule saving keeps its context visible and reports progress');
+
+    await fresh();
+    await page.evaluate(() => {
+      document.addEventListener(
+        'show-dialog',
+        async (event) => {
+          const dialog = document.createElement(event.detail.dialogTag);
+          dialog.hass = makeHass();
+          document.body.append(dialog);
+          await dialog.showDialog(event.detail.dialogParams);
+        },
+        { once: true },
+      );
+      mountCard({ selected_schedule: 'Heating|1' });
+    });
+    await page.waitForSelector('wiser-schedule-slot-editor');
+    await button('delete').click();
+    const deleteDialog = page.locator('wiser-dialog-delete-confirm');
+    await deleteDialog.getByRole('button', { name: 'delete', exact: true }).waitFor();
+    await page.evaluate(() => (fixture.delay = 700));
+    await deleteDialog.getByRole('button', { name: 'delete', exact: true }).click();
+    const deletingStatus = page.getByRole('status').filter({ hasText: 'Deleting schedule…' });
+    await deletingStatus.waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Living room', exact: true }).count(), 1);
+    assert.equal(
+      await page
+        .locator('wiser-schedule-edit-card .tools button')
+        .evaluateAll((buttons) => buttons.every((item) => item.disabled)),
+      true,
+      'schedule toolbar is disabled while deletion is pending',
+    );
+    const loadsBeforeDeleteUpdate = await page.evaluate(
+      () => fixture.calls.filter((call) => call.type === 'wiser/schedule/id').length,
+    );
+    await page.evaluate(() => fixture.notify({ hub: 'hub-one', event: 'wiser_updated' }));
+    await page.waitForTimeout(50);
+    assert.equal(
+      await page.evaluate(() => fixture.calls.filter((call) => call.type === 'wiser/schedule/id').length),
+      loadsBeforeDeleteUpdate,
+      'integration updates do not replace the schedule while deletion is pending',
+    );
+    await roomsReady();
+    assert.equal(
+      await page.evaluate(() => fixture.calls.filter((call) => call.type === 'wiser/schedule/delete').length),
+      1,
+    );
+    await page.evaluate(() => (fixture.delay = 0));
+    console.log('PASS schedule deletion keeps its context visible and reports progress');
+
     for (const nested of [false, true]) {
       await fresh();
       await page.setViewportSize({ width: 720, height: 500 });

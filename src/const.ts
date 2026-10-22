@@ -6,6 +6,7 @@ export const DefaultTimeStep = 10;
 export const DefaultActionIcon = 'flash';
 export const SEC_PER_DAY = 86400;
 export const SEC_PER_HOUR = 3600;
+export const MAX_SCHEDULE_SLOTS_PER_DAY = 8;
 
 export enum EViews {
   Overview = 'OVERVIEW',

@@ -1,4 +1,4 @@
-import { days, SPECIAL_TIMES } from '../const';
+import { days, MAX_SCHEDULE_SLOTS_PER_DAY, SPECIAL_TIMES } from '../const';
 import type { Schedule, ScheduleDay } from '../types';
 
 export function scheduleExportName(name: string, type = ''): string {
@@ -51,7 +51,12 @@ export function importScheduleFile(text: string, target: Schedule): Schedule {
   const seen = new Set<string>();
   let count = 0;
   const data: ScheduleDay[] = source.ScheduleData.map((day) => {
-    if (!days.includes(day.day) || seen.has(day.day) || !Array.isArray(day.slots) || day.slots.length > 24)
+    if (
+      !days.includes(day.day) ||
+      seen.has(day.day) ||
+      !Array.isArray(day.slots) ||
+      day.slots.length > MAX_SCHEDULE_SLOTS_PER_DAY
+    )
       throw new Error('Invalid schedule days or slots.');
     seen.add(day.day);
     const times = new Set<string>();
