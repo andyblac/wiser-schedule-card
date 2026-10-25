@@ -1551,6 +1551,9 @@ const readStoredZip = (buffer) => {
         { Id: 3, Name: 'Blind', Type: 'Level', SubType: 'Shutters', Assignments: 0 },
         { Id: 4, Name: 'Switch', Type: 'OnOff', Assignments: 0 },
         { Id: 5, Name: 'Lamp', Type: 'Lighting', Assignments: 0 },
+        { Id: 1000, Name: 'Native hot water', Type: 'OnOff', SubType: 'HotWater', Assignments: 0 },
+        { Id: -1000, Name: 'OpenTherm hot water', Type: 'HotWater', Assignments: 0 },
+        { Id: 6, Name: 'Future product', Type: 'FutureProduct', Assignments: 0 },
       ];
       mountCard({ home_screen: 'schedules' });
     });
@@ -1558,7 +1561,37 @@ const readStoredZip = (buffer) => {
     assert.equal(await page.locator('section[data-category="lighting"] button.schedule-tile').count(), 2);
     assert.equal(await page.locator('section[data-category="shutters"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="onoff"] button.schedule-tile').count(), 1);
-    assert.equal(await page.locator('section[data-category="hotwater"]').count(), 0);
+    assert.equal(await page.locator('section[data-category="hotwater"] button.schedule-tile').count(), 2);
+    assert.equal(await page.locator('section[data-category="other"] button.schedule-tile').count(), 1);
+    for (const name of [
+      'Heating',
+      'Switch',
+      'Dimmer',
+      'Blind',
+      'Lamp',
+      'Native hot water',
+      'OpenTherm hot water',
+      'Future product',
+    ]) {
+      await page.locator('button.schedule-tile').filter({ hasText: name }).click();
+      const period = page.locator('wiser-schedule-slot-editor [id="Monday|0"]');
+      await period.waitFor();
+      assert.ok((await period.getAttribute('class')).includes('selectable'), `${name} periods can open the editor`);
+      await period.click();
+      await page.waitForFunction(
+        () =>
+          document.querySelector('wiser-schedule-card')?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode,
+      );
+      assert.deepEqual(
+        await page.locator('wiser-schedule-slot-editor').evaluate((editor) => [editor._activeDay, editor._activeSlot]),
+        ['Monday', 0],
+        `${name} opens with the requested period selected`,
+      );
+      await button('cancel').click();
+      await button('edit').waitFor();
+      await button('back').click();
+      await page.locator('button.schedule-tile').first().waitFor();
+    }
     // Native controls and centered alignment for every schedule type, including narrow layouts.
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });

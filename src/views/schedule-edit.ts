@@ -294,7 +294,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                   .schedule_type=${this.schedule_type}
                   .suntimes=${this.suntimes}
                   .editMode=${this.editMode}
-                  .editable=${allow_edit(this.hass, this.config) && !this.isFixedSchedule()}
+                  .editable=${allow_edit(this.hass, this.config)}
                   .compactCopyPlacement=${this.embedded}
                   @scheduleChanged=${this.scheduleChanged}
                   @period-edit-requested=${this.periodEditRequested}
@@ -483,9 +483,11 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       />
       <wiser-card-header .config=${this.config}>
         ${
-          this.editMode
+          this.editMode && !fixed
             ? this.renderEditableTitle()
-            : html`<h3 slot="heading" class="schedule-title">${this.schedule!.Name}</h3>`
+            : html`<h3 slot="heading" class="schedule-title">
+                ${this.editMode ? this._tempSchedule?.Name || this.schedule!.Name : this.schedule!.Name}
+              </h3>`
         }
         <div class="tools" role="toolbar" aria-label=${this.localize('wiser.headings.schedule_actions')}>
           ${
@@ -568,13 +570,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   editClick(): void {
-    if (
-      !this.schedule ||
-      this.schedule.Id !== this.schedule_id ||
-      this.isFixedSchedule() ||
-      !allow_edit(this.hass!, this.config)
-    )
-      return;
+    if (!this.schedule || this.schedule.Id !== this.schedule_id || !allow_edit(this.hass!, this.config)) return;
     this._tempSchedule = this.cloneSchedule(this.schedule);
     this.resetHistory(this._tempSchedule);
     this.editMode = !this.editMode;
@@ -582,7 +578,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
 
   private async periodEditRequested(event: CustomEvent<{ day: string; slot: number }>): Promise<void> {
     event.stopPropagation();
-    if (this.editMode || this.isFixedSchedule() || !allow_edit(this.hass!, this.config)) return;
+    if (this.editMode || !allow_edit(this.hass!, this.config)) return;
     const { day, slot } = event.detail;
     this.editClick();
     await this.updateComplete;
@@ -790,7 +786,7 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
       await this.updateComplete;
       if (this.validateSchedule(this._tempSchedule)) {
         const draft = JSON.parse(JSON.stringify(this._tempSchedule)) as Schedule;
-        const schedule = SUPPORT_SPECIAL_TIMES.includes(this.schedule_type!)
+        const schedule = SUPPORT_SPECIAL_TIMES.includes(this.schedule?.SubType || this.schedule_type!)
           ? this.convertScheduleForSaving(draft)
           : draft;
         await saveSchedule(this.hass!, this.config.hub, this.schedule_type!, this.schedule_id!, schedule);

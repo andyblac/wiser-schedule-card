@@ -119,8 +119,11 @@ export class ScheduleSlotEditor extends LitElement {
   }
 
   private get scheduleTypeKey(): string {
-    const type = this.schedule_type?.toLowerCase();
-    return HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type) || HEATING_TYPES[0];
+    for (const type of [this.schedule_type, this.schedule?.SubType, this.schedule?.Type]) {
+      const supported = HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type?.toLowerCase());
+      if (supported) return supported;
+    }
+    return HEATING_TYPES[0];
   }
 
   private get passiveTemperatureRange(): boolean {
