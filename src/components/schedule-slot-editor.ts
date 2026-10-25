@@ -1497,6 +1497,7 @@ export class ScheduleSlotEditor extends LitElement {
         flex-direction: column;
         position: relative;
         max-width: 100%;
+        container: schedule-editor / inline-size;
       }
       .copy-section {
         order: 3;
@@ -1506,9 +1507,6 @@ export class ScheduleSlotEditor extends LitElement {
       }
       .schedule-editor-area {
         order: 2;
-      }
-      .copy-section.compact {
-        order: 0;
       }
       div.outer {
         width: 100%;
@@ -1760,11 +1758,11 @@ export class ScheduleSlotEditor extends LitElement {
         border: 1px solid var(--primary-color);
         border-radius: 10px;
       }
-      @media (min-width: 1350px) {
+      @container schedule-editor (min-width: 1350px) {
         .copy-section.compact {
           position: absolute;
           z-index: 4;
-          top: -112px;
+          bottom: calc(100% + 42px);
           right: 12px;
           left: calc(var(--wiser-schedule-picker-width, 420px) + 20px);
           width: auto;

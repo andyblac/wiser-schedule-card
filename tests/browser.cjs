@@ -1620,8 +1620,11 @@ const readStoredZip = (buffer) => {
             await editor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
             'static',
           );
-        } else {
-          assert.ok(copyBox.y + copyBox.height <= slotsBox.y, 'desktop Copy controls sit above the timeline');
+        } else if (editorBox.width >= 1350) {
+          assert.ok(
+            Math.abs(copyBox.y + copyBox.height - (slotsBox.y - 42)) < 2,
+            'desktop Copy controls align with the bottom of the schedule picker',
+          );
           assert.ok(
             Math.abs(copyBox.x - editorBox.x - 320) < 2,
             'desktop Copy controls follow the responsive schedule-picker width',
@@ -1630,6 +1633,13 @@ const readStoredZip = (buffer) => {
             await editor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
             'absolute',
             'desktop Copy controls reuse existing space instead of increasing editor height',
+          );
+        } else {
+          assert.ok(copyBox.y >= panelBox.y + panelBox.height, 'narrow desktop Copy controls follow the period editor');
+          assert.equal(
+            await editor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
+            'static',
+            'narrow desktop Copy controls respond to the card width rather than the viewport width',
           );
         }
         const rowBoxes = await editor.locator('.editor-control-row').evaluateAll((rows) =>
@@ -1867,6 +1877,28 @@ const readStoredZip = (buffer) => {
           assert.equal(await input.isDisabled(), true);
       }
     }
+    await page.setViewportSize({ width: 1600, height: 900 });
+    const constrainedEditor = page.locator('wiser-schedule-slot-editor');
+    await constrainedEditor.evaluate((el) => {
+      el.style.width = '900px';
+    });
+    const constrainedEditorBox = await constrainedEditor.boundingBox();
+    const constrainedCopyBox = await constrainedEditor.locator('.copy-section').boundingBox();
+    assert.equal(
+      await constrainedEditor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
+      'static',
+      'compact Copy controls use the card width rather than the wider browser viewport',
+    );
+    assert.ok(
+      constrainedCopyBox.x + constrainedCopyBox.width <= constrainedEditorBox.x + constrainedEditorBox.width + 1,
+      'Copy controls stay within a constrained desktop card',
+    );
+    const constrainedPanelBox = await constrainedEditor.locator('.selected-period').boundingBox();
+    assert.ok(
+      constrainedCopyBox.y >= constrainedPanelBox.y + constrainedPanelBox.height,
+      'Copy controls move below the selected-period panel in a constrained desktop card',
+    );
+    await page.setViewportSize({ width: 390, height: 900 });
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();
