@@ -31,7 +31,8 @@
       "special_time": "Speciális időpont beállítása",
       "selected_period": "Kiválasztott időszak",
       "time": "Időpont",
-      "fixed": "Rögzített"
+      "fixed": "Rögzített",
+      "passive_schedule": "Passzív mód ütemezése"
     },
     "days": {
       "weekdays": "Hétköznapok",

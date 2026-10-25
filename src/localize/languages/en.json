@@ -35,7 +35,8 @@
       "preset": "Preset",
       "custom_temperature": "Temperature",
       "lower_temperature": "Lower temperature",
-      "upper_temperature": "Upper temperature"
+      "upper_temperature": "Upper temperature",
+      "passive_schedule": "Schedule passive mode"
     },
     "days": {
       "weekdays": "Weekdays",

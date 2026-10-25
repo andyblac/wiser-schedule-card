@@ -31,7 +31,8 @@
       "special_time": "Besondere Zeit festlegen",
       "selected_period": "Ausgewählter Zeitraum",
       "time": "Zeit",
-      "fixed": "Fest"
+      "fixed": "Fest",
+      "passive_schedule": "Passivmodus planen"
     },
     "days": {
       "weekdays": "Montag bis Freitag",

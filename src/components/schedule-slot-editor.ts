@@ -43,6 +43,8 @@ export class ScheduleSlotEditor extends LitElement {
   @property({ attribute: false }) suntimes?: SunTimes;
 
   @property({ attribute: false }) editMode = false;
+  @property({ attribute: false }) editable = false;
+  @property({ attribute: false }) compactCopyPlacement = false;
 
   @state() _activeSlot = -99;
   @state() _activeDay = '';
@@ -101,16 +103,74 @@ export class ScheduleSlotEditor extends LitElement {
     this.isDragging = false;
   }
 
+  public selectPeriod(day: string, slot: number): void {
+    const scheduleDay = this.schedule?.ScheduleData.find((item) => item.day === day);
+    if (!this.editMode || !scheduleDay || slot < 0 || slot >= scheduleDay.slots.length) return;
+    this._activeDay = day;
+    this._activeSlot = slot;
+  }
+
   private get scheduleTypeKey(): string {
     const type = this.schedule_type?.toLowerCase();
     return HEATING_TYPES.find((candidate) => candidate.toLowerCase() === type) || HEATING_TYPES[0];
   }
 
   private get passiveTemperatureRange(): boolean {
-    return Boolean(
-      this.schedule?.PassiveRange &&
-        this.scheduleTypeKey === 'Heating',
-    );
+    return Boolean(this.schedule?.PassiveRange && this.scheduleTypeKey === 'Heating');
+  }
+
+  private get supportsScheduledPassiveControl(): boolean {
+    return Boolean(this.schedule?.Capabilities?.PassiveControl && this.scheduleTypeKey === 'Heating');
+  }
+
+  private toggleScheduledPassiveControl(enabled: boolean): void {
+    if (!this.schedule || !this.supportsScheduledPassiveControl) return;
+    const slot = this.activeSlot();
+    if (!slot) return;
+    if (enabled) {
+      slot.PassiveScheduled = true;
+      slot.PassiveMode ??= this.schedule.PassiveControlDefaults?.Enabled ?? false;
+      slot.PassiveStrategy ??= this.schedule.PassiveControlDefaults?.Strategy ?? 'modulating';
+      slot.UpperSetpoint ??= slot.Setpoint;
+      this.schedule.PassiveRange = true;
+      this.schedule.PassiveRangeType ??= 'scheduled';
+      this.schedule.MinUpperSetpoint ??= 5;
+      this.schedule.MaxUpperSetpoint ??= 30;
+    } else {
+      delete slot.PassiveScheduled;
+      delete slot.PassiveMode;
+      delete slot.PassiveStrategy;
+    }
+    const scheduled = this.schedule.ScheduleData.some((day) => day.slots.some((item) => item.PassiveScheduled));
+    if (scheduled) {
+      this.schedule.PassiveControl = true;
+      for (const day of this.schedule.ScheduleData)
+        for (const item of day.slots) item.PassiveScheduled = Boolean(item.PassiveScheduled);
+    } else {
+      delete this.schedule.PassiveControl;
+      if (this.schedule.PassiveRangeType === 'scheduled') {
+        delete this.schedule.PassiveRange;
+        delete this.schedule.PassiveRangeType;
+        delete this.schedule.MinUpperSetpoint;
+        delete this.schedule.MaxUpperSetpoint;
+        for (const day of this.schedule.ScheduleData) for (const item of day.slots) delete item.UpperSetpoint;
+      }
+    }
+    this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
+    this.requestUpdate();
+  }
+
+  private updateScheduledPassiveControl(value: 'off' | 'modulating' | 'temperature_limiter'): void {
+    const slot = this.activeSlot();
+    if (!slot?.PassiveScheduled) return;
+    slot.PassiveMode = value !== 'off';
+    if (value !== 'off') slot.PassiveStrategy = value;
+    this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
+    this.requestUpdate();
+  }
+
+  private scheduledPassiveOffTemperature(slot: ScheduleSlot): string | number {
+    return slot.PassiveStrategy === 'temperature_limiter' ? slot.Setpoint : (slot.UpperSetpoint ?? slot.Setpoint);
   }
 
   public get canAddPeriod(): boolean {
@@ -190,7 +250,7 @@ export class ScheduleSlotEditor extends LitElement {
       <div class="wrapper">
         ${this.computeDayLabel(day.day)}
         <div class="outer ${this._dropDay === day.day ? 'drop-target' : ''}" id="${day.day}">
-          <div class="wrapper selectable">
+          <div class="wrapper ${this.editMode || this.editable ? 'selectable' : ''}">
             ${
               day.slots.length > 0
                 ? day.slots.map((slot, index) => this.renderSlot(slot, index, day))
@@ -207,10 +267,17 @@ export class ScheduleSlotEditor extends LitElement {
     const end_time = slot.Time;
     const setpoint = get_setpoint(day, index, this.schedule!);
     const previousSlot = find_previous_slot(day, this.schedule!);
+    const displayedSetpoint =
+      previousSlot?.PassiveScheduled && !previousSlot.PassiveMode
+        ? this.scheduledPassiveOffTemperature(previousSlot)
+        : setpoint;
     const settingLabel = this.computeTemperatureRangeLabel({
       ...slot,
-      Setpoint: setpoint,
+      Setpoint: String(displayedSetpoint),
       UpperSetpoint: previousSlot?.UpperSetpoint,
+      PassiveScheduled: previousSlot?.PassiveScheduled,
+      PassiveMode: previousSlot?.PassiveMode,
+      PassiveStrategy: previousSlot?.PassiveStrategy,
     });
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     const inactiveLevel =
@@ -219,7 +286,9 @@ export class ScheduleSlotEditor extends LitElement {
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
-        : 'rgba(' + color_map(this, this.schedule_type!, String(this.setpointTemperature(setpoint))) + ')';
+        : 'rgba(' +
+          color_map(this, this.schedule_type!, this.colourSetpoint(displayedSetpoint), this.isNativeHotWaterTimer()) +
+          ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
     const width = ((stringTimeToSeconds(end_time) - stringTimeToSeconds(start_time)) / SEC_PER_DAY) * 100;
@@ -234,7 +303,8 @@ export class ScheduleSlotEditor extends LitElement {
       '\n' +
       this.localize('wiser.labels.setting') +
       ' - ' +
-      settingLabel;
+      settingLabel +
+      this.passiveControlTitle(previousSlot);
     const label_class = (width / 100) * fullWidth < 35 ? 'setpoint rotate' : 'setpoint';
     return html`
       <div
@@ -257,7 +327,8 @@ export class ScheduleSlotEditor extends LitElement {
   renderSlot(slot: ScheduleSlot, index: number, day: ScheduleDay) {
     const start_time = slot.Time;
     const end_time = get_end_time(day, index);
-    const setpoint = slot.Setpoint;
+    const setpoint =
+      slot.PassiveScheduled && !slot.PassiveMode ? this.scheduledPassiveOffTemperature(slot) : slot.Setpoint;
     const width = ((stringTimeToSeconds(end_time) - stringTimeToSeconds(start_time)) / SEC_PER_DAY) * 100;
     const inactiveLevel =
       !this.config!.theme_colors && ['Lighting', 'Shutters'].includes(this.schedule_type!) && Number(setpoint) === 0;
@@ -265,10 +336,13 @@ export class ScheduleSlotEditor extends LitElement {
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
-        : 'rgba(' + color_map(this, this.schedule_type!, String(this.setpointTemperature(setpoint))) + ')';
+        : 'rgba(' +
+          color_map(this, this.schedule_type!, this.colourSetpoint(setpoint), this.isNativeHotWaterTimer()) +
+          ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
     const selected = this._activeSlot == index && this._activeDay == day.day;
+    const selectable = this.editMode || this.editable;
     const selectedBoundary =
       this.editMode && this._activeDay === day.day && (index === this._activeSlot || index === this._activeSlot + 1);
     const movable =
@@ -290,22 +364,23 @@ export class ScheduleSlotEditor extends LitElement {
       '\n' +
       this.localize('wiser.labels.setting') +
       ' - ' +
-      settingLabel;
+      settingLabel +
+      this.passiveControlTitle(slot);
 
     return html`
       ${index == 0 && start_time != '00:00' && start_time != '0:00' ? this.renderEmptySlot(slot, -1, day, false) : ''}
       <div
         id=${day.day + '|' + index}
-        class="slot ${this.editMode ? 'selectable' : null} ${selected ? 'selected' : null} ${
+        class="slot ${selectable ? 'selectable' : null} ${selected ? 'selected' : null} ${
           movable ? 'movable' : null
         } ${inactiveLevel ? 'inactive-level' : null}"
         style="width:${Math.floor(width * 1000) / 1000}%; background:${colour}; --slot-label-color:${labelColour};"
         title="${title}"
-        @click=${this._slotClick}
+        @click=${selectable ? this._slotClick : null}
         @pointerdown=${movable ? (event: PointerEvent) => this._handleSlotPointerStart(event, day, index) : null}
         slot="${index}"
       >
-        <div class="slotoverlay ${this.editMode ? 'selectable' : null}">
+        <div class="slotoverlay ${selectable ? 'selectable' : null}">
           <span class="${label_class}">${settingLabel}</span>
         </div>
         ${SPECIAL_TIMES.includes(slot.SpecialTime) && !selectedBoundary ? this.renderSpecialTimeMarker(slot.SpecialTime) : ''}
@@ -383,6 +458,17 @@ export class ScheduleSlotEditor extends LitElement {
     return this.presetOption(setpoint)?.temperature ?? Number(setpoint);
   }
 
+  private colourSetpoint(setpoint: string | number): string {
+    return String(this.presetOption(setpoint)?.temperature ?? setpoint);
+  }
+
+  private isNativeHotWaterTimer(): boolean {
+    return (
+      this.scheduleTypeKey === 'OnOff' &&
+      (Math.abs(Number(this.schedule?.Id)) === 1000 || this.schedule?.SubType?.toLowerCase() === 'hotwater')
+    );
+  }
+
   private activePeriodLabel(): string {
     const day = this.schedule?.ScheduleData.find((item) => item.day === this._activeDay);
     const slot = this.activeSlot();
@@ -411,9 +497,57 @@ export class ScheduleSlotEditor extends LitElement {
         </div>
         <div class="selected-period-controls">
           ${SUPPORT_SPECIAL_TIMES.includes(this.schedule_type!) ? this.renderSpecialTimeButtons() : null}
-          ${this.renderSetPointControl()}
+          ${this.renderScheduledPassivePeriodControl()} ${this.renderSetPointControl()}
         </div>
       </section>
+    `;
+  }
+
+  private renderScheduledPassivePeriodControl(): TemplateResult | null {
+    if (!this.supportsScheduledPassiveControl) return null;
+    const slot = this.activeSlot();
+    const value = !slot?.PassiveMode ? 'off' : slot.PassiveStrategy || 'modulating';
+    return html`
+      <div class="editor-control-row passive-period-toggle">
+        <div class="section-header" aria-disabled=${!slot}>${this.localize('wiser.labels.passive_schedule')}</div>
+        <div class="control-content switch-control">
+          <ha-switch
+            .checked=${Boolean(slot?.PassiveScheduled)}
+            .disabled=${!slot}
+            aria-label=${this.localize('wiser.labels.passive_schedule')}
+            @change=${(event: Event) =>
+              this.toggleScheduledPassiveControl(Boolean((event.currentTarget as HTMLInputElement).checked))}
+          ></ha-switch>
+        </div>
+      </div>
+      ${
+        slot?.PassiveScheduled
+          ? html`<div class="editor-control-row state-control-row passive-strategy-row">
+              <div class="section-header">${this.localize('wiser.heating.passive')}</div>
+              <div
+                class="control-content special-times passive-strategy-controls"
+                role="radiogroup"
+                aria-label=${this.localize('wiser.heating.passive')}
+              >
+                ${(['off', 'modulating', 'temperature_limiter'] as const).map(
+                  (option) =>
+                    html`<ha-button
+                      class=${value === option ? 'selected' : ''}
+                      appearance="plain"
+                      aria-pressed=${value === option}
+                      @click=${() => this.updateScheduledPassiveControl(option)}
+                    >
+                      ${
+                        option === 'off'
+                          ? this.localize('wiser.heating.off')
+                          : this.localize(`wiser.heating.strategy_${option}`)
+                      }
+                    </ha-button>`,
+                )}
+              </div>
+            </div>`
+          : null
+      }
     `;
   }
 
@@ -475,7 +609,13 @@ export class ScheduleSlotEditor extends LitElement {
       const scheduleType = this.scheduleTypeKey;
       if (['Heating', 'HotWater'].includes(scheduleType)) {
         const hotWater = scheduleType === 'HotWater';
-        const setpoint = this._activeSlot >= 0 ? slots![this._activeSlot!].Setpoint : 0;
+        const selectedSlot = this._activeSlot >= 0 ? slots![this._activeSlot!] : undefined;
+        const scheduledPassiveOff = Boolean(selectedSlot?.PassiveScheduled && !selectedSlot.PassiveMode);
+        const setpoint = selectedSlot
+          ? scheduledPassiveOff
+            ? this.scheduledPassiveOffTemperature(selectedSlot)
+            : selectedSlot.Setpoint
+          : 0;
         const selectedPreset = hotWater ? this.presetOption(setpoint) : undefined;
         const presetOptions = hotWater ? (this.schedule?.PresetOptions ?? []) : [];
         return html`
@@ -525,7 +665,7 @@ export class ScheduleSlotEditor extends LitElement {
           <div class="editor-control-row heating-control-row">
             <div class="section-header" aria-disabled=${this._activeSlot < 0}>
               ${
-                this.passiveTemperatureRange
+                this.passiveTemperatureRange && !scheduledPassiveOff
                   ? this.localize('wiser.labels.lower_temperature')
                   : this.localize('wiser.labels.temperature')
               }
@@ -539,7 +679,8 @@ export class ScheduleSlotEditor extends LitElement {
                       aria-label=${this.localize('wiser.heating.off')}
                       class="set-off-button"
                       .disabled=${this._activeSlot < 0}
-                      @click=${() => this._updateSetPoint('-20')}
+                      @click=${() =>
+                        scheduledPassiveOff ? this._updateScheduledOffTemperature(-20) : this._updateSetPoint('-20')}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${mdiRadiatorOff}></path></svg>
                     </button>`
@@ -555,17 +696,19 @@ export class ScheduleSlotEditor extends LitElement {
                 .disabled=${this._activeSlot < 0}
                 .deferChange=${true}
                 @value-input=${(ev: CustomEvent) => {
-                  this._previewSetPoint(Number(ev.detail.value));
+                  if (scheduledPassiveOff) this._previewScheduledOffTemperature(Number(ev.detail.value));
+                  else this._previewSetPoint(Number(ev.detail.value));
                 }}
                 @value-changed=${(ev: CustomEvent) => {
-                  this._updateSetPoint(Number(ev.detail.value));
+                  if (scheduledPassiveOff) this._updateScheduledOffTemperature(Number(ev.detail.value));
+                  else this._updateSetPoint(Number(ev.detail.value));
                 }}
               >
               </wiser-variable-slider>
             </div>
           </div>
           ${
-            this.passiveTemperatureRange
+            this.passiveTemperatureRange && !scheduledPassiveOff
               ? html`
                   <div class="editor-control-row heating-control-row">
                     <div class="section-header" aria-disabled=${this._activeSlot < 0}>
@@ -665,7 +808,7 @@ export class ScheduleSlotEditor extends LitElement {
 
   renderCopyDay(): TemplateResult {
     return html`
-      <div class="copy-section">
+      <div class="copy-section ${this.compactCopyPlacement ? 'compact' : ''}">
         <div>
           <div class="section-header" aria-disabled=${!this._activeDay}>
             ${
@@ -730,12 +873,17 @@ export class ScheduleSlotEditor extends LitElement {
 
   private _slotClick(ev): void {
     if (this.isDragging) return;
-    const target = ev.currentTarget;
+    const target = ev.currentTarget as HTMLElement;
     if (target.id) {
       const day = target.id.split('|')[0];
-      const slot = target.id.split('|')[1];
+      const slot = parseInt(target.id.split('|')[1]);
+      if (!this.editMode) {
+        if (this.editable && slot >= 0)
+          this.dispatchEvent(new CustomEvent('period-edit-requested', { detail: { day, slot } }));
+        return;
+      }
       if (!(slot == this._activeSlot && day == this._activeDay)) {
-        this._activeSlot = parseInt(slot);
+        this._activeSlot = slot;
         this._activeDay = day;
       } else {
         this._activeSlot = -99;
@@ -796,12 +944,38 @@ export class ScheduleSlotEditor extends LitElement {
     this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!].Setpoint = String(setpoint);
   }
 
+  private _updateScheduledOffTemperature(setpoint: string | number): void {
+    const slot = this.activeSlot();
+    if (!slot) return;
+    const value = Number(setpoint);
+    if (slot.PassiveStrategy === 'temperature_limiter') {
+      slot.Setpoint = String(setpoint);
+      if (value !== -20 && Number(slot.UpperSetpoint) < value) slot.UpperSetpoint = setpoint;
+    } else {
+      slot.UpperSetpoint = setpoint;
+      if (value === -20 || Number(slot.Setpoint) > value) slot.Setpoint = String(setpoint);
+    }
+    this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
+    this.requestUpdate();
+  }
+
+  private _previewScheduledOffTemperature(setpoint: string | number): void {
+    const slot = this.activeSlot();
+    if (!slot) return;
+    if (slot.PassiveStrategy === 'temperature_limiter') this._previewSetPoint(setpoint);
+    else this._previewUpperSetPoint(setpoint);
+  }
+
   _updateUpperSetPoint(setpoint: string | number): void {
+    const lower = Number(
+      this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!].Setpoint,
+    );
     this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots = Object.assign(
       this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots,
       {
         [this._activeSlot!]: {
           ...this.schedule!.ScheduleData[days.indexOf(this._activeDay!)].slots![this._activeSlot!],
+          Setpoint: Number(setpoint) < lower ? setpoint : lower,
           UpperSetpoint: setpoint,
         },
       },
@@ -929,6 +1103,9 @@ export class ScheduleSlotEditor extends LitElement {
             Time: timeToStringShort(startTime),
             Setpoint: activeSlot.Setpoint,
             UpperSetpoint: activeSlot.UpperSetpoint,
+            PassiveScheduled: activeSlot.PassiveScheduled,
+            PassiveMode: activeSlot.PassiveMode,
+            PassiveStrategy: activeSlot.PassiveStrategy,
             SpecialTime: '',
           },
           {
@@ -946,6 +1123,9 @@ export class ScheduleSlotEditor extends LitElement {
             Time: timeToStringShort(startTime),
             Setpoint: activeSlot.Setpoint,
             UpperSetpoint: activeSlot.UpperSetpoint,
+            PassiveScheduled: activeSlot.PassiveScheduled,
+            PassiveMode: activeSlot.PassiveMode,
+            PassiveStrategy: activeSlot.PassiveStrategy,
             SpecialTime: '',
           },
           ...this.schedule!.ScheduleData[activeDayIndex].slots.slice(this._activeSlot),
@@ -1224,10 +1404,16 @@ export class ScheduleSlotEditor extends LitElement {
     );
     let restoreSetpoint = get_setpoint(targetDay, -1, this.schedule!);
     let restoreUpperSetpoint: string | number | undefined;
+    let restorePassiveScheduled: boolean | undefined;
+    let restorePassiveMode: boolean | undefined;
+    let restorePassiveStrategy: ScheduleSlot['PassiveStrategy'];
     for (const targetSlot of originalTargetSlots) {
       if (stringToTime(targetSlot.Time) <= endTime) {
         restoreSetpoint = targetSlot.Setpoint;
         restoreUpperSetpoint = targetSlot.UpperSetpoint;
+        restorePassiveScheduled = targetSlot.PassiveScheduled;
+        restorePassiveMode = targetSlot.PassiveMode;
+        restorePassiveStrategy = targetSlot.PassiveStrategy;
       } else break;
     }
 
@@ -1239,6 +1425,9 @@ export class ScheduleSlotEditor extends LitElement {
       Time: timeToStringShort(startTime),
       Setpoint: source.Setpoint,
       UpperSetpoint: source.UpperSetpoint,
+      PassiveScheduled: source.PassiveScheduled,
+      PassiveMode: source.PassiveMode,
+      PassiveStrategy: source.PassiveStrategy,
       SpecialTime: '',
     });
 
@@ -1247,6 +1436,9 @@ export class ScheduleSlotEditor extends LitElement {
         Time: timeToStringShort(endTime),
         Setpoint: restoreSetpoint,
         UpperSetpoint: restoreUpperSetpoint,
+        PassiveScheduled: restorePassiveScheduled,
+        PassiveMode: restorePassiveMode,
+        PassiveStrategy: restorePassiveStrategy,
         SpecialTime: '',
       });
     }
@@ -1281,19 +1473,42 @@ export class ScheduleSlotEditor extends LitElement {
   }
 
   computeTemperatureRangeLabel(slot: ScheduleSlot): string {
+    if (slot.PassiveScheduled && !slot.PassiveMode)
+      return this.computeSetpointLabel(this.scheduledPassiveOffTemperature(slot));
     const lower = this.computeSetpointLabel(slot.Setpoint);
     if (!this.passiveTemperatureRange || slot.UpperSetpoint === undefined) return lower;
     if (Number(slot.UpperSetpoint) === -20) return lower;
     return `${lower}–${slot.UpperSetpoint}°C`;
   }
 
+  private passiveControlTitle(slot?: ScheduleSlot): string {
+    if (!slot?.PassiveScheduled) return '';
+    const value = slot.PassiveMode
+      ? this.localize(`wiser.heating.strategy_${slot.PassiveStrategy || 'modulating'}`)
+      : this.localize('wiser.heating.off');
+    return `\n${this.localize('wiser.heating.passive')} - ${value}`;
+  }
+
   static get styles(): CSSResultGroup {
     return css`
       ${nativeControlStyle}
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
         position: relative;
         max-width: 100%;
+      }
+      .copy-section {
+        order: 3;
+      }
+      .slots-wrapper {
+        order: 1;
+      }
+      .schedule-editor-area {
+        order: 2;
+      }
+      .copy-section.compact {
+        order: 0;
       }
       div.outer {
         width: 100%;
@@ -1341,16 +1556,16 @@ export class ScheduleSlotEditor extends LitElement {
       }
       .schedule-editor-area {
         box-sizing: border-box;
-        width: calc(100% - min(20%, 100px));
-        margin-inline-start: min(20%, 100px);
+        width: 100%;
+        margin-inline-start: 0;
       }
       .schedule-editor-area.short {
-        width: calc(100% - min(20%, 50px));
-        margin-inline-start: min(20%, 50px);
+        width: 100%;
+        margin-inline-start: 0;
       }
       .selected-period {
         box-sizing: border-box;
-        width: min(100% - 24px, 660px);
+        width: min(100% - 24px, 780px);
         margin: 0 auto 14px;
         padding: 18px 22px 16px;
         border: 1px solid var(--divider-color);
@@ -1369,6 +1584,13 @@ export class ScheduleSlotEditor extends LitElement {
         padding-bottom: 12px;
         border-bottom: 1px solid var(--divider-color);
       }
+      .selected-period-controls {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 736px;
+        margin-inline: auto;
+        padding-top: 2px;
+      }
       .selected-period-header h3 {
         margin: 0 0 3px;
         color: var(--primary-text-color);
@@ -1380,16 +1602,13 @@ export class ScheduleSlotEditor extends LitElement {
         font-size: var(--ha-font-size-m, 16px);
         line-height: 1.4;
       }
-      .selected-period-controls {
-        padding-top: 4px;
-      }
       .editor-control-row {
         display: grid;
-        grid-template-columns: minmax(88px, 110px) minmax(0, 1fr);
+        grid-template-columns: minmax(148px, 170px) minmax(0, 1fr);
         align-items: start;
         gap: 12px;
         width: 100%;
-        padding-top: 10px;
+        padding-top: 4px;
       }
       .editor-control-row > .section-header {
         display: flex;
@@ -1408,6 +1627,12 @@ export class ScheduleSlotEditor extends LitElement {
       }
       .control-content {
         min-width: 0;
+      }
+      .switch-control {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-height: 44px;
       }
       .special-times,
       .state-controls {
@@ -1452,6 +1677,10 @@ export class ScheduleSlotEditor extends LitElement {
         border-radius: 0;
         color: var(--primary-text-color);
         background: transparent;
+      }
+      .passive-strategy-controls ha-button::part(base) {
+        padding-inline: 8px;
+        white-space: normal;
       }
       .special-times ha-button.selected::part(base) {
         color: var(--text-primary-color, #fff);
@@ -1531,7 +1760,30 @@ export class ScheduleSlotEditor extends LitElement {
         border: 1px solid var(--primary-color);
         border-radius: 10px;
       }
+      @media (min-width: 1350px) {
+        .copy-section.compact {
+          position: absolute;
+          z-index: 4;
+          top: -112px;
+          right: 12px;
+          left: calc(var(--wiser-schedule-picker-width, 420px) + 20px);
+          width: auto;
+          max-width: none;
+          padding-top: 0;
+        }
+        .copy-section.compact .copy-options {
+          flex-wrap: nowrap;
+        }
+        .copy-section.compact .copy-options ha-button {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+      }
       @media (max-width: 600px) {
+        .copy-section,
+        .copy-section.compact {
+          order: 3;
+        }
         .schedule-editor-area,
         .schedule-editor-area.short {
           width: 100%;
@@ -1541,9 +1793,18 @@ export class ScheduleSlotEditor extends LitElement {
           width: 100%;
           padding: 14px 12px;
         }
+        .selected-period-controls {
+          max-width: none;
+        }
         .editor-control-row {
           grid-template-columns: minmax(0, 1fr);
           gap: 4px;
+        }
+        .passive-period-toggle {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+        .editor-control-row.passive-period-toggle > .section-header {
+          min-height: 44px;
         }
         .editor-control-row > .section-header {
           justify-content: flex-start;
@@ -1577,6 +1838,22 @@ export class ScheduleSlotEditor extends LitElement {
           justify-content: flex-end;
           min-height: 44px;
           text-align: end;
+        }
+        .passive-strategy-row > .section-header {
+          display: none;
+        }
+        .passive-strategy-controls {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: stretch;
+          width: 100%;
+        }
+        .passive-strategy-controls ha-button {
+          display: block;
+          width: 100%;
+          height: 56px;
+          min-width: 0;
+          --ha-button-height: 56px;
         }
       }
       .slot {

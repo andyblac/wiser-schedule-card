@@ -358,6 +358,14 @@
                 fixture.schedules.find((s) => s.Id === request.schedule_id)?.SubType ||
                 fixture.schedules.find((s) => s.Id === request.schedule_id)?.Type ||
                 'Heating',
+              PassiveControlDefaults:
+                request.schedule_type.toLowerCase() === 'heating'
+                  ? { Enabled: false, Strategy: 'modulating' }
+                  : undefined,
+              Capabilities:
+                request.schedule_type.toLowerCase() === 'heating' && fixture.passiveCapabilities !== false
+                  ? { PassiveControl: true }
+                  : undefined,
               Assignments: [...fixture.rooms, ...Object.values(fixture.devices || {}).flat()]
                 .filter((room) => fixture.assignments[room.Id] === request.schedule_id)
                 .map((room) => ({ id: room.Id, name: room.Name })),

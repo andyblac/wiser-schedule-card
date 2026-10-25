@@ -678,6 +678,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     :host {
       display: block;
       color: var(--primary-text-color);
+      --wiser-schedule-picker-width: clamp(260px, 20vw, 420px);
     }
     section + section {
       margin-top: 24px;
@@ -811,9 +812,14 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     }
     .schedule-picker {
       display: block;
-      width: 100%;
-      max-width: 420px;
+      width: min(100%, var(--wiser-schedule-picker-width));
+      max-width: none;
       margin: 20px 0 12px;
+    }
+    @media (max-width: 600px) {
+      .schedule-picker {
+        width: 100%;
+      }
     }
     label {
       display: grid;

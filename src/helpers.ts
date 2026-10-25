@@ -49,11 +49,21 @@ export function getGreyToYellow(percent: number): string {
   return r + ',' + g + ',' + 0;
 }
 
-export function color_map(element: LitElement, schedule_type: string, setPoint: string): string {
+export function color_map(
+  element: LitElement,
+  schedule_type: string,
+  setPoint: string,
+  nativeHotWaterTimer = false,
+): string {
   if (setPoint == 'Unknown') return '100,100,100';
   const type = schedule_type.toLowerCase();
-  if (type === 'onoff') {
-    if (setPoint == 'On') {
+  if (type === 'onoff' && nativeHotWaterTimer) {
+    if (setPoint.trim().toLowerCase() === 'on') {
+      return hexToRgbString(getCSSVariable(element, '--red-color'));
+    }
+    return '138,138,138,1';
+  } else if (type === 'onoff') {
+    if (setPoint.trim().toLowerCase() === 'on') {
       return hexToRgbString(getCSSVariable(element, '--green-color'));
     }
     return hexToRgbString(getCSSVariable(element, '--red-color'));

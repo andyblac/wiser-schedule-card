@@ -1,5 +1,5 @@
 import { days, MAX_SCHEDULE_SLOTS_PER_DAY, SPECIAL_TIMES } from '../const';
-import type { Schedule, ScheduleDay } from '../types';
+import type { Schedule, ScheduleDay, ScheduleSlot } from '../types';
 
 export function scheduleExportName(name: string, type = ''): string {
   const safeName = name.replace(/[^a-z0-9_-]/gi, '_') || 'schedule';
@@ -8,6 +8,9 @@ export function scheduleExportName(name: string, type = ''): string {
 }
 
 export function scheduleExportJson(schedule: Schedule): string {
+  const passiveRange = schedule.PassiveRange === true;
+  const passiveControl = schedule.PassiveControl === true;
+  const passiveData = passiveRange || passiveControl;
   const scheduleData = schedule.ScheduleData.map((day) => ({
     day: day.day,
     slots: day.slots.map((slot) => {
@@ -19,6 +22,14 @@ export function scheduleExportJson(schedule: Schedule): string {
       return {
         Time: specialTime || slot.Time,
         Setpoint: slot.Setpoint,
+        ...(passiveData ? { UpperSetpoint: slot.UpperSetpoint } : {}),
+        ...(passiveControl
+          ? {
+              PassiveScheduled: Boolean(slot.PassiveScheduled),
+              PassiveMode: slot.PassiveMode,
+              PassiveStrategy: slot.PassiveStrategy,
+            }
+          : {}),
         SpecialTime: specialTime,
       };
     }),
@@ -26,11 +37,13 @@ export function scheduleExportJson(schedule: Schedule): string {
   return JSON.stringify(
     {
       format: 'wiser-schedule',
-      version: 1,
+      version: passiveData ? 2 : 1,
       schedule: {
         Name: schedule.Name,
         Type: schedule.Type,
         SubType: schedule.SubType,
+        ...(passiveRange ? { PassiveRange: true } : {}),
+        ...(passiveControl ? { PassiveControl: true } : {}),
         ScheduleData: scheduleData,
       },
     },
@@ -41,11 +54,19 @@ export function scheduleExportJson(schedule: Schedule): string {
 
 export function importScheduleFile(text: string, target: Schedule): Schedule {
   const file = JSON.parse(text);
-  if (file.format !== 'wiser-schedule' || file.version !== 1) throw new Error('Unsupported schedule file.');
+  if (file.format !== 'wiser-schedule' || ![1, 2].includes(file.version)) throw new Error('Unsupported schedule file.');
   const source = file.schedule;
   const kind = (target.SubType || target.Type).toLowerCase();
   if (!source || (source.SubType || source.Type)?.toLowerCase() !== kind)
     throw new Error('This file is for a different schedule type.');
+  const passiveRange = file.version === 2 && source.PassiveRange === true;
+  const passiveControl = file.version === 2 && source.PassiveControl === true;
+  const passiveData = passiveRange || passiveControl;
+  if (passiveData && kind !== 'heating') throw new Error('Passive scheduling requires a heating schedule.');
+  if (passiveRange && !passiveControl && target.PassiveRange !== true)
+    throw new Error('This schedule does not use a Passive Mode temperature range.');
+  if (passiveControl && target.Capabilities?.PassiveControl !== true)
+    throw new Error('This Wiser integration does not support Passive Mode scheduling.');
   if (!Array.isArray(source.ScheduleData) || source.ScheduleData.length !== 7)
     throw new Error('The file must contain all seven days.');
   const seen = new Set<string>();
@@ -86,11 +107,52 @@ export function importScheduleFile(text: string, target: Schedule): Schedule {
               ? Number.isFinite(number) && number >= 0 && number <= 100
               : ['On', 'Off'].includes(value);
         if (!valid) throw new Error('Invalid schedule setting.');
+        const result: ScheduleSlot = { Time: time, Setpoint: value, SpecialTime: specialTime };
+        if (passiveData) {
+          const scheduled = passiveControl ? slot.PassiveScheduled : false;
+          const hasUpper = slot.UpperSetpoint !== undefined && slot.UpperSetpoint !== null && slot.UpperSetpoint !== '';
+          const upper = Number(slot.UpperSetpoint);
+          if (
+            (passiveRange && !passiveControl && !hasUpper) ||
+            (passiveControl && typeof scheduled !== 'boolean') ||
+            (hasUpper && (!Number.isFinite(upper) || (upper !== -20 && (upper < 5 || upper > 30)) || upper < number)) ||
+            (scheduled &&
+              (!hasUpper ||
+                typeof slot.PassiveMode !== 'boolean' ||
+                !['modulating', 'temperature_limiter'].includes(slot.PassiveStrategy)))
+          )
+            throw new Error('Invalid passive schedule setting.');
+          if (hasUpper) result.UpperSetpoint = upper;
+          if (passiveControl) {
+            result.PassiveScheduled = scheduled;
+            if (scheduled) {
+              result.PassiveMode = slot.PassiveMode;
+              result.PassiveStrategy = slot.PassiveStrategy;
+            }
+          }
+        }
         count++;
-        return { Time: time, Setpoint: value, SpecialTime: specialTime };
+        return result;
       }),
     };
   });
   if (!count) throw new Error('The schedule has no time slots.');
-  return { ...target, ScheduleData: data };
+  const imported = { ...target, ScheduleData: data };
+  if (passiveControl) {
+    imported.PassiveControl = true;
+    imported.PassiveRange = true;
+    imported.PassiveRangeType ??= 'scheduled';
+    imported.MinUpperSetpoint ??= 5;
+    imported.MaxUpperSetpoint ??= 30;
+  } else if (passiveRange) {
+    delete imported.PassiveControl;
+    imported.PassiveRange = true;
+  } else {
+    delete imported.PassiveControl;
+    delete imported.PassiveRange;
+    delete imported.PassiveRangeType;
+    delete imported.MinUpperSetpoint;
+    delete imported.MaxUpperSetpoint;
+  }
+  return imported;
 }

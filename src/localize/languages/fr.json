@@ -31,7 +31,8 @@
       "special_time": "Définir une heure spéciale",
       "selected_period": "Période sélectionnée",
       "time": "Heure",
-      "fixed": "Fixe"
+      "fixed": "Fixe",
+      "passive_schedule": "Programmer le mode passif"
     },
     "days": {
       "weekdays": "Lun à Ven",

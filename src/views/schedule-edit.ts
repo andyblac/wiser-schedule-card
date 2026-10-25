@@ -66,8 +66,6 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   @state() entities: Entities[] = [];
   @state() suntimes?: SunTimes;
   @state() component_loaded?: boolean;
-  @state() _activeSlot = null;
-  @state() _activeDay = null;
   @state() editMode = false;
   @state() _current_user?: CurrentUser = this.hass?.user;
   @state() _assigning_in_progress = 0;
@@ -296,7 +294,10 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
                   .schedule_type=${this.schedule_type}
                   .suntimes=${this.suntimes}
                   .editMode=${this.editMode}
+                  .editable=${allow_edit(this.hass, this.config) && !this.isFixedSchedule()}
+                  .compactCopyPlacement=${this.embedded}
                   @scheduleChanged=${this.scheduleChanged}
+                  @period-edit-requested=${this.periodEditRequested}
                   @period-state=${(event: CustomEvent<{ canAdd: boolean; canDelete: boolean }>) => {
                     this._canAddPeriod = event.detail.canAdd;
                     this._canDeletePeriod = event.detail.canDelete;
@@ -567,10 +568,29 @@ export class SchedulerEditCard extends SubscribeMixin(LitElement) {
   }
 
   editClick(): void {
-    if (!this.schedule || this.schedule.Id !== this.schedule_id || !allow_edit(this.hass!, this.config)) return;
+    if (
+      !this.schedule ||
+      this.schedule.Id !== this.schedule_id ||
+      this.isFixedSchedule() ||
+      !allow_edit(this.hass!, this.config)
+    )
+      return;
     this._tempSchedule = this.cloneSchedule(this.schedule);
     this.resetHistory(this._tempSchedule);
     this.editMode = !this.editMode;
+  }
+
+  private async periodEditRequested(event: CustomEvent<{ day: string; slot: number }>): Promise<void> {
+    event.stopPropagation();
+    if (this.editMode || this.isFixedSchedule() || !allow_edit(this.hass!, this.config)) return;
+    const { day, slot } = event.detail;
+    this.editClick();
+    await this.updateComplete;
+    this.renderRoot
+      .querySelector<HTMLElement & { selectPeriod?: (selectedDay: string, selectedSlot: number) => void }>(
+        'wiser-schedule-slot-editor',
+      )
+      ?.selectPeriod?.(day, slot);
   }
 
   copyClick(): void {

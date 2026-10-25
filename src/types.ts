@@ -37,6 +37,9 @@ export interface ScheduleSlot {
   Time: string;
   Setpoint: string;
   UpperSetpoint?: string | number;
+  PassiveScheduled?: boolean;
+  PassiveMode?: boolean;
+  PassiveStrategy?: 'modulating' | 'temperature_limiter';
   SpecialTime: string;
 }
 
@@ -55,7 +58,15 @@ export interface Schedule {
   MinSetpoint?: number;
   MaxSetpoint?: number;
   PassiveRange?: boolean;
-  PassiveRangeType?: 'native' | 'external';
+  PassiveRangeType?: 'native' | 'external' | 'scheduled';
+  PassiveControl?: boolean;
+  Capabilities?: {
+    PassiveControl?: boolean;
+  };
+  PassiveControlDefaults?: {
+    Enabled: boolean;
+    Strategy: 'modulating' | 'temperature_limiter';
+  };
   MinUpperSetpoint?: number;
   MaxUpperSetpoint?: number;
   PresetOptions?: SchedulePresetOption[];

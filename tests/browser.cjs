@@ -138,7 +138,28 @@ const readStoredZip = (buffer) => {
     assert.equal(await redoButton.count(), 1, 'Redo is always present in the room toolbar');
     assert.equal(await undoButton.isDisabled(), true);
     assert.equal(await redoButton.isDisabled(), true);
-    await button('edit').click();
+    const requestedPeriod = page.locator('wiser-schedule-slot-editor [id="Tuesday|1"]');
+    assert.ok(
+      (await requestedPeriod.getAttribute('class')).includes('selectable'),
+      'view periods indicate they can be edited',
+    );
+    await requestedPeriod.locator('.slotoverlay span').click();
+    await page.waitForFunction(() => {
+      const editor = document
+        .querySelector('wiser-schedule-card')
+        .shadowRoot.querySelector('wiser-room-schedules')
+        ?.shadowRoot.querySelector('wiser-schedule-edit-card');
+      const slots = editor?.shadowRoot.querySelector('wiser-schedule-slot-editor');
+      return editor?.editMode && slots?._activeDay === 'Tuesday' && slots?._activeSlot === 1;
+    });
+    assert.equal(
+      await page
+        .locator('wiser-schedule-slot-editor [id="Tuesday|1"]')
+        .getAttribute('class')
+        .then((value) => value.includes('selected')),
+      true,
+      'clicking a view period opens the editor with that period selected',
+    );
     assert.equal(await page.getByLabel('Choose a schedule').isDisabled(), true);
     assert.equal(await page.locator('wiser-room-schedules wiser-card-header').count(), 1);
     const editToolbarBox = await roomToolbar.boundingBox();
@@ -157,6 +178,7 @@ const readStoredZip = (buffer) => {
     const deletePeriodButton = roomToolbar.getByRole('button', { name: 'Delete period', exact: true });
     assert.equal(await page.getByRole('button', { name: 'Add period', exact: true }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Delete period', exact: true }).count(), 1);
+    await requestedPeriod.locator('.slotoverlay span').click();
     assert.equal(await addPeriodButton.isDisabled(), true, 'toolbar Add waits for a selected period');
     assert.equal(await deletePeriodButton.isDisabled(), true, 'toolbar Trash waits for a selected period');
     const selectedPeriodPanel = page.locator('wiser-schedule-slot-editor .selected-period');
@@ -326,6 +348,29 @@ const readStoredZip = (buffer) => {
     assert.equal(exported.format, 'wiser-schedule');
     assert.equal(exported.schedule.Type, 'Heating');
     assert.equal(exported.schedule.Assignments, undefined);
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => {
+      el.schedule.PassiveRange = true;
+      el.schedule.PassiveRangeType = 'external';
+      for (const day of el.schedule.ScheduleData)
+        for (const slot of day.slots) slot.UpperSetpoint = Number(slot.Setpoint) + 2;
+    });
+    const rangeDownloadPromise = page.waitForEvent('download');
+    await button('Export schedule').click();
+    const rangeDownload = await rangeDownloadPromise;
+    const exportedRange = JSON.parse(await readFile(await rangeDownload.path(), 'utf8'));
+    assert.equal(exportedRange.version, 2);
+    assert.equal(exportedRange.schedule.PassiveRange, true);
+    assert.equal(exportedRange.schedule.PassiveControl, undefined);
+    assert.equal(
+      exportedRange.schedule.ScheduleData[0].slots[0].UpperSetpoint,
+      Number(exportedRange.schedule.ScheduleData[0].slots[0].Setpoint) + 2,
+      'Passive Mode range exports preserve upper temperatures',
+    );
+    await page.locator('wiser-schedule-edit-card').evaluate((el) => {
+      delete el.schedule.PassiveRange;
+      delete el.schedule.PassiveRangeType;
+      for (const day of el.schedule.ScheduleData) for (const slot of day.slots) delete slot.UpperSetpoint;
+    });
     const saveCount = await page.evaluate(() => fixture.calls.filter((c) => c.type === 'wiser/schedule/save').length);
     exported.schedule.Name = 'File name must not overwrite';
     exported.schedule.ScheduleData[0].slots[0].Setpoint = '23';
@@ -355,6 +400,78 @@ const readStoredZip = (buffer) => {
       'import stays a draft',
     );
     await button('cancel').click();
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector('wiser-schedule-card')
+          .shadowRoot.querySelector('wiser-room-schedules')
+          ?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode,
+    );
+    const passiveFile = structuredClone(exported);
+    passiveFile.version = 2;
+    passiveFile.schedule.PassiveRange = true;
+    passiveFile.schedule.PassiveControl = true;
+    for (const day of passiveFile.schedule.ScheduleData) {
+      for (const slot of day.slots) {
+        slot.UpperSetpoint = Number(slot.Setpoint) + 2;
+        slot.PassiveScheduled = true;
+        slot.PassiveMode = true;
+        slot.PassiveStrategy = 'modulating';
+      }
+    }
+    const unscheduledPassiveSlot = passiveFile.schedule.ScheduleData[1].slots[0];
+    unscheduledPassiveSlot.PassiveScheduled = false;
+    delete unscheduledPassiveSlot.UpperSetpoint;
+    delete unscheduledPassiveSlot.PassiveMode;
+    delete unscheduledPassiveSlot.PassiveStrategy;
+    await page.locator('input.import-file').setInputFiles({
+      name: 'passive-schedule.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(passiveFile)),
+    });
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('wiser-schedule-card')
+          .shadowRoot.querySelector('wiser-room-schedules')
+          ?.shadowRoot.querySelector('wiser-schedule-edit-card')?._tempSchedule?.PassiveControl === true,
+    );
+    assert.deepEqual(
+      await page.locator('wiser-schedule-edit-card').evaluate((el) => ({
+        enabled: el._tempSchedule.PassiveControl,
+        rangeType: el._tempSchedule.PassiveRangeType,
+        slot: el._tempSchedule.ScheduleData[0].slots[0],
+        unscheduledSlot: el._tempSchedule.ScheduleData[1].slots[0],
+      })),
+      {
+        enabled: true,
+        rangeType: 'scheduled',
+        slot: {
+          Time: passiveFile.schedule.ScheduleData[0].slots[0].Time,
+          Setpoint: String(passiveFile.schedule.ScheduleData[0].slots[0].Setpoint),
+          UpperSetpoint: passiveFile.schedule.ScheduleData[0].slots[0].UpperSetpoint,
+          PassiveScheduled: true,
+          PassiveMode: true,
+          PassiveStrategy: 'modulating',
+          SpecialTime: passiveFile.schedule.ScheduleData[0].slots[0].SpecialTime,
+        },
+        unscheduledSlot: {
+          Time: unscheduledPassiveSlot.Time,
+          Setpoint: String(unscheduledPassiveSlot.Setpoint),
+          PassiveScheduled: false,
+          SpecialTime: unscheduledPassiveSlot.SpecialTime,
+        },
+      },
+      'v2 import preserves scheduled Passive mode controls',
+    );
+    await button('cancel').click();
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector('wiser-schedule-card')
+          .shadowRoot.querySelector('wiser-room-schedules')
+          ?.shadowRoot.querySelector('wiser-schedule-edit-card')?.editMode,
+    );
     await page.evaluate(() =>
       document.addEventListener('show-dialog', (event) => (window.importError = event.detail.dialogParams.error)),
     );
@@ -555,6 +672,10 @@ const readStoredZip = (buffer) => {
     assert.equal(await page.locator('select').count(), 0);
     assert.equal(await button('edit').count(), 0);
     await page.waitForSelector('wiser-schedule-slot-editor');
+    const readOnlyPeriod = page.locator('wiser-schedule-slot-editor [slot="0"]').first();
+    assert.equal((await readOnlyPeriod.getAttribute('class')).includes('selectable'), false);
+    await readOnlyPeriod.click();
+    assert.equal(await page.locator('wiser-schedule-edit-card').evaluate((el) => el.editMode), false);
     await fresh();
     await page.evaluate(() => {
       const card = mountCard({ admin_only: true });
@@ -1439,7 +1560,7 @@ const readStoredZip = (buffer) => {
     assert.equal(await page.locator('section[data-category="onoff"] button.schedule-tile').count(), 1);
     assert.equal(await page.locator('section[data-category="hotwater"]').count(), 0);
     // Native controls and centered alignment for every schedule type, including narrow layouts.
-    for (const width of [1280, 390]) {
+    for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });
       for (const kind of ['Heating', 'OnOff', 'Lighting', 'Shutters']) {
         await page.evaluate((kind) => {
@@ -1447,7 +1568,12 @@ const readStoredZip = (buffer) => {
           editor.hass = makeHass();
           editor.config = { hub: 'hub-one' };
           editor.editMode = true;
+          editor.compactCopyPlacement = true;
           editor.schedule_type = kind;
+          if (kind === 'OnOff') {
+            editor.style.setProperty('--green-color', '#00ff00');
+            editor.style.setProperty('--red-color', '#ff0000');
+          }
           editor.schedule = {
             Type: kind,
             ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => ({
@@ -1470,18 +1596,40 @@ const readStoredZip = (buffer) => {
           document.querySelector('#mount').replaceChildren(editor);
         }, kind);
         const editor = page.locator('wiser-schedule-slot-editor');
+        if (width > 600) await editor.evaluate((el) => el.style.setProperty('--wiser-schedule-picker-width', '300px'));
         const editorBox = await editor.boundingBox();
-        const timelineBox = await editor.locator('.outer').first().boundingBox();
+        const slotsBox = await editor.locator('.slots-wrapper').boundingBox();
         const panelBox = await editor.locator('.selected-period').boundingBox();
-        const timelineCenter = timelineBox.x + timelineBox.width / 2;
+        const panelHeadingBox = await editor.locator('.selected-period-header').boundingBox();
+        const copyBox = await editor.locator('.copy-section').boundingBox();
         const editorCenter = editorBox.x + editorBox.width / 2;
-        const controlsCenter = width <= 600 ? editorCenter : timelineCenter;
+        const controlsCenter = editorCenter;
         assert.ok(Math.abs(panelBox.x + panelBox.width / 2 - controlsCenter) < 2);
+        assert.ok(
+          Math.abs(panelHeadingBox.x - panelBox.x - (width <= 600 ? 12 : 22)) < 2,
+          'the selected-period heading aligns with the panel padding',
+        );
         if (width <= 600) {
           assert.ok(Math.abs(panelBox.x - editorBox.x) < 2, 'mobile period editor uses the full available width');
           assert.ok(
             Math.abs(panelBox.width - editorBox.width) < 2,
             'mobile period editor uses the full available width',
+          );
+          assert.ok(copyBox.y >= panelBox.y + panelBox.height, 'mobile Copy controls remain below the period editor');
+          assert.equal(
+            await editor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
+            'static',
+          );
+        } else {
+          assert.ok(copyBox.y + copyBox.height <= slotsBox.y, 'desktop Copy controls sit above the timeline');
+          assert.ok(
+            Math.abs(copyBox.x - editorBox.x - 320) < 2,
+            'desktop Copy controls follow the responsive schedule-picker width',
+          );
+          assert.equal(
+            await editor.locator('.copy-section').evaluate((copy) => getComputedStyle(copy).position),
+            'absolute',
+            'desktop Copy controls reuse existing space instead of increasing editor height',
           );
         }
         const rowBoxes = await editor.locator('.editor-control-row').evaluateAll((rows) =>
@@ -1528,9 +1676,27 @@ const readStoredZip = (buffer) => {
         if (kind === 'OnOff') {
           await editor.getByRole('radio', { name: 'On', exact: true }).waitFor();
           assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), true);
+          assert.equal(
+            await editor
+              .locator('.slot')
+              .first()
+              .evaluate((slot) => getComputedStyle(slot).backgroundColor),
+            'rgb(0, 255, 0)',
+            'smart-plug On periods use green',
+          );
           await editor.getByRole('radio', { name: 'Off', exact: true }).check();
           assert.equal(await editor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].Setpoint), 'Off');
           assert.equal(await editor.getByRole('radio', { name: 'On', exact: true }).isChecked(), false);
+          await editor.evaluate((el) => el.updateComplete);
+          await page.waitForTimeout(150);
+          assert.equal(
+            await editor
+              .locator('.slot')
+              .first()
+              .evaluate((slot) => getComputedStyle(slot).backgroundColor),
+            'rgb(255, 0, 0)',
+            'smart-plug Off periods use red',
+          );
         } else {
           const range = editor.getByRole('slider');
           await range.waitFor();
@@ -1705,10 +1871,43 @@ const readStoredZip = (buffer) => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();
       editor.config = { hub: 'hub-one' };
+      editor.schedule_type = 'OnOff';
+      editor.style.setProperty('--red-color', '#ff0000');
+      editor.schedule = {
+        Id: 1000,
+        Type: 'OnOff',
+        SubType: 'HotWater',
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: index === 0 ? 'On' : 'Off', SpecialTime: '' }],
+          }),
+        ),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const nativeHotWaterSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await nativeHotWaterSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(255, 0, 0)',
+      'native hot-water On periods use red',
+    );
+    assert.equal(
+      await nativeHotWaterSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(138, 138, 138)',
+      'native hot-water Off periods use grey',
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one' };
       editor.editMode = true;
       editor.schedule_type = 'Heating';
       editor.schedule = {
         Type: 'Heating',
+        Capabilities: { PassiveControl: true },
+        PassiveControlDefaults: { Enabled: true, Strategy: 'temperature_limiter' },
         PassiveRange: true,
         PassiveRangeType: 'external',
         MinUpperSetpoint: 5,
@@ -1730,6 +1929,56 @@ const readStoredZip = (buffer) => {
     });
     const rangeEditor = page.locator('wiser-schedule-slot-editor');
     await rangeEditor.getByRole('slider').first().waitFor();
+    await rangeEditor.evaluate((el) => {
+      delete el.schedule.Capabilities;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(
+      await rangeEditor.getByLabel('Schedule passive mode').count(),
+      0,
+      'older integrations keep the existing editor without scheduled Passive controls',
+    );
+    await rangeEditor.evaluate((el) => {
+      delete el.schedule.PassiveRange;
+      delete el.schedule.PassiveRangeType;
+      delete el.schedule.MinUpperSetpoint;
+      delete el.schedule.MaxUpperSetpoint;
+      for (const day of el.schedule.ScheduleData) for (const slot of day.slots) delete slot.UpperSetpoint;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(await rangeEditor.getByRole('slider').count(), 1);
+    assert.equal(await rangeEditor.getByText('Temperature', { exact: true }).count(), 1);
+    assert.equal(await rangeEditor.getByText('Lower temperature', { exact: true }).count(), 0);
+    assert.equal(await rangeEditor.getByText('Upper temperature', { exact: true }).count(), 0);
+    assert.equal(
+      await rangeEditor.getByLabel('Schedule passive mode').count(),
+      0,
+      'v4.0.1 schedule payloads stay on the original single-temperature editor',
+    );
+    await rangeEditor.evaluate((el) => {
+      el.schedule.Capabilities = { PassiveControl: true };
+      el.schedule.PassiveRange = true;
+      el.schedule.PassiveRangeType = 'external';
+      el.schedule.MinUpperSetpoint = 5;
+      el.schedule.MaxUpperSetpoint = 30;
+      for (const day of el.schedule.ScheduleData)
+        for (const slot of day.slots) slot.UpperSetpoint = Number(slot.Setpoint) + 6;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(await rangeEditor.getByLabel('Schedule passive mode').count(), 1);
+    const passivePanelBox = await rangeEditor.locator('.selected-period').boundingBox();
+    const passiveEditorBox = await rangeEditor.boundingBox();
+    const passiveHeadingBox = await rangeEditor.getByText('Schedule passive mode', { exact: true }).boundingBox();
+    assert.ok(Math.abs(passivePanelBox.x - passiveEditorBox.x) < 2);
+    assert.ok(Math.abs(passivePanelBox.width - passiveEditorBox.width) < 2);
+    assert.ok(
+      passiveHeadingBox.x >= passivePanelBox.x &&
+        passiveHeadingBox.x + passiveHeadingBox.width <= passivePanelBox.x + passivePanelBox.width,
+      'the Passive scheduling label stays inside the selected-period panel',
+    );
     assert.equal(await rangeEditor.getByText('Lower temperature', { exact: true }).count(), 1);
     assert.equal(await rangeEditor.getByText('Upper temperature', { exact: true }).count(), 1);
     assert.match(await rangeEditor.locator('.slot').first().textContent(), /14°C–20°C/);
@@ -1787,9 +2036,8 @@ const readStoredZip = (buffer) => {
       { lower: 23, upper: 23 },
     );
     await rangeEditor.evaluate((el) => {
-      delete el.schedule.PassiveRange;
-      delete el.schedule.PassiveRangeType;
       el.schedule.PassiveRange = true;
+      el.schedule.PassiveRangeType = 'native';
       el.requestUpdate();
     });
     await rangeEditor.evaluate((el) => el.updateComplete);
@@ -1798,6 +2046,117 @@ const readStoredZip = (buffer) => {
       2,
       'native Passive Mode schedules use the same paired temperature editor',
     );
+    await rangeEditor.evaluate((el) => {
+      el.schedule.ScheduleData[0].slots[0].Setpoint = 17;
+      el.schedule.ScheduleData[0].slots[0].UpperSetpoint = 22;
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    await rangeEditor.getByLabel('Schedule passive mode').check();
+    const passiveToggleHeadingBox = await rangeEditor.locator('.passive-period-toggle > .section-header').boundingBox();
+    const passiveToggleBox = await rangeEditor.getByLabel('Schedule passive mode').boundingBox();
+    assert.ok(
+      Math.abs(
+        passiveToggleHeadingBox.y +
+          passiveToggleHeadingBox.height / 2 -
+          passiveToggleBox.y -
+          passiveToggleBox.height / 2,
+      ) < 2,
+      'the mobile Passive scheduling label and switch share one row',
+    );
+    const passiveChoiceBoxes = await rangeEditor
+      .locator('.passive-strategy-controls ha-button')
+      .evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const box = button.getBoundingClientRect();
+          return {
+            text: button.textContent.trim(),
+            top: Math.round(box.top),
+            left: Math.round(box.left),
+            width: Math.round(box.width),
+            height: Math.round(box.height),
+          };
+        }),
+      );
+    assert.equal(
+      new Set(passiveChoiceBoxes.map((box) => box.top)).size,
+      1,
+      `mobile Passive strategy choices stay on one row: ${JSON.stringify(passiveChoiceBoxes)}`,
+    );
+    const passiveEditorWidths = await rangeEditor.evaluate((el) => ({
+      client: el.clientWidth,
+      scroll: el.scrollWidth,
+    }));
+    assert.ok(
+      passiveEditorWidths.scroll <= passiveEditorWidths.client + 1,
+      `the Passive period editor does not overflow at phone width: ${JSON.stringify(passiveEditorWidths)}`,
+    );
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        enabled: el.schedule.PassiveControl,
+        type: el.schedule.PassiveRangeType,
+        slot: el.schedule.ScheduleData[0].slots[0],
+      })),
+      {
+        enabled: true,
+        type: 'native',
+        slot: {
+          Time: '07:00',
+          Setpoint: 17,
+          UpperSetpoint: 22,
+          PassiveScheduled: true,
+          PassiveMode: true,
+          PassiveStrategy: 'temperature_limiter',
+          SpecialTime: '',
+        },
+      },
+      'period scheduling starts from the room mode and strategy without changing its temperature range',
+    );
+    await rangeEditor
+      .getByRole('button', { name: 'Temperature limiter', exact: true })
+      .evaluate((button) => button.click());
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        enabled: el.schedule.ScheduleData[0].slots[0].PassiveMode,
+        strategy: el.schedule.ScheduleData[0].slots[0].PassiveStrategy,
+      })),
+      { enabled: true, strategy: 'temperature_limiter' },
+    );
+    await rangeEditor
+      .getByRole('radiogroup', { name: 'Passive mode', exact: true })
+      .getByRole('button', { name: 'Off', exact: true })
+      .evaluate((button) => button.click());
+    assert.equal(await rangeEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].PassiveMode), false);
+    assert.equal(
+      await rangeEditor.getByRole('slider').inputValue(),
+      '17',
+      'Off after Temperature limiter uses the lower temperature',
+    );
+    assert.match(await rangeEditor.locator('.slot').first().textContent(), /17°C/);
+    await rangeEditor.getByRole('button', { name: 'Modulating', exact: true }).evaluate((button) => button.click());
+    await rangeEditor
+      .getByRole('radiogroup', { name: 'Passive mode', exact: true })
+      .getByRole('button', { name: 'Off', exact: true })
+      .evaluate((button) => button.click());
+    assert.equal(
+      await rangeEditor.getByRole('slider').inputValue(),
+      '22',
+      'Off after Modulating uses the upper temperature',
+    );
+    assert.match(await rangeEditor.locator('.slot').first().textContent(), /22°C/);
+    await rangeEditor.getByLabel('Schedule passive mode').uncheck();
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        enabled: el.schedule.PassiveControl,
+        range: el.schedule.PassiveRange,
+        upper: el.schedule.ScheduleData[0].slots[0].UpperSetpoint,
+        scheduled: el.schedule.ScheduleData[0].slots[0].PassiveScheduled,
+        strategy: el.schedule.ScheduleData[0].slots[0].PassiveStrategy,
+      })),
+      { enabled: undefined, range: true, upper: 22, scheduled: undefined, strategy: undefined },
+      'disabling one period returns it to the room configuration without losing the temperature schedule',
+    );
+    assert.equal(await rangeEditor.getByRole('slider').count(), 2);
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();
