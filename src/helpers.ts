@@ -1,9 +1,9 @@
-import { Schedule, ScheduleDay, ScheduleSlot, WiserScheduleCardConfig } from './types';
+import { Schedule, ScheduleColorConfig, ScheduleDay, ScheduleSlot, WiserScheduleCardConfig } from './types';
 import { FrontendLocaleData, HomeAssistant, NumberFormat, TimeFormat } from 'custom-card-helpers';
 
 import hexRgb from 'hex-rgb';
 import { LitElement } from 'lit';
-import { days, SEC_PER_HOUR } from './const';
+import { days, DEFAULT_SCHEDULE_COLORS, SEC_PER_HOUR } from './const';
 
 const int = Math.trunc;
 
@@ -33,6 +33,14 @@ export function hexToRgbString(hex: string): string {
   return '100,100,100';
 }
 
+function interpolateHexColors(lowColor: string, highColor: string, progress: number): string {
+  const low = hexRgb(lowColor);
+  const high = hexRgb(highColor);
+  const position = Math.max(0, Math.min(1, progress));
+  const channel = (start: number, end: number) => Math.floor(start + (end - start) * position);
+  return `${channel(low.red, high.red)},${channel(low.green, high.green)},${channel(low.blue, high.blue)},1`;
+}
+
 export function getCSSVariable(element: HTMLElement, style_name: string): string {
   return getComputedStyle(element).getPropertyValue(style_name).trim();
 }
@@ -54,21 +62,39 @@ export function color_map(
   schedule_type: string,
   setPoint: string,
   nativeHotWaterTimer = false,
+  colors: ScheduleColorConfig = {},
 ): string {
   if (setPoint == 'Unknown') return '100,100,100';
   const type = schedule_type.toLowerCase();
   if (type === 'onoff' && nativeHotWaterTimer) {
     if (setPoint.trim().toLowerCase() === 'on') {
-      return hexToRgbString(getCSSVariable(element, '--red-color'));
+      return isHex(colors.hot_water_on_color || '')
+        ? hexToRgbString(colors.hot_water_on_color!)
+        : hexToRgbString(getCSSVariable(element, '--red-color'));
     }
-    return '138,138,138,1';
+    return isHex(colors.hot_water_off_color || '') ? hexToRgbString(colors.hot_water_off_color!) : '138,138,138,1';
   } else if (type === 'onoff') {
     if (setPoint.trim().toLowerCase() === 'on') {
-      return hexToRgbString(getCSSVariable(element, '--green-color'));
+      return isHex(colors.on_color || '')
+        ? hexToRgbString(colors.on_color!)
+        : hexToRgbString(getCSSVariable(element, '--green-color'));
     }
-    return hexToRgbString(getCSSVariable(element, '--red-color'));
+    return isHex(colors.off_color || '')
+      ? hexToRgbString(colors.off_color!)
+      : hexToRgbString(getCSSVariable(element, '--red-color'));
   } else if (['lighting', 'shutters'].includes(type)) {
-    return getGreyToYellow(parseInt(setPoint)) + ',1';
+    const lowColor = type === 'lighting' ? colors.lighting_off_color : colors.shutter_closed_color;
+    const highColor = type === 'lighting' ? colors.lighting_on_color : colors.shutter_open_color;
+    if (!isHex(lowColor || '') && !isHex(highColor || '')) return getGreyToYellow(parseInt(setPoint)) + ',1';
+    const defaultLow =
+      type === 'lighting' ? DEFAULT_SCHEDULE_COLORS.lighting_off : DEFAULT_SCHEDULE_COLORS.shutter_closed;
+    const defaultHigh =
+      type === 'lighting' ? DEFAULT_SCHEDULE_COLORS.lighting_on : DEFAULT_SCHEDULE_COLORS.shutter_open;
+    return interpolateHexColors(
+      isHex(lowColor || '') ? lowColor! : defaultLow,
+      isHex(highColor || '') ? highColor! : defaultHigh,
+      parseInt(setPoint) / 100,
+    );
   } else {
     if (parseFloat(setPoint) == -20) {
       return '138, 138, 138';
@@ -77,12 +103,11 @@ export function color_map(
     // appropriate absolute range so 35°C does not appear fully hot.
     const maxc = type === 'hotwater' ? 65 : 45;
     const minc = type === 'hotwater' ? 20 : -10;
-    const f = Math.max(0, Math.min(1, (parseFloat(setPoint) - minc) / (maxc - minc)));
-    const Y = Math.floor(255 * (1 - f));
-    const r = 235;
-    const g = Y;
-    const b = 0;
-    return r + ',' + g + ',' + b + ',1';
+    return interpolateHexColors(
+      isHex(colors.low_color || '') ? colors.low_color! : DEFAULT_SCHEDULE_COLORS.low,
+      isHex(colors.high_color || '') ? colors.high_color! : DEFAULT_SCHEDULE_COLORS.high,
+      (parseFloat(setPoint) - minc) / (maxc - minc),
+    );
   }
 }
 

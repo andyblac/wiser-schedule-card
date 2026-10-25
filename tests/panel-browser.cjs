@@ -58,13 +58,64 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('ha-dialog #editor-actions').getAttribute('slot'), 'footer');
     assert.equal(await page.getByLabel('Hide card background', { exact: true }).count(), 0);
     assert.equal(await page.getByLabel('Hide card borders', { exact: true }).count(), 0);
+    assert.equal(await page.getByLabel('Temperatures: Low', { exact: true }).inputValue(), '#ebff00');
+    assert.equal(await page.getByLabel('Temperatures: High', { exact: true }).inputValue(), '#eb0000');
+    assert.equal(await page.getByLabel('Controls: On', { exact: true }).inputValue(), '#43a047');
+    assert.equal(await page.getByLabel('Controls: Off', { exact: true }).inputValue(), '#db4437');
+    assert.equal(await page.getByLabel('Hot water: On', { exact: true }).inputValue(), '#ff0000');
+    assert.equal(await page.getByLabel('Hot water: Off', { exact: true }).inputValue(), '#8a8a8a');
+    assert.deepEqual(
+      await page
+        .locator('wiser-schedule-card-editor .color-group')
+        .nth(1)
+        .locator('.color-field > span:first-child')
+        .allTextContents(),
+      ['Off', 'On'],
+    );
+    assert.deepEqual(
+      await page
+        .locator('wiser-schedule-card-editor .color-group')
+        .nth(2)
+        .locator('.color-field > span:first-child')
+        .allTextContents(),
+      ['Off', 'On'],
+    );
+    assert.equal(await page.getByLabel('Lighting: Off', { exact: true }).inputValue(), '#8a8a8a');
+    assert.equal(await page.getByLabel('Lighting: On', { exact: true }).inputValue(), '#ffcc00');
+    assert.equal(await page.getByLabel('Shutters: Closed', { exact: true }).inputValue(), '#8a8a8a');
+    assert.equal(await page.getByLabel('Shutters: Open', { exact: true }).inputValue(), '#ffcc00');
+    const resetLowColor = page.getByLabel('Temperatures: Low: Reset to default', { exact: true });
+    assert.equal(await resetLowColor.isDisabled(), true);
+    await page.getByLabel('Temperatures: Low', { exact: true }).focus();
+    assert.equal(
+      await page.getByLabel('Temperatures: Low', { exact: true }).evaluate((input) => input.matches(':focus')),
+      true,
+    );
+    await page.locator('wiser-schedule-card-editor .version').click();
+    assert.equal(
+      await page.getByLabel('Temperatures: Low', { exact: true }).evaluate((input) => input.matches(':focus')),
+      false,
+    );
+    await page.getByLabel('Temperatures: Low', { exact: true }).fill('#123456');
+    assert.equal(await resetLowColor.isDisabled(), false);
+    await resetLowColor.click();
+    assert.equal(await page.getByLabel('Temperatures: Low', { exact: true }).inputValue(), '#ebff00');
+    assert.equal(await resetLowColor.isDisabled(), true);
+    await page.getByLabel('Temperatures: Low', { exact: true }).fill('#123456');
+    await page.getByLabel('Controls: On', { exact: true }).fill('#abcdef');
+    await page.getByLabel('Hot water: Off', { exact: true }).fill('#112233');
     await page.getByLabel('Use theme colors', { exact: true }).check();
+    assert.equal(await page.locator('wiser-schedule-card-editor input[type="color"]').count(), 10);
+    assert.equal(await page.locator('wiser-schedule-card-editor input[type="color"]:disabled').count(), 10);
     await page.locator('ha-button#save').click();
     await page.waitForFunction(
       () => !document.querySelector('wiser-schedules-panel').shadowRoot.querySelector('ha-dialog').open,
     );
     const call = await page.evaluate(() => fixture.calls.find((c) => c.type === 'wiser/panel/configure'));
     assert.equal(call.configs['hub-one'].theme_colors, true);
+    assert.equal(call.configs['hub-one'].low_color, '#123456');
+    assert.equal(call.configs['hub-one'].on_color, '#abcdef');
+    assert.equal(call.configs['hub-one'].hot_water_off_color, '#112233');
     assert.equal(await page.locator('wiser-schedules-panel').count(), 1);
     assert.equal(await page.locator('#hub-tabs').isVisible(), false);
     await page.evaluate(() => {

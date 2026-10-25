@@ -7,6 +7,18 @@ export const DefaultActionIcon = 'flash';
 export const SEC_PER_DAY = 86400;
 export const SEC_PER_HOUR = 3600;
 export const MAX_SCHEDULE_SLOTS_PER_DAY = 8;
+export const DEFAULT_SCHEDULE_COLORS = {
+  low: '#ebff00',
+  high: '#eb0000',
+  on: '#43a047',
+  off: '#db4437',
+  hot_water_on: '#ff0000',
+  hot_water_off: '#8a8a8a',
+  lighting_off: '#8a8a8a',
+  lighting_on: '#ffcc00',
+  shutter_closed: '#8a8a8a',
+  shutter_open: '#ffcc00',
+} as const;
 
 export enum EViews {
   Overview = 'OVERVIEW',

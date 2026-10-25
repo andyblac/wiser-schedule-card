@@ -8,7 +8,15 @@ import { HomeAssistant } from 'custom-card-helpers';
 import { nativeControlStyle } from '../styles';
 import { mdiRadiatorOff, mdiUnfoldMoreVertical } from '@mdi/js';
 import type { WiserScheduleCardConfig, ScheduleSlot, Schedule, ScheduleDay, SunTimes } from '../types';
-import { color_map, find_previous_slot, getLocale, get_end_time, get_setpoint, stringTimeToSeconds } from '../helpers';
+import {
+  color_map,
+  find_previous_slot,
+  getLocale,
+  get_end_time,
+  get_setpoint,
+  isHex,
+  stringTimeToSeconds,
+} from '../helpers';
 import {
   HEATING_TYPES,
   MAX_SCHEDULE_SLOTS_PER_DAY,
@@ -281,13 +289,22 @@ export class ScheduleSlotEditor extends LitElement {
     });
     const fullWidth = parseFloat(getComputedStyle(this).getPropertyValue('width'));
     const inactiveLevel =
-      !this.config!.theme_colors && ['Lighting', 'Shutters'].includes(this.schedule_type!) && Number(setpoint) === 0;
+      !this.config!.theme_colors &&
+      ['Lighting', 'Shutters'].includes(this.schedule_type!) &&
+      Number(setpoint) === 0 &&
+      !this.hasCustomInactiveLevelColor();
     const colour = this.config!.theme_colors
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
         : 'rgba(' +
-          color_map(this, this.schedule_type!, this.colourSetpoint(displayedSetpoint), this.isNativeHotWaterTimer()) +
+          color_map(
+            this,
+            this.schedule_type!,
+            this.colourSetpoint(displayedSetpoint),
+            this.isNativeHotWaterTimer(),
+            this.config!,
+          ) +
           ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
@@ -331,13 +348,22 @@ export class ScheduleSlotEditor extends LitElement {
       slot.PassiveScheduled && !slot.PassiveMode ? this.scheduledPassiveOffTemperature(slot) : slot.Setpoint;
     const width = ((stringTimeToSeconds(end_time) - stringTimeToSeconds(start_time)) / SEC_PER_DAY) * 100;
     const inactiveLevel =
-      !this.config!.theme_colors && ['Lighting', 'Shutters'].includes(this.schedule_type!) && Number(setpoint) === 0;
+      !this.config!.theme_colors &&
+      ['Lighting', 'Shutters'].includes(this.schedule_type!) &&
+      Number(setpoint) === 0 &&
+      !this.hasCustomInactiveLevelColor();
     const colour = this.config!.theme_colors
       ? 'rgba(var(--rgb-primary-color), 0.7)'
       : inactiveLevel
         ? 'var(--secondary-background-color, #eeeeee)'
         : 'rgba(' +
-          color_map(this, this.schedule_type!, this.colourSetpoint(setpoint), this.isNativeHotWaterTimer()) +
+          color_map(
+            this,
+            this.schedule_type!,
+            this.colourSetpoint(setpoint),
+            this.isNativeHotWaterTimer(),
+            this.config!,
+          ) +
           ')';
     const labelColour =
       this.config!.theme_colors || inactiveLevel ? 'var(--primary-text-color)' : this.contrastColour(colour);
@@ -467,6 +493,12 @@ export class ScheduleSlotEditor extends LitElement {
       this.scheduleTypeKey === 'OnOff' &&
       (Math.abs(Number(this.schedule?.Id)) === 1000 || this.schedule?.SubType?.toLowerCase() === 'hotwater')
     );
+  }
+
+  private hasCustomInactiveLevelColor(): boolean {
+    const color =
+      this.scheduleTypeKey === 'Lighting' ? this.config?.lighting_off_color : this.config?.shutter_closed_color;
+    return isHex(color || '');
   }
 
   private activePeriodLabel(): string {

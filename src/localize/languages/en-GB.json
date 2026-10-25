@@ -1,7 +1,19 @@
 {
   "wiser": {
     "editor": {
-      "theme_colors": "Use theme colours"
+      "theme_colors": "Use theme colours",
+      "temperature_colors": "Temperatures",
+      "control_colors": "Controls",
+      "hot_water_colors": "Hot water",
+      "lighting_colors": "Lighting",
+      "shutter_colors": "Shutters",
+      "low_color": "Low",
+      "high_color": "High",
+      "on_color": "On",
+      "off_color": "Off",
+      "closed_color": "Closed",
+      "open_color": "Open",
+      "reset_color": "Reset to default"
     }
   }
 }

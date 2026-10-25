@@ -1930,6 +1930,140 @@ const readStoredZip = (buffer) => {
       'rgb(138, 138, 138)',
       'native hot-water Off periods use grey',
     );
+    await page.locator('wiser-schedule-slot-editor').evaluate(async (editor) => {
+      editor.config.hot_water_on_color = '#123456';
+      editor.config.hot_water_off_color = '#654321';
+      editor.requestUpdate();
+      await editor.updateComplete;
+    });
+    await page.waitForTimeout(150);
+    const customHotWaterSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await customHotWaterSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(18, 52, 86)',
+      'custom On colour overrides the native hot-water default',
+    );
+    assert.equal(
+      await customHotWaterSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(101, 67, 33)',
+      'custom Off colour overrides the native hot-water default',
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one', on_color: '#234567', off_color: '#765432' };
+      editor.schedule_type = 'OnOff';
+      editor.schedule = {
+        Id: 42,
+        Type: 'OnOff',
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: index === 0 ? 'On' : 'Off', SpecialTime: '' }],
+          }),
+        ),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const customControlSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await customControlSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(35, 69, 103)',
+      'custom control On colour is independent of hot water',
+    );
+    assert.equal(
+      await customControlSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(118, 84, 50)',
+      'custom control Off colour is independent of hot water',
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one', low_color: '#102030', high_color: '#a0b0c0' };
+      editor.schedule_type = 'HotWater';
+      editor.schedule = {
+        Id: 1001,
+        Type: 'HotWater',
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: index === 0 ? '20' : '65', SpecialTime: '' }],
+          }),
+        ),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const customTemperatureSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await customTemperatureSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(16, 32, 48)',
+      'custom low colour is used at the low end of the temperature scale',
+    );
+    assert.equal(
+      await customTemperatureSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(160, 176, 192)',
+      'custom high colour is used at the high end of the temperature scale',
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one', lighting_off_color: '#010203', lighting_on_color: '#aabbcc' };
+      editor.schedule_type = 'Lighting';
+      editor.schedule = {
+        Id: 1002,
+        Type: 'Lighting',
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: index === 0 ? '0' : '100', SpecialTime: '' }],
+          }),
+        ),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const customLightingSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await customLightingSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(1, 2, 3)',
+      'custom lighting Off colour is used at zero percent',
+    );
+    assert.equal(
+      await customLightingSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(170, 187, 204)',
+      'custom lighting On colour is used at 100 percent',
+    );
+    await page.evaluate(() => {
+      const editor = document.createElement('wiser-schedule-slot-editor');
+      editor.hass = makeHass();
+      editor.config = { hub: 'hub-one', shutter_closed_color: '#112233', shutter_open_color: '#ddeeff' };
+      editor.schedule_type = 'Shutters';
+      editor.schedule = {
+        Id: 1003,
+        Type: 'Shutters',
+        ScheduleData: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(
+          (day, index) => ({
+            day,
+            slots: [{ Time: '00:00', Setpoint: index === 0 ? '0' : '100', SpecialTime: '' }],
+          }),
+        ),
+      };
+      editor.suntimes = { Sunrises: [], Sunsets: [] };
+      document.querySelector('#mount').replaceChildren(editor);
+    });
+    const customShutterSlots = page.locator('wiser-schedule-slot-editor .slot');
+    assert.equal(
+      await customShutterSlots.nth(0).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(17, 34, 51)',
+      'custom shutter Closed colour is used at zero percent',
+    );
+    assert.equal(
+      await customShutterSlots.nth(1).evaluate((slot) => getComputedStyle(slot).backgroundColor),
+      'rgb(221, 238, 255)',
+      'custom shutter Open colour is used at 100 percent',
+    );
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();

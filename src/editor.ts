@@ -2,11 +2,12 @@ import { customElement } from './components/register-element';
 import { LitElement, html, css, PropertyValues, TemplateResult } from 'lit';
 import { HomeAssistant, fireEvent, LovelaceCardEditor } from 'custom-card-helpers';
 import { property, state } from 'lit/decorators.js';
-import { WiserScheduleCardConfig } from './types';
+import { ScheduleColorKey, WiserScheduleCardConfig } from './types';
 import { fetchHubs } from './data/websockets';
 import { loadHaControls } from './components/ha-controls';
 import { localizeForHass } from './localize/localize';
-import { CARD_VERSION } from './const';
+import { CARD_VERSION, DEFAULT_SCHEDULE_COLORS } from './const';
+import { isHex } from './helpers';
 
 @customElement('wiser-schedule-card-editor')
 export class WiserScheduleCardEditor extends LitElement implements LovelaceCardEditor {
@@ -20,6 +21,21 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   @state() private _hubs: string[] = [];
   @state() private _error = '';
   private _requestId = 0;
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    this.ownerDocument.addEventListener('pointerdown', this._dismissColorPicker, true);
+  }
+
+  public disconnectedCallback(): void {
+    this.ownerDocument.removeEventListener('pointerdown', this._dismissColorPicker, true);
+    super.disconnectedCallback();
+  }
+
+  private _dismissColorPicker = (event: PointerEvent): void => {
+    const activePicker = this.renderRoot.querySelector<HTMLInputElement>('input[type="color"]:focus');
+    if (activePicker && !event.composedPath().includes(activePicker)) activePicker.blur();
+  };
 
   public setConfig(config: WiserScheduleCardConfig): void {
     this._config = { ...config };
@@ -70,6 +86,33 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
         @change=${(event: Event) => this.change(key, (event.target as HTMLElement & { checked: boolean }).checked)}
       ></ha-switch>
     </label>`;
+  }
+
+  private color(key: ScheduleColorKey, label: string, group: string): TemplateResult {
+    const fallback = DEFAULT_SCHEDULE_COLORS[key.replace('_color', '') as keyof typeof DEFAULT_SCHEDULE_COLORS];
+    const value = this._config?.[key];
+    return html`<div class="color-field">
+      <span>${label}</span>
+      <span class="color-actions">
+        <input
+          type="color"
+          aria-label=${`${group}: ${label}`}
+          .value=${isHex(value || '') ? value! : fallback}
+          .disabled=${Boolean(this._config?.theme_colors)}
+          @input=${(event: Event) => this.change(key, (event.currentTarget as HTMLInputElement).value)}
+        />
+        <button
+          class="color-reset"
+          type="button"
+          aria-label=${`${group}: ${label}: ${this.localize('wiser.editor.reset_color')}`}
+          title=${this.localize('wiser.editor.reset_color')}
+          ?disabled=${value === undefined || Boolean(this._config?.theme_colors)}
+          @click=${() => this.change(key, '')}
+        >
+          <ha-icon icon="mdi:restore"></ha-icon>
+        </button>
+      </span>
+    </div>`;
   }
 
   protected render(): TemplateResult {
@@ -152,6 +195,73 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       <fieldset>
         <legend>${this.localize('wiser.editor.appearance')}</legend>
         ${this.toggle('theme_colors', this.localize('wiser.editor.theme_colors'))}
+        <div class="color-fields">
+          <section class="color-group">
+            <h4>${this.localize('wiser.editor.temperature_colors')}</h4>
+            ${this.color(
+              'low_color',
+              this.localize('wiser.editor.low_color'),
+              this.localize('wiser.editor.temperature_colors'),
+            )}
+            ${this.color(
+              'high_color',
+              this.localize('wiser.editor.high_color'),
+              this.localize('wiser.editor.temperature_colors'),
+            )}
+          </section>
+          <section class="color-group">
+            <h4>${this.localize('wiser.editor.control_colors')}</h4>
+            ${this.color(
+              'off_color',
+              this.localize('wiser.editor.off_color'),
+              this.localize('wiser.editor.control_colors'),
+            )}
+            ${this.color(
+              'on_color',
+              this.localize('wiser.editor.on_color'),
+              this.localize('wiser.editor.control_colors'),
+            )}
+          </section>
+          <section class="color-group">
+            <h4>${this.localize('wiser.editor.hot_water_colors')}</h4>
+            ${this.color(
+              'hot_water_off_color',
+              this.localize('wiser.editor.off_color'),
+              this.localize('wiser.editor.hot_water_colors'),
+            )}
+            ${this.color(
+              'hot_water_on_color',
+              this.localize('wiser.editor.on_color'),
+              this.localize('wiser.editor.hot_water_colors'),
+            )}
+          </section>
+          <section class="color-group">
+            <h4>${this.localize('wiser.editor.lighting_colors')}</h4>
+            ${this.color(
+              'lighting_off_color',
+              this.localize('wiser.editor.off_color'),
+              this.localize('wiser.editor.lighting_colors'),
+            )}
+            ${this.color(
+              'lighting_on_color',
+              this.localize('wiser.editor.on_color'),
+              this.localize('wiser.editor.lighting_colors'),
+            )}
+          </section>
+          <section class="color-group">
+            <h4>${this.localize('wiser.editor.shutter_colors')}</h4>
+            ${this.color(
+              'shutter_closed_color',
+              this.localize('wiser.editor.closed_color'),
+              this.localize('wiser.editor.shutter_colors'),
+            )}
+            ${this.color(
+              'shutter_open_color',
+              this.localize('wiser.editor.open_color'),
+              this.localize('wiser.editor.shutter_colors'),
+            )}
+          </section>
+        </div>
         ${
           this.hideCardAppearance
             ? ''
@@ -232,6 +342,77 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
       align-items: center;
       gap: 16px;
       min-height: 44px;
+    }
+    .color-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      margin-top: 8px;
+    }
+    .color-group {
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      min-width: 0;
+    }
+    .color-group h4 {
+      margin: 0 0 4px;
+      color: var(--secondary-text-color);
+      font-size: calc(13px + 1pt);
+      font-weight: 500;
+    }
+    .color-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 44px;
+    }
+    .color-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    input[type='color'] {
+      box-sizing: border-box;
+      width: 52px;
+      height: 36px;
+      padding: 2px;
+      border: 1px solid var(--divider-color, #ddd);
+      border-radius: 8px;
+      background: var(--card-background-color, white);
+      cursor: pointer;
+    }
+    input[type='color']:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+    .color-reset {
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--primary-text-color);
+      cursor: pointer;
+    }
+    .color-reset:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+    }
+    .color-reset:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    @media (max-width: 720px) {
+      .color-fields {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
     ha-switch {
       flex-shrink: 0;

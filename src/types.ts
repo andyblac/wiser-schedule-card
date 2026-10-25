@@ -7,8 +7,22 @@ declare global {
   }
 }
 
+export type ScheduleColorKey =
+  | 'low_color'
+  | 'high_color'
+  | 'on_color'
+  | 'off_color'
+  | 'hot_water_on_color'
+  | 'hot_water_off_color'
+  | 'lighting_off_color'
+  | 'lighting_on_color'
+  | 'shutter_closed_color'
+  | 'shutter_open_color';
+
+export type ScheduleColorConfig = Partial<Record<ScheduleColorKey, string>>;
+
 // TODO Add your configuration elements here for type-checking
-export interface WiserScheduleCardConfig extends LovelaceCardConfig {
+export interface WiserScheduleCardConfig extends LovelaceCardConfig, ScheduleColorConfig {
   name?: string;
   panel_mode?: boolean;
   home_screen?: 'schedules' | 'overview';
