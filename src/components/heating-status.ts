@@ -8,6 +8,7 @@ import { localizeForHass } from '../localize/localize';
 export class HeatingStatus extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property() entityId?: string;
+  @property() passiveStrategyEntityId?: string;
   @property({ type: Boolean }) editable = false;
   @property({ type: Boolean }) assigned = false;
   @state() private busy = false;
@@ -64,6 +65,7 @@ export class HeatingStatus extends LitElement {
     const entity = this.entity;
     if (!this.hass) return html``;
     const a = entity?.attributes;
+    const strategy = this.passiveStrategyEntityId ? this.hass.states[this.passiveStrategyEntityId]?.state : undefined;
     const origin = a?.target_temperature_origin;
     const status = !this.available
       ? 'unavailable'
@@ -92,8 +94,34 @@ export class HeatingStatus extends LitElement {
     const modes = (entity?.attributes.hvac_modes || []).filter(
       (mode: string) => ['auto', 'heat', 'off'].includes(mode) && (mode !== 'auto' || this.assigned),
     );
-    return html`<div class="status" role="status">${this.text('status')}: <strong>${this.text(status)}</strong></div>
-      ${this.available ? html`<p>${this.text('activity')}: ${a?.is_heating === true || a?.hvac_action === 'heating' ? this.text('heating') : a?.is_heating === false || a?.hvac_action === 'idle' ? this.text('idle') : this.text('unknown')}</p>` : ''}
+    const activity =
+      a?.is_heating === true || a?.hvac_action === 'heating'
+        ? this.text('heating')
+        : a?.is_heating === false || a?.hvac_action === 'idle'
+          ? this.text('idle')
+          : this.text('unknown');
+    return html`<div class="details">
+        <div class="detail" role="status">
+          <span>${this.text('status')}:</span>
+          <span>${this.text(status)}</span>
+        </div>
+        ${
+          status === 'passive' && ['modulating', 'temperature_limiter'].includes(strategy || '')
+            ? html`<div class="detail">
+                <span>${this.text('passive_strategy')}:</span>
+                <span>${this.text(`strategy_${strategy}`)}</span>
+              </div>`
+            : ''
+        }
+        ${
+          this.available
+            ? html`<div class="detail">
+                <span>${this.text('activity')}:</span>
+                <span>${activity}</span>
+              </div>`
+            : ''
+        }
+      </div>
       ${
         this.editable && entity
           ? html`<ha-selector
@@ -120,10 +148,23 @@ export class HeatingStatus extends LitElement {
       margin-top: 12px;
       padding-top: 12px;
     }
-    .status,
-    p {
+    .details {
+      display: grid;
+      gap: 8px;
+    }
+    .detail {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
       font-size: inherit;
       line-height: 1.5;
+    }
+    .detail > :first-child {
+      color: var(--secondary-text-color);
+    }
+    .detail > :last-child {
+      color: var(--primary-text-color);
+      text-align: right;
     }
     p {
       margin: 8px 0;

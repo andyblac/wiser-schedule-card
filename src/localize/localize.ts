@@ -40,6 +40,9 @@ const nativeKeys: Record<string, string> = {
   'wiser.heating.auto': 'ui.common.auto',
   'wiser.heating.unknown': 'state.default.unknown',
   'wiser.heating.mode': 'ui.card.climate.mode',
+  'wiser.heating.strategy_modulating': 'component.wiser.entity.select.passive_mode_strategy.state.modulating',
+  'wiser.heating.strategy_temperature_limiter':
+    'component.wiser.entity.select.passive_mode_strategy.state.temperature_limiter',
   'wiser.home.overview': 'panel.states',
   'wiser.home.show': 'ui.common.show',
   'wiser.home.hide': 'ui.common.hide',

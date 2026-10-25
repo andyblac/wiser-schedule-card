@@ -6,6 +6,7 @@ interface Entity {
   platform: string;
   device_id?: string;
   disabled_by?: string | null;
+  translation_key?: string;
 }
 interface Device {
   id: string;
@@ -13,8 +14,13 @@ interface Device {
   identifiers: [string, string][];
 }
 
-/** Scope room climate entities to the selected hub, never infer entity IDs from display names. */
-export async function fetchRoomClimateEntities(hass: HomeAssistant, hub: string): Promise<string[]> {
+export interface RoomControlEntities {
+  climates: Entity[];
+  passiveStrategies: Entity[];
+}
+
+/** Scope room control entities to the selected hub, never infer entity IDs from display names. */
+export async function fetchRoomControlEntities(hass: HomeAssistant, hub: string): Promise<RoomControlEntities> {
   const [entities, devices, hubs] = await Promise.all([
     hass.callWS<Entity[]>({ type: 'config/entity_registry/list' }),
     hass.callWS<Device[]>({ type: 'config/device_registry/list' }),
@@ -28,19 +34,29 @@ export async function fetchRoomClimateEntities(hass: HomeAssistant, hub: string)
   const roomDevices = new Set(
     devices.filter((device) => device.via_device_id && hubDevices.has(device.via_device_id)).map((device) => device.id),
   );
-  return entities
-    .filter(
-      (entity) =>
-        entity.platform === 'wiser' &&
-        entity.entity_id.startsWith('climate.') &&
-        !entity.disabled_by &&
-        entity.device_id &&
-        roomDevices.has(entity.device_id),
-    )
-    .map((entity) => entity.entity_id);
+  const scoped = entities.filter(
+    (entity) =>
+      entity.platform === 'wiser' && !entity.disabled_by && entity.device_id && roomDevices.has(entity.device_id),
+  );
+  return {
+    climates: scoped.filter((entity) => entity.entity_id.startsWith('climate.')),
+    passiveStrategies: scoped.filter(
+      (entity) => entity.entity_id.startsWith('select.') && entity.translation_key === 'passive_mode_strategy',
+    ),
+  };
 }
 
-export function findRoomClimate(hass: HomeAssistant, candidates: string[], roomName: string): string | undefined {
-  const matches = candidates.filter((id) => hass.states[id]?.attributes.name === roomName);
-  return matches.length === 1 ? matches[0] : undefined;
+export function findRoomControls(
+  hass: HomeAssistant,
+  candidates: RoomControlEntities,
+  roomName: string,
+): { climate?: string; passiveStrategy?: string } {
+  const climates = candidates.climates.filter((entity) => hass.states[entity.entity_id]?.attributes.name === roomName);
+  if (climates.length !== 1) return {};
+  const climate = climates[0];
+  const strategies = candidates.passiveStrategies.filter((entity) => entity.device_id === climate.device_id);
+  return {
+    climate: climate.entity_id,
+    passiveStrategy: strategies.length === 1 ? strategies[0].entity_id : undefined,
+  };
 }

@@ -145,7 +145,7 @@
     },
     "heating": {
       "status": "Zeitplanstatus",
-      "activity": "Heizung",
+      "activity": "Aktivität",
       "following": "Zeitplan wird befolgt",
       "manual": "Manuell",
       "override": "Vorübergehende Übersteuerung",
@@ -154,6 +154,9 @@
       "comfort": "Komfortanpassung",
       "eco": "EcoIQ-Anpassung",
       "passive": "Passiver Modus",
+      "passive_strategy": "Passivstrategie",
+      "strategy_modulating": "Modulierend",
+      "strategy_temperature_limiter": "Temperaturbegrenzer",
       "unavailable": "Status nicht verfügbar",
       "unassigned": "Kein Zeitplan zugeordnet",
       "resume": "Zeitplan fortsetzen",

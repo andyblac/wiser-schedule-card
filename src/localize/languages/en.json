@@ -149,7 +149,7 @@
     },
     "heating": {
       "status": "Schedule status",
-      "activity": "Heating",
+      "activity": "Activity",
       "following": "Following schedule",
       "manual": "Manual",
       "override": "Temporary override",
@@ -158,6 +158,9 @@
       "comfort": "Comfort adjustment",
       "eco": "EcoIQ adjustment",
       "passive": "Passive mode",
+      "passive_strategy": "Passive strategy",
+      "strategy_modulating": "Modulating",
+      "strategy_temperature_limiter": "Temperature limiter",
       "unavailable": "Status unavailable",
       "unassigned": "No schedule assigned",
       "resume": "Resume schedule",

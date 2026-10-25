@@ -1206,7 +1206,19 @@ const readStoredZip = (buffer) => {
     await page.evaluate(() => {
       fixture.climateRegistry = [
         { entity_id: 'climate.renamed', platform: 'wiser', device_id: 'room-device' },
+        {
+          entity_id: 'select.renamed_passive_mode_strategy',
+          platform: 'wiser',
+          device_id: 'room-device',
+          translation_key: 'passive_mode_strategy',
+        },
         { entity_id: 'climate.other_hub', platform: 'wiser', device_id: 'foreign-room' },
+        {
+          entity_id: 'select.foreign_passive_mode_strategy',
+          platform: 'wiser',
+          device_id: 'foreign-room',
+          translation_key: 'passive_mode_strategy',
+        },
       ];
       fixture.climateDevices = [
         { id: 'room-device', identifiers: [], via_device_id: 'hub-device' },
@@ -1228,6 +1240,16 @@ const readStoredZip = (buffer) => {
         },
       };
       hass.states['climate.other_hub'] = { ...hass.states['climate.renamed'], entity_id: 'climate.other_hub' };
+      hass.states['select.renamed_passive_mode_strategy'] = {
+        entity_id: 'select.renamed_passive_mode_strategy',
+        state: 'temperature_limiter',
+        attributes: {},
+      };
+      hass.states['select.foreign_passive_mode_strategy'] = {
+        entity_id: 'select.foreign_passive_mode_strategy',
+        state: 'modulating',
+        attributes: {},
+      };
       window.serviceCalls = [];
       hass.callService = async (domain, service, data) => {
         serviceCalls.push({ domain, service, data });
@@ -1248,6 +1270,33 @@ const readStoredZip = (buffer) => {
     });
     const heating = page.locator('wiser-heating-status').filter({ hasText: 'Following schedule' });
     await heating.waitFor();
+    await page.evaluate(() => {
+      const entity = heatingHass.states['climate.renamed'];
+      heatingHass.states = {
+        ...heatingHass.states,
+        'climate.renamed': {
+          ...entity,
+          attributes: { ...entity.attributes, is_passive: true },
+        },
+      };
+      document.querySelector('wiser-schedule-card').hass = { ...heatingHass };
+    });
+    await page.getByText('Schedule status: Passive mode', { exact: true }).waitFor();
+    await page.getByText('Passive strategy: Temperature limiter', { exact: true }).waitFor();
+    await page.evaluate(() => {
+      const entity = heatingHass.states['climate.renamed'];
+      heatingHass.states = {
+        ...heatingHass.states,
+        'climate.renamed': {
+          ...entity,
+          attributes: { ...entity.attributes, is_passive: false },
+        },
+      };
+      document.querySelector('wiser-schedule-card').hass = { ...heatingHass };
+    });
+    await page.getByText('Schedule status: Following schedule', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Passive strategy: Temperature limiter', { exact: true }).count(), 0);
+    await page.getByText('Activity: Idle', { exact: true }).waitFor();
     await heating.getByLabel('Mode', { exact: true }).selectOption('heat');
     await page.getByText('Schedule status: Manual', { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => serviceCalls[0]), {

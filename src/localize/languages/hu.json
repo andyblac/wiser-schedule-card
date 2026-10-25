@@ -145,7 +145,7 @@
     },
     "heating": {
       "status": "Időprogram állapota",
-      "activity": "Fűtés",
+      "activity": "Tevékenység",
       "following": "Időprogram követése",
       "manual": "Kézi",
       "override": "Ideiglenes felülbírálás",
@@ -154,6 +154,9 @@
       "comfort": "Komfortkorrekció",
       "eco": "EcoIQ-korrekció",
       "passive": "Passzív mód",
+      "passive_strategy": "Passzív stratégia",
+      "strategy_modulating": "Moduláló",
+      "strategy_temperature_limiter": "Hőmérséklet-korlátozó",
       "unavailable": "Az állapot nem érhető el",
       "unassigned": "Nincs hozzárendelt időprogram",
       "resume": "Visszatérés az időprogramhoz",

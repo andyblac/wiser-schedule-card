@@ -1,6 +1,6 @@
 import { toolbarColors } from '../components/toolbar-colors';
 import '../components/heating-status';
-import { fetchRoomClimateEntities, findRoomClimate } from '../data/room-climate';
+import { fetchRoomControlEntities, findRoomControls, type RoomControlEntities } from '../data/room-climate';
 import '../components/home-navigation';
 import { nextScheduleChange } from '../data/schedule-overview';
 import type { SunTimes } from '../types';
@@ -32,7 +32,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     return localizeForHass(this.hass, key, search, replace);
   }
   @property({ attribute: false }) config!: WiserScheduleCardConfig;
-  @state() private climateEntities: string[] = [];
+  @state() private roomControlEntities: RoomControlEntities = { climates: [], passiveStrategies: [] };
   @state() private sun?: SunTimes;
   @state() private now = new Date();
   @state() private expandedDevices: Record<string, boolean> = {};
@@ -161,11 +161,11 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     this.error = '';
     try {
       await loadHaControls();
-      const [rooms, schedules, sun, climateEntities, ...deviceLists] = await Promise.all([
+      const [rooms, schedules, sun, roomControlEntities, ...deviceLists] = await Promise.all([
         fetchRoomsList(this.hass, this.config.hub),
         fetchSchedules(this.hass, this.config.hub),
         fetchSunTimes(this.hass, this.config.hub).catch(() => undefined),
-        fetchRoomClimateEntities(this.hass, this.config.hub).catch(() => []),
+        fetchRoomControlEntities(this.hass, this.config.hub).catch(() => ({ climates: [], passiveStrategies: [] })),
         ...['lighting', 'onoff', 'shutters'].map((kind) => fetchDeviceList(this.hass!, this.config.hub, kind)),
       ]);
       const details = await Promise.all(
@@ -175,7 +175,7 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
       this.rooms = [...rooms].sort((a, b) => a.Name.localeCompare(b.Name));
       this.schedules = details;
       this.sun = sun;
-      this.climateEntities = climateEntities;
+      this.roomControlEntities = roomControlEntities;
       this.devices = deviceLists.reduce<(Room & { kind: string })[]>(
         (all, items, index) =>
           all.concat(items.map((item) => ({ ...item, kind: ['lighting', 'onoff', 'shutters'][index] }))),
@@ -594,9 +594,11 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
   }
 
   private renderHeating(item: Room, assigned: boolean) {
+    const controls = findRoomControls(this.hass!, this.roomControlEntities, item.Name);
     return html`<wiser-heating-status
       .hass=${this.hass}
-      .entityId=${findRoomClimate(this.hass!, this.climateEntities, item.Name)}
+      .entityId=${controls.climate}
+      .passiveStrategyEntityId=${controls.passiveStrategy}
       .editable=${allow_edit(this.hass!, this.config)}
       .assigned=${assigned}
     ></wiser-heating-status>`;
