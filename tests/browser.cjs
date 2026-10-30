@@ -2134,7 +2134,7 @@ const readStoredZip = (buffer) => {
     });
     await rangeEditor.evaluate((el) => el.updateComplete);
     assert.equal(
-      await rangeEditor.getByLabel('Schedule passive mode').count(),
+      await rangeEditor.locator('.passive-strategy-controls').count(),
       0,
       'older integrations keep the existing editor without scheduled Passive controls',
     );
@@ -2152,9 +2152,19 @@ const readStoredZip = (buffer) => {
     assert.equal(await rangeEditor.getByText('Lower temperature', { exact: true }).count(), 0);
     assert.equal(await rangeEditor.getByText('Upper temperature', { exact: true }).count(), 0);
     assert.equal(
-      await rangeEditor.getByLabel('Schedule passive mode').count(),
+      await rangeEditor.locator('.passive-strategy-controls').count(),
       0,
       'v4.0.1 schedule payloads stay on the original single-temperature editor',
+    );
+    await rangeEditor.evaluate((el) => {
+      el.schedule.Capabilities = { PassiveControl: false };
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(
+      await rangeEditor.locator('.passive-strategy-controls').count(),
+      0,
+      'a hub with Passive Mode disabled does not expose per-slot Passive controls',
     );
     await rangeEditor.evaluate((el) => {
       el.schedule.Capabilities = { PassiveControl: true };
@@ -2167,17 +2177,11 @@ const readStoredZip = (buffer) => {
       el.requestUpdate();
     });
     await rangeEditor.evaluate((el) => el.updateComplete);
-    assert.equal(await rangeEditor.getByLabel('Schedule passive mode').count(), 1);
+    assert.equal(await rangeEditor.locator('.passive-strategy-controls').count(), 1);
     const passivePanelBox = await rangeEditor.locator('.selected-period').boundingBox();
     const passiveEditorBox = await rangeEditor.boundingBox();
-    const passiveHeadingBox = await rangeEditor.getByText('Schedule passive mode', { exact: true }).boundingBox();
     assert.ok(Math.abs(passivePanelBox.x - passiveEditorBox.x) < 2);
     assert.ok(Math.abs(passivePanelBox.width - passiveEditorBox.width) < 2);
-    assert.ok(
-      passiveHeadingBox.x >= passivePanelBox.x &&
-        passiveHeadingBox.x + passiveHeadingBox.width <= passivePanelBox.x + passivePanelBox.width,
-      'the Passive scheduling label stays inside the selected-period panel',
-    );
     assert.equal(await rangeEditor.getByText('Lower temperature', { exact: true }).count(), 1);
     assert.equal(await rangeEditor.getByText('Upper temperature', { exact: true }).count(), 1);
     assert.match(await rangeEditor.locator('.slot').first().textContent(), /14°C–20°C/);
@@ -2251,18 +2255,34 @@ const readStoredZip = (buffer) => {
       el.requestUpdate();
     });
     await rangeEditor.evaluate((el) => el.updateComplete);
-    await rangeEditor.getByLabel('Schedule passive mode').check();
-    const passiveToggleHeadingBox = await rangeEditor.locator('.passive-period-toggle > .section-header').boundingBox();
-    const passiveToggleBox = await rangeEditor.getByLabel('Schedule passive mode').boundingBox();
-    assert.ok(
-      Math.abs(
-        passiveToggleHeadingBox.y +
-          passiveToggleHeadingBox.height / 2 -
-          passiveToggleBox.y -
-          passiveToggleBox.height / 2,
-      ) < 2,
-      'the mobile Passive scheduling label and switch share one row',
+    const inheritedPassiveState = await rangeEditor.evaluate((el) => ({
+      defaults: el.schedule.PassiveControlDefaults,
+      activeDay: el._activeDay,
+      activeSlot: el._activeSlot,
+      slot: el.schedule.ScheduleData.find((day) => day.day === el._activeDay)?.slots[el._activeSlot],
+    }));
+    assert.equal(
+      (await rangeEditor.locator('.passive-strategy-controls ha-button.selected').textContent()).trim(),
+      'Temperature limiter',
+      `an untouched slot initially follows the enabled room Passive Mode setting: ${JSON.stringify(inheritedPassiveState)}`,
     );
+    await rangeEditor.evaluate((el) => {
+      el.schedule.PassiveControlDefaults.Enabled = false;
+      el.selectPeriod('Tuesday', 0);
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
+    assert.equal(
+      (await rangeEditor.locator('.passive-strategy-controls ha-button.selected').textContent()).trim(),
+      'Off',
+      'an untouched slot follows a disabled room Passive Mode setting',
+    );
+    await rangeEditor.evaluate((el) => {
+      el.schedule.PassiveControlDefaults.Enabled = true;
+      el.selectPeriod('Monday', 0);
+      el.requestUpdate();
+    });
+    await rangeEditor.evaluate((el) => el.updateComplete);
     const passiveChoiceBoxes = await rangeEditor
       .locator('.passive-strategy-controls ha-button')
       .evaluateAll((buttons) =>
@@ -2290,72 +2310,68 @@ const readStoredZip = (buffer) => {
       passiveEditorWidths.scroll <= passiveEditorWidths.client + 1,
       `the Passive period editor does not overflow at phone width: ${JSON.stringify(passiveEditorWidths)}`,
     );
+    assert.equal(passiveChoiceBoxes.length, 3, 'Passive Mode uses a single three-way period control');
+    assert.equal(
+      await rangeEditor.locator('.passive-strategy-controls').getByRole('button', { name: 'Off', exact: true }).count(),
+      1,
+      'the three-way period control includes the explicit off state',
+    );
+    assert.deepEqual(
+      await rangeEditor.evaluate((el) => ({
+        scheduled: el.schedule.ScheduleData[0].slots[0].PassiveScheduled,
+        mode: el.schedule.ScheduleData[0].slots[0].PassiveMode,
+        strategy: el.schedule.ScheduleData[0].slots[0].PassiveStrategy,
+      })),
+      { scheduled: undefined, mode: undefined, strategy: undefined },
+      'displaying the inherited room state does not create a slot override',
+    );
+    await rangeEditor
+      .locator('.passive-strategy-controls')
+      .getByRole('button', { name: 'Off', exact: true })
+      .evaluate((button) => button.click());
     assert.deepEqual(
       await rangeEditor.evaluate((el) => ({
         enabled: el.schedule.PassiveControl,
-        type: el.schedule.PassiveRangeType,
-        slot: el.schedule.ScheduleData[0].slots[0],
-      })),
-      {
-        enabled: true,
-        type: 'native',
-        slot: {
-          Time: '07:00',
-          Setpoint: 17,
-          UpperSetpoint: 22,
-          PassiveScheduled: true,
-          PassiveMode: true,
-          PassiveStrategy: 'temperature_limiter',
-          SpecialTime: '',
-        },
-      },
-      'period scheduling starts from the room mode and strategy without changing its temperature range',
-    );
-    await rangeEditor
-      .getByRole('button', { name: 'Temperature limiter', exact: true })
-      .evaluate((button) => button.click());
-    assert.deepEqual(
-      await rangeEditor.evaluate((el) => ({
-        enabled: el.schedule.ScheduleData[0].slots[0].PassiveMode,
+        scheduled: el.schedule.ScheduleData[0].slots[0].PassiveScheduled,
+        mode: el.schedule.ScheduleData[0].slots[0].PassiveMode,
         strategy: el.schedule.ScheduleData[0].slots[0].PassiveStrategy,
       })),
-      { enabled: true, strategy: 'temperature_limiter' },
+      { enabled: true, scheduled: true, mode: false, strategy: 'temperature_limiter' },
+      'selecting Off creates an explicit off override for this time slot',
     );
-    await rangeEditor
-      .getByRole('radiogroup', { name: 'Passive mode', exact: true })
-      .getByRole('button', { name: 'Off', exact: true })
-      .evaluate((button) => button.click());
-    assert.equal(await rangeEditor.evaluate((el) => el.schedule.ScheduleData[0].slots[0].PassiveMode), false);
     assert.equal(
       await rangeEditor.getByRole('slider').inputValue(),
       '17',
-      'Off after Temperature limiter uses the lower temperature',
+      'an off Temperature limiter slot uses the lower temperature',
     );
     assert.match(await rangeEditor.locator('.slot').first().textContent(), /17°C/);
-    await rangeEditor.getByRole('button', { name: 'Modulating', exact: true }).evaluate((button) => button.click());
     await rangeEditor
-      .getByRole('radiogroup', { name: 'Passive mode', exact: true })
+      .locator('.passive-strategy-controls')
+      .getByRole('button', { name: 'Modulating', exact: true })
+      .evaluate((button) => button.click());
+    await rangeEditor
+      .locator('.passive-strategy-controls')
       .getByRole('button', { name: 'Off', exact: true })
       .evaluate((button) => button.click());
     assert.equal(
       await rangeEditor.getByRole('slider').inputValue(),
       '22',
-      'Off after Modulating uses the upper temperature',
+      'an off Modulating slot uses the upper temperature',
     );
     assert.match(await rangeEditor.locator('.slot').first().textContent(), /22°C/);
-    await rangeEditor.getByLabel('Schedule passive mode').uncheck();
     assert.deepEqual(
       await rangeEditor.evaluate((el) => ({
         enabled: el.schedule.PassiveControl,
         range: el.schedule.PassiveRange,
         upper: el.schedule.ScheduleData[0].slots[0].UpperSetpoint,
         scheduled: el.schedule.ScheduleData[0].slots[0].PassiveScheduled,
+        mode: el.schedule.ScheduleData[0].slots[0].PassiveMode,
         strategy: el.schedule.ScheduleData[0].slots[0].PassiveStrategy,
       })),
-      { enabled: undefined, range: true, upper: 22, scheduled: undefined, strategy: undefined },
-      'disabling one period returns it to the room configuration without losing the temperature schedule',
+      { enabled: true, range: true, upper: 22, scheduled: true, mode: false, strategy: 'modulating' },
+      'the explicit slot override preserves its strategy and temperature schedule',
     );
-    assert.equal(await rangeEditor.getByRole('slider').count(), 2);
+    assert.equal(await rangeEditor.getByRole('slider').count(), 1);
     await page.evaluate(() => {
       const editor = document.createElement('wiser-schedule-slot-editor');
       editor.hass = makeHass();

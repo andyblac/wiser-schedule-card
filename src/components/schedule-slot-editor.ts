@@ -134,48 +134,35 @@ export class ScheduleSlotEditor extends LitElement {
     return Boolean(this.schedule?.Capabilities?.PassiveControl && this.scheduleTypeKey === 'Heating');
   }
 
-  private toggleScheduledPassiveControl(enabled: boolean): void {
-    if (!this.schedule || !this.supportsScheduledPassiveControl) return;
-    const slot = this.activeSlot();
-    if (!slot) return;
-    if (enabled) {
-      slot.PassiveScheduled = true;
-      slot.PassiveMode ??= this.schedule.PassiveControlDefaults?.Enabled ?? false;
-      slot.PassiveStrategy ??= this.schedule.PassiveControlDefaults?.Strategy ?? 'modulating';
-      slot.UpperSetpoint ??= slot.Setpoint;
-      this.schedule.PassiveRange = true;
-      this.schedule.PassiveRangeType ??= 'scheduled';
-      this.schedule.MinUpperSetpoint ??= 5;
-      this.schedule.MaxUpperSetpoint ??= 30;
-    } else {
-      delete slot.PassiveScheduled;
-      delete slot.PassiveMode;
-      delete slot.PassiveStrategy;
-    }
-    const scheduled = this.schedule.ScheduleData.some((day) => day.slots.some((item) => item.PassiveScheduled));
-    if (scheduled) {
-      this.schedule.PassiveControl = true;
-      for (const day of this.schedule.ScheduleData)
-        for (const item of day.slots) item.PassiveScheduled = Boolean(item.PassiveScheduled);
-    } else {
-      delete this.schedule.PassiveControl;
-      if (this.schedule.PassiveRangeType === 'scheduled') {
-        delete this.schedule.PassiveRange;
-        delete this.schedule.PassiveRangeType;
-        delete this.schedule.MinUpperSetpoint;
-        delete this.schedule.MaxUpperSetpoint;
-        for (const day of this.schedule.ScheduleData) for (const item of day.slots) delete item.UpperSetpoint;
-      }
-    }
-    this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
-    this.requestUpdate();
+  private effectivePassiveMode(slot?: ScheduleSlot): boolean {
+    if (!slot) return false;
+    return slot.PassiveScheduled ? Boolean(slot.PassiveMode) : Boolean(this.schedule?.PassiveControlDefaults?.Enabled);
   }
 
-  private updateScheduledPassiveControl(value: 'off' | 'modulating' | 'temperature_limiter'): void {
+  private effectivePassiveStrategy(slot?: ScheduleSlot): NonNullable<ScheduleSlot['PassiveStrategy']> {
+    return slot?.PassiveStrategy || this.schedule?.PassiveControlDefaults?.Strategy || 'modulating';
+  }
+
+  private enableScheduledPassiveControl(slot: ScheduleSlot): void {
+    if (!this.schedule) return;
+    slot.PassiveScheduled = true;
+    slot.UpperSetpoint ??= slot.Setpoint;
+    this.schedule.PassiveRange = true;
+    this.schedule.PassiveRangeType ??= 'scheduled';
+    this.schedule.MinUpperSetpoint ??= 5;
+    this.schedule.MaxUpperSetpoint ??= 30;
+    this.schedule.PassiveControl = true;
+    for (const day of this.schedule.ScheduleData)
+      for (const item of day.slots) item.PassiveScheduled = Boolean(item.PassiveScheduled);
+  }
+
+  private updateScheduledPassiveControl(value: 'off' | NonNullable<ScheduleSlot['PassiveStrategy']>): void {
     const slot = this.activeSlot();
-    if (!slot?.PassiveScheduled) return;
+    if (!slot || !this.schedule || !this.supportsScheduledPassiveControl) return;
+    const strategy = value === 'off' ? this.effectivePassiveStrategy(slot) : value;
+    this.enableScheduledPassiveControl(slot);
     slot.PassiveMode = value !== 'off';
-    if (value !== 'off') slot.PassiveStrategy = value;
+    slot.PassiveStrategy = strategy;
     this.dispatchEvent(new CustomEvent('scheduleChanged', { detail: { schedule: this.schedule } }));
     this.requestUpdate();
   }
@@ -541,48 +528,35 @@ export class ScheduleSlotEditor extends LitElement {
   private renderScheduledPassivePeriodControl(): TemplateResult | null {
     if (!this.supportsScheduledPassiveControl) return null;
     const slot = this.activeSlot();
-    const value = !slot?.PassiveMode ? 'off' : slot.PassiveStrategy || 'modulating';
+    const enabled = this.effectivePassiveMode(slot);
+    const strategy = this.effectivePassiveStrategy(slot);
+    const value = enabled ? strategy : 'off';
     return html`
-      <div class="editor-control-row passive-period-toggle">
-        <div class="section-header" aria-disabled=${!slot}>${this.localize('wiser.labels.passive_schedule')}</div>
-        <div class="control-content switch-control">
-          <ha-switch
-            .checked=${Boolean(slot?.PassiveScheduled)}
-            .disabled=${!slot}
-            aria-label=${this.localize('wiser.labels.passive_schedule')}
-            @change=${(event: Event) =>
-              this.toggleScheduledPassiveControl(Boolean((event.currentTarget as HTMLInputElement).checked))}
-          ></ha-switch>
+      <div class="editor-control-row state-control-row passive-strategy-row">
+        <div class="section-header" aria-disabled=${!slot}>${this.localize('wiser.heating.passive')}</div>
+        <div
+          class="control-content special-times passive-strategy-controls"
+          role="radiogroup"
+          aria-label=${this.localize('wiser.heating.passive')}
+        >
+          ${(['off', 'modulating', 'temperature_limiter'] as const).map(
+            (option) =>
+              html`<ha-button
+                class=${value === option ? 'selected' : ''}
+                appearance="plain"
+                aria-pressed=${value === option}
+                .disabled=${!slot}
+                @click=${() => this.updateScheduledPassiveControl(option)}
+              >
+                ${
+                  option === 'off'
+                    ? this.localize('wiser.heating.off')
+                    : this.localize(`wiser.heating.strategy_${option}`)
+                }
+              </ha-button>`,
+          )}
         </div>
       </div>
-      ${
-        slot?.PassiveScheduled
-          ? html`<div class="editor-control-row state-control-row passive-strategy-row">
-              <div class="section-header">${this.localize('wiser.heating.passive')}</div>
-              <div
-                class="control-content special-times passive-strategy-controls"
-                role="radiogroup"
-                aria-label=${this.localize('wiser.heating.passive')}
-              >
-                ${(['off', 'modulating', 'temperature_limiter'] as const).map(
-                  (option) =>
-                    html`<ha-button
-                      class=${value === option ? 'selected' : ''}
-                      appearance="plain"
-                      aria-pressed=${value === option}
-                      @click=${() => this.updateScheduledPassiveControl(option)}
-                    >
-                      ${
-                        option === 'off'
-                          ? this.localize('wiser.heating.off')
-                          : this.localize(`wiser.heating.strategy_${option}`)
-                      }
-                    </ha-button>`,
-                )}
-              </div>
-            </div>`
-          : null
-      }
     `;
   }
 
@@ -1661,12 +1635,6 @@ export class ScheduleSlotEditor extends LitElement {
       .control-content {
         min-width: 0;
       }
-      .switch-control {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        min-height: 44px;
-      }
       .special-times,
       .state-controls {
         display: flex;
@@ -1832,12 +1800,6 @@ export class ScheduleSlotEditor extends LitElement {
         .editor-control-row {
           grid-template-columns: minmax(0, 1fr);
           gap: 4px;
-        }
-        .passive-period-toggle {
-          grid-template-columns: minmax(0, 1fr) auto;
-        }
-        .editor-control-row.passive-period-toggle > .section-header {
-          min-height: 44px;
         }
         .editor-control-row > .section-header {
           justify-content: flex-start;
