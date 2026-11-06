@@ -41,8 +41,8 @@ const assert = require('node:assert/strict');
         };
       });
       assert.ok(Math.abs(layout.main - layout.panel) < 1);
-      assert.ok(Math.abs(layout.card - (layout.panel - 32)) < 1);
-      assert.ok(layout.height >= layout.mainHeight - 32 - 1, JSON.stringify(layout));
+      assert.ok(Math.abs(layout.card - layout.panel) < 1, JSON.stringify(layout));
+      assert.ok(layout.height >= layout.mainHeight - 1, JSON.stringify(layout));
     }
     await page.setViewportSize({ width: 1280, height: 1000 });
     await page.locator('ha-button#settings').click();

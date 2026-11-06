@@ -30,14 +30,15 @@ test('resolves sun slots, sorts times, and handles empty schedules', () => {
 
 test('all full translations match the English key and placeholder set', () => {
   const directory = 'src/localize/languages';
-  const flatten = (value, prefix = '') => Object.entries(value).reduce((result, [key, item]) => {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (item && typeof item === 'object') Object.assign(result, flatten(item, path));
-    else result[path] = item;
-    return result;
-  }, {});
+  const flatten = (value, prefix = '') =>
+    Object.entries(value).reduce((result, [key, item]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (item && typeof item === 'object') Object.assign(result, flatten(item, path));
+      else result[path] = item;
+      return result;
+    }, {});
   const english = flatten(JSON.parse(fs.readFileSync(`${directory}/en.json`, 'utf8')));
-  const placeholders = value => [...String(value).matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+  const placeholders = (value) => [...String(value).matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
   for (const language of ['da', 'de', 'es', 'fi', 'fr', 'hu', 'nb', 'nl', 'pt', 'sv']) {
     const translations = flatten(JSON.parse(fs.readFileSync(`${directory}/${language}.json`, 'utf8')));
     assert.deepEqual(Object.keys(translations).sort(), Object.keys(english).sort(), `${language} keys`);

@@ -13,7 +13,19 @@ import * as pt from './languages/pt.json';
 import * as sv from './languages/sv.json';
 
 const languages: Record<string, unknown> = {
-  da, de, en, 'en-gb': enGB, es, fi, fr, hu, nb, no: nb, nl, pt, sv,
+  da,
+  de,
+  en,
+  'en-gb': enGB,
+  es,
+  fi,
+  fr,
+  hu,
+  nb,
+  no: nb,
+  nl,
+  pt,
+  sv,
 };
 const nativeKeys: Record<string, string> = {
   'wiser.labels.state': 'ui.dialogs.more_info_control.state',
