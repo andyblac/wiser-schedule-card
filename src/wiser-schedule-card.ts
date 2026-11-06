@@ -44,9 +44,14 @@ export class WiserScheduleCard extends LitElement {
   @state() private _schedule_type?: string = 'heating';
   @state() private _room_id?: number;
   @state() private _homeView: 'schedules' | 'overview' = 'schedules';
+  @state() private _schedulesHomeMounted = true;
+  @state() private _overviewHomeMounted = false;
   @state() private _target_type = 'heating';
   @state() private _created_schedule?: { Id: number; Type: string };
   private _returnView = EViews.Overview;
+  private _pendingHomeView?: 'schedules' | 'overview';
+  private _schedulesHomeReady = false;
+  private _overviewHomeReady = false;
 
   public static readonly panelApiVersion = 1;
 
@@ -99,9 +104,12 @@ export class WiserScheduleCard extends LitElement {
       this.style.removeProperty('--wiser-navigation-min-height');
       this._returnView = EViews.Overview;
       this._homeView = this.config?.home_screen || 'schedules';
+      this._resetHomeViews();
       this.processConfigSchedule();
     } else if (changedProps.has('_view') || changedProps.has('_homeView')) {
       this._preserveNavigationHeight();
+      if (changedProps.has('_view') && this._view !== EViews.Overview && this._view !== EViews.RoomSchedule)
+        this._resetHomeViews();
     }
     this.component_loaded = this._hass?.config.components.includes('wiser') ?? false;
   }
@@ -153,6 +161,9 @@ export class WiserScheduleCard extends LitElement {
         padding: 20px 16px 32px;
       }
     }
+    .home-view[hidden] {
+      display: none;
+    }
   `;
 
   protected render(): TemplateResult | void {
@@ -163,64 +174,38 @@ export class WiserScheduleCard extends LitElement {
         ><div class="status" role="status">${localize('common.integration_unavailable')}</div></ha-card
       >`;
 
-    if (this._view === EViews.Overview && this._homeView === 'schedules') {
-      return html`<ha-card style=${cardStyle}>
-        <div
-          class="card-content"
-          @home-view-changed=${(event: CustomEvent) => {
-            if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
-          }}
-        >
-          <wiser-schedules-home
-            .hass=${this._hass}
-            .config=${this.config}
-            @addScheduleClick=${this._addScheduleClick}
-            @scheduleClick=${(event: CustomEvent) => {
-              this._schedule_id = event.detail.Id;
-              this._schedule_type = event.detail.Type;
-              this._returnView = EViews.Overview;
-              this._view = EViews.ScheduleEdit;
-            }}
-          ></wiser-schedules-home></div
-      ></ha-card>`;
-    }
     if (this._view === EViews.Overview || this._view === EViews.RoomSchedule) {
-      return html` <ha-card style=${cardStyle}>
-        <div
-          class="card-content"
-          @home-view-changed=${(event: CustomEvent) => {
-            if (event.detail === 'schedules' || event.detail === 'overview') this._homeView = event.detail;
-          }}
-        >
-          <wiser-room-schedules
-            .hass=${this._hass}
-            .config=${this.config}
-            .room_id=${this._view === EViews.RoomSchedule ? this._room_id : undefined}
-            .target_type=${this._target_type}
-            .created_schedule=${this._created_schedule}
-            @createdScheduleOpened=${() => {
-              this._created_schedule = undefined;
-            }}
-            @roomClick=${(event: CustomEvent<{ id: number; kind: string }>) => {
-              this._room_id = event.detail.id;
-              this._target_type = event.detail.kind;
-              this._view = EViews.RoomSchedule;
-            }}
-            @roomsBack=${() => {
-              this._view = EViews.Overview;
-            }}
-            @scheduleAction=${(event: CustomEvent) => {
-              this._schedule_id = event.detail.schedule_id;
-              this._schedule_type = event.detail.schedule_type;
-              this._returnView = EViews.RoomSchedule;
-              this._view = EViews.ScheduleCopy;
-            }}
-            @addScheduleClick=${this._addScheduleClick}
-          >
-          </wiser-room-schedules>
+      return html`<ha-card style=${cardStyle}>
+        <div class="card-content" @home-view-changed=${this._homeViewChanged}>
+          ${
+            this._view === EViews.Overview && this._schedulesHomeMounted
+              ? html`<div class="home-view" ?hidden=${this._homeView !== 'schedules'}>
+                  <wiser-schedules-home
+                    .hass=${this._hass}
+                    .config=${this.config}
+                    @wiser-view-ready=${() => this._homeViewReady('schedules')}
+                    @addScheduleClick=${this._addScheduleClick}
+                    @scheduleClick=${(event: CustomEvent) => {
+                      this._schedule_id = event.detail.Id;
+                      this._schedule_type = event.detail.Type;
+                      this._returnView = EViews.Overview;
+                      this._view = EViews.ScheduleEdit;
+                    }}
+                  ></wiser-schedules-home>
+                </div>`
+              : ''
+          }
+          ${
+            this._overviewHomeMounted || this._view === EViews.RoomSchedule
+              ? html`<div class="home-view" ?hidden=${this._view === EViews.Overview && this._homeView !== 'overview'}>
+                  ${this._renderRoomSchedules()}
+                </div>`
+              : ''
+          }
         </div>
       </ha-card>`;
-    } else if (this._view == EViews.ScheduleEdit && this._schedule_id) {
+    }
+    if (this._view == EViews.ScheduleEdit && this._schedule_id) {
       return html`
         <ha-card style=${cardStyle}>
           <div
@@ -284,6 +269,75 @@ export class WiserScheduleCard extends LitElement {
       `;
     }
     return html``;
+  }
+
+  private _resetHomeViews(): void {
+    this._pendingHomeView = undefined;
+    this._schedulesHomeMounted = this._homeView === 'schedules';
+    this._overviewHomeMounted = this._homeView === 'overview';
+    this._schedulesHomeReady = false;
+    this._overviewHomeReady = false;
+  }
+
+  private _homeViewChanged(event: CustomEvent): void {
+    const target = event.detail;
+    if (target !== 'schedules' && target !== 'overview') return;
+    if (target === this._homeView) {
+      this._pendingHomeView = undefined;
+      return;
+    }
+
+    if (target === 'schedules') this._schedulesHomeMounted = true;
+    else this._overviewHomeMounted = true;
+
+    const ready = target === 'schedules' ? this._schedulesHomeReady : this._overviewHomeReady;
+    if (ready) {
+      this._pendingHomeView = undefined;
+      this._homeView = target;
+    } else {
+      // Keep the current home screen visible while the heavier target view loads.
+      this._pendingHomeView = target;
+    }
+  }
+
+  private _homeViewReady(view: 'schedules' | 'overview'): void {
+    if (view === 'schedules') this._schedulesHomeReady = true;
+    else this._overviewHomeReady = true;
+    if (this._pendingHomeView === view) {
+      this._pendingHomeView = undefined;
+      this._homeView = view;
+    }
+  }
+
+  private _renderRoomSchedules(): TemplateResult {
+    return html`<wiser-room-schedules
+      .hass=${this._hass}
+      .config=${this.config}
+      .room_id=${this._view === EViews.RoomSchedule ? this._room_id : undefined}
+      .target_type=${this._target_type}
+      .created_schedule=${this._created_schedule}
+      @wiser-view-ready=${() => {
+        if (this._view === EViews.Overview) this._homeViewReady('overview');
+      }}
+      @createdScheduleOpened=${() => {
+        this._created_schedule = undefined;
+      }}
+      @roomClick=${(event: CustomEvent<{ id: number; kind: string }>) => {
+        this._room_id = event.detail.id;
+        this._target_type = event.detail.kind;
+        this._view = EViews.RoomSchedule;
+      }}
+      @roomsBack=${() => {
+        this._view = EViews.Overview;
+      }}
+      @scheduleAction=${(event: CustomEvent) => {
+        this._schedule_id = event.detail.schedule_id;
+        this._schedule_type = event.detail.schedule_type;
+        this._returnView = EViews.RoomSchedule;
+        this._view = EViews.ScheduleCopy;
+      }}
+      @addScheduleClick=${this._addScheduleClick}
+    ></wiser-room-schedules>`;
   }
 
   private _addScheduleClick() {

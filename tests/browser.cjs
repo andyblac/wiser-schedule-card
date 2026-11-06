@@ -1239,8 +1239,17 @@ const readStoredZip = (buffer) => {
     console.log('PASS repeated resource URLs preserve registered elements and a single picker entry');
     await fresh();
     await page.evaluate(() => mountCard({ home_screen: 'schedules' }));
+    await page.evaluate(() => (fixture.delay = 60));
     await button('Overview').click();
+    await page.waitForTimeout(20);
+    assert.equal(
+      await page.locator('button.schedule-tile').first().isVisible(),
+      true,
+      'schedules remain visible while overview loads',
+    );
+    assert.equal(await page.locator('.device-overview:visible').count(), 0);
     await page.waitForSelector('.device-overview');
+    await page.evaluate(() => (fixture.delay = 0));
     assert.equal(await button('Add Schedule').isDisabled(), true);
     const overviewDevice = page.locator('.device-overview').filter({ hasText: 'Living room' }).first();
     assert.ok((await overviewDevice.innerText()).includes('Next scheduled setting'));
