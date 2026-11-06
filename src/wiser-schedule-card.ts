@@ -128,9 +128,18 @@ export class WiserScheduleCard extends LitElement {
       flex: 1;
       overflow: hidden;
     }
+    :host([panel-mode]) ha-card {
+      border-width: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
     .card-content {
       box-sizing: border-box;
       padding: 22px 20px 20px;
+    }
+    :host([panel-mode]) .card-content {
+      padding: 24px clamp(12px, 3vw, 32px) 40px;
     }
     .status {
       padding: 20px;
@@ -139,6 +148,9 @@ export class WiserScheduleCard extends LitElement {
     @media (max-width: 400px) {
       .card-content {
         padding: 18px 12px 12px;
+      }
+      :host([panel-mode]) .card-content {
+        padding: 20px 16px 32px;
       }
     }
   `;

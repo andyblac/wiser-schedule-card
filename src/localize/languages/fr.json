@@ -32,6 +32,10 @@
       "selected_period": "Période sélectionnée",
       "time": "Heure",
       "fixed": "Fixe",
+      "preset": "Préréglage",
+      "custom_temperature": "Température",
+      "lower_temperature": "Température inférieure",
+      "upper_temperature": "Température supérieure",
       "passive_schedule": "Programmer le mode passif"
     },
     "days": {
@@ -106,6 +110,7 @@
       "apply_devices": "Appliquer les affectations",
       "no_devices": "Aucun appareil compatible disponible.",
       "schedules": "Plannings",
+      "panel_subtitle": "Plannings enregistrés sur votre hub Wiser",
       "overview_hint": "Changements planifiés par appareil, dans le fuseau horaire de Home Assistant.",
       "schedule_name": "Nom du planning",
       "schedule_id": "ID du planning",

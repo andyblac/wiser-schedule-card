@@ -4,8 +4,17 @@ import * as fr from './languages/fr.json';
 import * as de from './languages/de.json';
 import * as hu from './languages/hu.json';
 import * as enGB from './languages/en-GB.json';
+import * as da from './languages/da.json';
+import * as es from './languages/es.json';
+import * as fi from './languages/fi.json';
+import * as nb from './languages/nb.json';
+import * as nl from './languages/nl.json';
+import * as pt from './languages/pt.json';
+import * as sv from './languages/sv.json';
 
-const languages: Record<string, unknown> = { en, fr, de, hu, 'en-gb': enGB };
+const languages: Record<string, unknown> = {
+  da, de, en, 'en-gb': enGB, es, fi, fr, hu, nb, no: nb, nl, pt, sv,
+};
 const nativeKeys: Record<string, string> = {
   'wiser.labels.state': 'ui.dialogs.more_info_control.state',
   'wiser.labels.sunrise': 'ui.panel.config.automation.editor.triggers.type.sun.sunrise',

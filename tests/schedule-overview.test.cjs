@@ -27,3 +27,29 @@ test('resolves sun slots, sorts times, and handles empty schedules', () => {
   assert.equal(next.setpoint, 'On');
   assert.equal(nextScheduleChange({ ScheduleData: [] }, new Date(), 'UTC'), undefined);
 });
+
+test('all full translations match the English key and placeholder set', () => {
+  const directory = 'src/localize/languages';
+  const flatten = (value, prefix = '') => Object.entries(value).reduce((result, [key, item]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (item && typeof item === 'object') Object.assign(result, flatten(item, path));
+    else result[path] = item;
+    return result;
+  }, {});
+  const english = flatten(JSON.parse(fs.readFileSync(`${directory}/en.json`, 'utf8')));
+  const placeholders = value => [...String(value).matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+  for (const language of ['da', 'de', 'es', 'fi', 'fr', 'hu', 'nb', 'nl', 'pt', 'sv']) {
+    const translations = flatten(JSON.parse(fs.readFileSync(`${directory}/${language}.json`, 'utf8')));
+    assert.deepEqual(Object.keys(translations).sort(), Object.keys(english).sort(), `${language} keys`);
+    for (const key of Object.keys(english)) {
+      assert.deepEqual(placeholders(translations[key]), placeholders(english[key]), `${language}.${key} placeholders`);
+    }
+  }
+});
+
+test('British English contains only genuine overrides', () => {
+  const english = JSON.parse(fs.readFileSync('src/localize/languages/en.json', 'utf8'));
+  const british = JSON.parse(fs.readFileSync('src/localize/languages/en-GB.json', 'utf8'));
+  assert.deepEqual(british, { wiser: { editor: { theme_colors: 'Use theme colours' } } });
+  assert.notEqual(british.wiser.editor.theme_colors, english.wiser.editor.theme_colors);
+});

@@ -32,6 +32,10 @@
       "selected_period": "Ausgewählter Zeitraum",
       "time": "Zeit",
       "fixed": "Fest",
+      "preset": "Voreingestellt",
+      "custom_temperature": "Temperatur",
+      "lower_temperature": "Niedrigere Temperatur",
+      "upper_temperature": "Obere Temperatur",
       "passive_schedule": "Passivmodus planen"
     },
     "days": {
@@ -106,6 +110,7 @@
       "apply_devices": "Zuordnungen übernehmen",
       "no_devices": "Keine kompatiblen Geräte verfügbar.",
       "schedules": "Zeitpläne",
+      "panel_subtitle": "Auf Ihrem Wiser Hub gespeicherte Zeitpläne",
       "overview_hint": "Geplante Zeitplanänderungen für jedes Gerät, angezeigt in der Zeitzone von Home Assistant.",
       "schedule_name": "Zeitplanname",
       "schedule_id": "Zeitplan-ID",

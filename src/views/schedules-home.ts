@@ -102,7 +102,8 @@ export class SchedulesHome extends SubscribeMixin(LitElement) {
     if (!this.hass) return html``;
     return html`
       <wiser-card-header .config=${this.config}>
-        <h3 slot="heading">${this.localize('wiser.rooms.schedules')}</h3>
+        <h2 slot="heading">${this.localize('wiser.rooms.schedules')}</h2>
+        ${this.config.panel_mode ? html`<p slot="subtitle">${this.localize('wiser.home.panel_subtitle')}</p>` : html``}
         <div class="home-tools" role="toolbar" aria-label="Home">
           <wiser-home-navigation
             .hass=${this.hass}

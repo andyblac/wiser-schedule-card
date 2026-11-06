@@ -25,7 +25,7 @@ class WiserSchedulesPanel extends HTMLElement {
         #editor-error:empty { display: none; }
         #editor-error { color: var(--error-color, #db4437); }
         main { display: flex; flex-direction: column; flex: 1 0 auto;
-          box-sizing: border-box; width: 100%; min-width: 0; padding: 16px; }
+          box-sizing: border-box; width: 100%; min-width: 0; padding: 0; }
         #hub-tabs { display: flex; flex: 1; min-width: 0; margin-inline-start: 24px; align-self: stretch; overflow-x: auto; }
         :host([nested]) header { flex-basis:56px; height:56px; }
         :host([nested]) #menu, :host([nested]) h1 { display:none; }
@@ -317,6 +317,7 @@ class WiserSchedulesPanel extends HTMLElement {
       if (generation !== this._generation) return;
       const cards = config.hubs.map((hub) => {
         const card = document.createElement('wiser-schedule-card');
+        card.setAttribute('panel-mode', '');
         card.setConfig(this._cardConfig(hub));
         card.hass = this._hass;
         return card;

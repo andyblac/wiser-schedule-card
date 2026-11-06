@@ -484,7 +484,8 @@ export class RoomSchedules extends SubscribeMixin(LitElement) {
     ];
     return html`
       <wiser-card-header .config=${this.config}>
-        <h3 slot="heading">${this.localize('wiser.home.overview')}</h3>
+        <h2 slot="heading">${this.localize('wiser.home.overview')}</h2>
+        ${this.config.panel_mode ? html`<p slot="subtitle">${this.localize('wiser.home.panel_subtitle')}</p>` : html``}
         <wiser-home-navigation
           .hass=${this.hass}
           active="overview"

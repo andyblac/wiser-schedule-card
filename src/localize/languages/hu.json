@@ -32,6 +32,10 @@
       "selected_period": "Kiválasztott időszak",
       "time": "Időpont",
       "fixed": "Rögzített",
+      "preset": "Előre beállított",
+      "custom_temperature": "Hőmérséklet",
+      "lower_temperature": "Alacsonyabb hőmérséklet",
+      "upper_temperature": "Felső hőmérséklet",
       "passive_schedule": "Passzív mód ütemezése"
     },
     "days": {
@@ -106,6 +110,7 @@
       "apply_devices": "Hozzárendelések alkalmazása",
       "no_devices": "Nem érhetők el kompatibilis eszközök.",
       "schedules": "Időprogramok",
+      "panel_subtitle": "A Wiser központon tárolt időprogramok",
       "overview_hint": "Az egyes eszközök tervezett időprogram-változásai a Home Assistant időzónájában.",
       "schedule_name": "Időprogram neve",
       "schedule_id": "Időprogram azonosítója",

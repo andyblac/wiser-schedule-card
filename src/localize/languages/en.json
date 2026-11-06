@@ -110,6 +110,7 @@
       "apply_devices": "Apply assignments",
       "no_devices": "No compatible devices available.",
       "schedules": "Schedules",
+      "panel_subtitle": "Schedules stored on your Wiser hub",
       "overview_hint": "Planned schedule changes for each device, shown in the Home Assistant timezone.",
       "schedule_name": "Schedule name",
       "schedule_id": "Schedule ID",
