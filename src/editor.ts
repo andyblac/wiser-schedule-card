@@ -16,6 +16,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
   }
   @property({ attribute: false }) public hass?: HomeAssistant;
   @property({ attribute: false }) public hideHubSelector = false;
+  @property({ attribute: false }) public hideVersion = false;
   @property({ attribute: false }) public hideCardAppearance = false;
   @state() private _config?: WiserScheduleCardConfig;
   @state() private _hubs: string[] = [];
@@ -271,7 +272,7 @@ export class WiserScheduleCardEditor extends LitElement implements LovelaceCardE
               `
         }
       </fieldset>
-      <div class="version">Wiser Schedule Card · ${CARD_VERSION}</div>
+      ${this.hideVersion ? '' : html`<div class="version">Wiser Schedule Card · ${CARD_VERSION}</div>`}
     `;
   }
 

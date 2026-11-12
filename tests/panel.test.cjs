@@ -67,6 +67,7 @@ function setup(storage = new Map()) {
   }
   const registry = new Map([['wiser-schedule-card', Element]]);
   const context = vm.createContext({
+    CARD_VERSION: 'test-version',
     HTMLElement: Element,
     window: {
       loadCardHelpers: async () => ({}),
@@ -89,7 +90,7 @@ function setup(storage = new Map()) {
     console: { error() {} },
   });
   const source = readFileSync(resolve(__dirname, '../src/wiser-schedules-panel.js'), 'utf8').replace(
-    "import { localizeForHass } from './localize/localize';",
+    /^import .*;\n/gm,
     '',
   );
   vm.runInContext(source, context);

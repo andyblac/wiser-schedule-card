@@ -1,4 +1,5 @@
 import { localizeForHass } from './localize/localize';
+import { CARD_VERSION } from './const';
 
 /** Sidebar host for the existing Wiser schedule card. */
 class WiserSchedulesPanel extends HTMLElement {
@@ -21,7 +22,9 @@ class WiserSchedulesPanel extends HTMLElement {
         #settings[disabled] ha-icon { color: var(--disabled-text-color); }
         ha-dialog { --ha-dialog-width-md: 600px;
           --ha-dialog-surface-background: var(--primary-background-color, var(--ha-color-surface-default, #fff)); }
-        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 100%; }
+        .editor-version { margin-right: auto; color: var(--secondary-text-color); font-size: 12px; }
+        @media (max-width: 720px) { .editor-version { max-width: 42%; } }
         #editor-error:empty { display: none; }
         #editor-error { color: var(--error-color, #db4437); }
         main { display: flex; flex-direction: column; flex: 1 0 auto;
@@ -56,6 +59,7 @@ class WiserSchedulesPanel extends HTMLElement {
       <ha-dialog id="editor-dialog" header-title="Panel settings" width="medium">
         <div id="editors"></div><p id="editor-error" role="alert"></p>
         <div class="dialog-actions" id="editor-actions" slot="footer">
+          <span class="editor-version">Wiser Schedule Card · ${CARD_VERSION}</span>
           <ha-button id="cancel" appearance="plain">Cancel</ha-button>
           <ha-button id="save">Save</ha-button>
         </div>
@@ -258,6 +262,7 @@ class WiserSchedulesPanel extends HTMLElement {
       const config = this._drafts[hub];
       editor.hass = this._hass;
       editor.hideHubSelector = true;
+      editor.hideVersion = true;
       editor.hideCardAppearance = true;
       editor.setConfig({ ...config });
       editor.addEventListener('config-changed', (event) => {

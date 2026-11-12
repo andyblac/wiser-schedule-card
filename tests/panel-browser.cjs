@@ -56,6 +56,18 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('ha-button#save').count(), 1);
     assert.equal(await page.locator('ha-button#cancel').count(), 1);
     assert.equal(await page.locator('ha-dialog #editor-actions').getAttribute('slot'), 'footer');
+    assert.equal(await page.locator('wiser-schedule-card-editor .version').count(), 0);
+    assert.equal(await page.locator('ha-dialog #editor-actions .editor-version').count(), 1);
+    const versionLayout = await page.locator('ha-dialog #editor-actions').evaluate((footer) => {
+      const version = footer.querySelector('.editor-version');
+      const cancel = footer.querySelector('#cancel');
+      return {
+        fontSize: getComputedStyle(version).fontSize,
+        beforeButtons: version.getBoundingClientRect().right <= cancel.getBoundingClientRect().left,
+      };
+    });
+    assert.equal(versionLayout.fontSize, '12px');
+    assert.equal(versionLayout.beforeButtons, true);
     assert.equal(await page.getByLabel('Hide card background', { exact: true }).count(), 0);
     assert.equal(await page.getByLabel('Hide card borders', { exact: true }).count(), 0);
     assert.equal(await page.getByLabel('Temperatures: Low', { exact: true }).inputValue(), '#ebff00');
@@ -91,7 +103,7 @@ const assert = require('node:assert/strict');
       await page.getByLabel('Temperatures: Low', { exact: true }).evaluate((input) => input.matches(':focus')),
       true,
     );
-    await page.locator('wiser-schedule-card-editor .version').click();
+    await page.locator('.dialog-actions .editor-version').click();
     assert.equal(
       await page.getByLabel('Temperatures: Low', { exact: true }).evaluate((input) => input.matches(':focus')),
       false,
